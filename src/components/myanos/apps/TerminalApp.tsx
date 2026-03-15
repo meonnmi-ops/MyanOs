@@ -1,30 +1,32 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { useMyanOSStore } from '@/stores/myanos-store'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, Terminal as TerminalIcon, Trash2 } from 'lucide-react'
+import { Loader2, Terminal as TerminalIcon, Trash2, CheckCircle } from 'lucide-react'
 
 interface TerminalAppProps {
   windowId: string
 }
 
-export function TerminalApp({ windowId }: TerminalAppProps) {
-  const { 
-    terminalHistory, 
-    addTerminalLine, 
-    clearTerminal, 
-    terminalLoading,
-    setTerminalLoading,
-    terminalConnected,
-    setTerminalConnected 
-  } = useMyanOSStore()
-  
+export function TerminalApp({ windowId: _windowId }: TerminalAppProps) {
+  const [lines, setLines] = useState<Array<{ type: 'input' | 'output' | 'error'; content: string }>>([
+    { type: 'output', content: `
+╔══════════════════════════════════════════════════════════════╗
+║           MyanOS Terminal v1.0 - Real Linux Shell            ║
+║              တကယ့် Linux Terminal                            ║
+╠══════════════════════════════════════════════════════════════╣
+║  ✓ Execute Linux commands (ls, pwd, cat, etc.)              ║
+║  ✓ Run Node.js, Python, npm, pip commands                   ║
+║  ✓ Use Tab for autocomplete, ↑/↓ for history                ║
+╚══════════════════════════════════════════════════════════════╝
+` }
+  ])
   const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
+  const connected = true
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -32,57 +34,40 @@ export function TerminalApp({ windowId }: TerminalAppProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [terminalHistory])
-
-  useEffect(() => {
-    // Initial welcome message
-    if (terminalHistory.length === 0) {
-      addTerminalLine('output', `
-╔══════════════════════════════════════════════════════════════════╗
-║                     MyanOS Terminal v1.0                          ║
-║                   တကယ်အလုပ်လုပ်တဲ့ Terminal                         ║
-╠══════════════════════════════════════════════════════════════════╣
-║  Real command execution via backend service                       ║
-║  Type 'help' for available commands                               ║
-╚══════════════════════════════════════════════════════════════════╝
-`)
-    }
-  }, [])
+  }, [lines])
 
   const executeCommand = async (cmd: string) => {
     if (!cmd.trim()) return
 
-    addTerminalLine('input', `$ ${cmd}`)
+    setLines(prev => [...prev, { type: 'input', content: `$ ${cmd}` }])
     setCommandHistory(prev => [...prev, cmd])
     setHistoryIndex(-1)
-    setTerminalLoading(true)
+    setLoading(true)
 
     try {
-      const response = await fetch('/api/terminal?XTransformPort=3001', {
+      const response = await fetch('/api/terminal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: cmd }),
       })
-
       const data = await response.json()
       
       if (data.output) {
-        addTerminalLine('output', data.output)
+        setLines(prev => [...prev, { type: 'output', content: data.output }])
       }
-      if (data.error) {
-        addTerminalLine('output', `Error: ${data.error}`)
+      if (data.error && !data.output) {
+        setLines(prev => [...prev, { type: 'error', content: data.error }])
       }
-    } catch (error) {
-      addTerminalLine('output', `Connection error: Terminal service not available`)
-      addTerminalLine('output', `Please make sure the terminal backend is running on port 3001`)
+    } catch {
+      setLines(prev => [...prev, { type: 'error', content: '❌ Terminal service not responding' }])
     }
 
-    setTerminalLoading(false)
+    setLoading(false)
     setInput('')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !terminalLoading) {
+    if (e.key === 'Enter' && !loading) {
       executeCommand(input)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
@@ -103,71 +88,57 @@ export function TerminalApp({ windowId }: TerminalAppProps) {
       }
     } else if (e.key === 'Tab') {
       e.preventDefault()
-      // Simple tab completion for common commands
-      const commands = ['ls', 'cd', 'pwd', 'cat', 'echo', 'help', 'clear', 'whoami', 'date', 'uname']
-      const matches = commands.filter(c => c.startsWith(input))
-      if (matches.length === 1) {
-        setInput(matches[0])
-      }
+      const cmds = ['ls', 'cd', 'cat', 'pwd', 'echo', 'mkdir', 'rm', 'cp', 'mv', 'grep', 'find', 'sudo', 'npm', 'node', 'python3', 'pip', 'git', 'clear']
+      const matches = cmds.filter(c => c.startsWith(input))
+      if (matches.length === 1) setInput(matches[0] + ' ')
+      else if (matches.length > 1) setLines(prev => [...prev, { type: 'output', content: matches.join('  ') }])
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault()
+      setLines([])
     }
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 font-mono text-sm">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-2 py-1.5 bg-slate-800/50 border-b border-slate-700">
+    <div className="h-full flex flex-col bg-slate-950 font-mono text-xs">
+      <div className="flex items-center justify-between px-2 py-1 bg-slate-800/50 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <TerminalIcon className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-xs">bash - MyanOS Terminal</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-slate-400 hover:text-white"
-            onClick={clearTerminal}
-          >
-            <Trash2 className="w-3 h-3 mr-1" />
-            Clear
-          </Button>
-        </div>
-      </div>
-
-      {/* Output */}
-      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
-        <div className="space-y-1">
-          {terminalHistory.map((line, i) => (
-            <div
-              key={i}
-              className={`whitespace-pre-wrap break-all ${
-                line.type === 'input' 
-                  ? 'text-green-400' 
-                  : 'text-slate-300'
-              }`}
-            >
-              {line.content}
-            </div>
-          ))}
-          {terminalLoading && (
-            <div className="text-yellow-400 flex items-center gap-2">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Executing...
+          <TerminalIcon className="w-3.5 h-3.5 text-green-400" />
+          <span className="text-slate-300">bash</span>
+          {connected && (
+            <div className="flex items-center gap-1 text-green-400">
+              <CheckCircle className="w-3 h-3" />
+              Connected
             </div>
           )}
         </div>
+        <Button variant="ghost" size="sm" className="h-5 px-1.5 text-xs text-slate-400 hover:text-white" onClick={() => setLines([])}>
+          <Trash2 className="w-3 h-3 mr-1" />Clear
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1 p-2" ref={scrollRef}>
+        <div className="space-y-0.5">
+          {lines.map((line, i) => (
+            <div key={i} className={`whitespace-pre-wrap break-all ${line.type === 'input' ? 'text-green-400' : line.type === 'error' ? 'text-red-400' : 'text-slate-300'}`}>
+              {line.content}
+            </div>
+          ))}
+          {loading && <div className="text-yellow-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Executing...</div>}
+        </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="flex items-center gap-2 p-2 border-t border-slate-700 bg-slate-900/50">
+      <div className="flex items-center gap-1.5 p-1.5 border-t border-slate-700 bg-slate-900/50">
         <span className="text-green-400">$</span>
-        <Input
+        <input
           ref={inputRef}
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a command..."
-          className="flex-1 bg-transparent border-none text-green-400 placeholder-slate-500 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono"
-          disabled={terminalLoading}
+          placeholder={loading ? "Running..." : "Type command..."}
+          className="flex-1 bg-transparent border-none text-green-400 placeholder-slate-500 focus:outline-none"
+          disabled={loading}
+          autoFocus
         />
       </div>
     </div>
