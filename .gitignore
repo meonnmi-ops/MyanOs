@@ -49,3 +49,9 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# MyanOS specific
+/db/
+/upload/
+/worklog.md
+agent-ctx/

@@ -1,7 +1,10 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.0",
+  "name": "myanos",
+  "version": "1.0.0",
+  "description": "MyanOS - Web-based Operating System for Myanmar 🇲🇲",
   "private": true,
+  "author": "MyanOS Team",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
