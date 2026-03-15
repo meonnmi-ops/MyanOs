@@ -6,7 +6,7 @@
 
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 
 const app = new Hono()
 
@@ -17,8 +17,9 @@ app.use('*', cors({
   allowHeaders: ['Content-Type'],
 }))
 
-// Store current working directory
-let currentCwd = '/home/z/my-project'
+// Store current working directory - use HOME or fallback
+const HOME = process.env.HOME || '/home/user'
+let currentCwd = HOME
 
 // Health check
 app.get('/', (c) => {
@@ -28,7 +29,10 @@ app.get('/', (c) => {
     version: '1.0.0',
     port: 3001,
     cwd: currentCwd,
-    shell: '/bin/bash'
+    shell: '/bin/bash',
+    home: HOME,
+    user: process.env.USER || 'unknown',
+    path: process.env.PATH?.split(':').slice(0, 5) || []
   })
 })
 
@@ -80,18 +84,26 @@ app.post('/execute', async (c) => {
       return c.json({ output: '\x1b[2J\x1b[H', exitCode: 0 })
     }
 
+    // Handle exit command
+    if (command.trim() === 'exit') {
+      return c.json({ output: 'Goodbye!', exitCode: 0 })
+    }
+
     // Execute command with bash
     const result = await new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
-      const proc = spawn('bash', ['-c', command], {
+      const proc = spawn('/bin/bash', ['-l', '-c', command], {
         cwd: cwd || currentCwd,
         env: {
           ...process.env,
           TERM: 'xterm-256color',
           LANG: 'en_US.UTF-8',
-          HOME: process.env.HOME || '/root',
-          USER: process.env.USER || 'root',
-          PATH: process.env.PATH,
+          HOME: HOME,
+          USER: process.env.USER || 'user',
+          PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin',
+          SHELL: '/bin/bash',
+          PWD: cwd || currentCwd,
         },
+        stdio: ['pipe', 'pipe', 'pipe']
       })
 
       let stdout = ''
@@ -106,11 +118,13 @@ app.post('/execute', async (c) => {
       })
 
       proc.on('close', (code) => {
+        console.log(`[Terminal] Exit code: ${code}`)
         resolve({ stdout, stderr, code: code || 0 })
       })
 
       proc.on('error', (err) => {
-        resolve({ stdout: '', stderr: err.message, code: 1 })
+        console.error(`[Terminal] Spawn error:`, err)
+        resolve({ stdout: '', stderr: `Failed to execute: ${err.message}`, code: 1 })
       })
       
       // Timeout for long-running commands
@@ -122,8 +136,6 @@ app.post('/execute', async (c) => {
 
     const output = result.stdout + (result.stderr ? '\n' + result.stderr : '')
     
-    console.log(`[Terminal] Exit code: ${result.code}`)
-    
     return c.json({
       output: output || '(no output)',
       exitCode: result.code
@@ -131,7 +143,7 @@ app.post('/execute', async (c) => {
   } catch (error: any) {
     console.error('[Terminal] Error:', error)
     return c.json({
-      output: '',
+      output: `Error: ${error.message}`,
       error: error.message,
       exitCode: 1
     })
@@ -148,6 +160,7 @@ const PORT = 3001
 console.log(`🚀 MyanOS Terminal Service running on port ${PORT}`)
 console.log(`📁 Working directory: ${currentCwd}`)
 console.log(`🐚 Shell: /bin/bash`)
+console.log(`👤 User: ${process.env.USER || 'unknown'}`)
 
 export default {
   port: PORT,
