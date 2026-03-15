@@ -16,6 +16,7 @@ model User {
   name          String?
   password      String
   role          String   @default("user") // "admin" or "user"
+  aiCredits     Int      @default(100) // Free users get 100 credits
   isActive      Boolean  @default(true)
   lastLogin     DateTime?
   createdAt     DateTime @default(now())

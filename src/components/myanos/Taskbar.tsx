@@ -6,14 +6,15 @@ import { Button } from '@/components/ui/button'
 import { 
   Menu, X, Cpu, Wifi, Battery, Volume2, LogOut, User, Sparkles
 } from 'lucide-react'
-import type { MyanosUser } from './LoginPanel'
+import type { User } from '@/stores/auth-store'
 
 interface TaskbarProps {
-  user: MyanosUser
+  user?: User | null
   onLogout: () => void
 }
 
 export function Taskbar({ user, onLogout }: TaskbarProps) {
+  const isAdmin = user?.role === 'admin'
   const { windows, activeWindowId, startMenuOpen, toggleStartMenu, focusWindow, minimizeWindow, language, openWindow } = useMyanOSStore()
   const [time, setTime] = useState(new Date())
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -87,7 +88,7 @@ export function Taskbar({ user, onLogout }: TaskbarProps) {
       {/* AI Credits */}
       <div className="flex items-center gap-1 px-2 text-xs text-amber-400">
         <Sparkles className="w-3 h-3" />
-        <span>{user.aiCredits}</span>
+        <span>{user?.aiCredits ?? 0}</span>
       </div>
 
       {/* System Tray */}
@@ -116,8 +117,8 @@ export function Taskbar({ user, onLogout }: TaskbarProps) {
         {showUserMenu && (
           <div className="absolute bottom-9 right-0 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
             <div className="p-2 border-b border-slate-700">
-              <p className="text-xs text-white">{user.name}</p>
-              <p className="text-[10px] text-slate-400">{user.email}</p>
+              <p className="text-xs text-white">{user?.name || 'User'}</p>
+              <p className="text-[10px] text-slate-400">{user?.email || ''}</p>
             </div>
             <button
               onClick={() => { setShowUserMenu(false); onLogout() }}
@@ -142,7 +143,7 @@ export function Taskbar({ user, onLogout }: TaskbarProps) {
 
           <div className="p-2">
             <div className="grid grid-cols-4 gap-0.5">
-              {APPS.filter(app => isAppAllowed(app.id)).map((app) => (
+              {APPS.filter(app => isAdmin || isAppAllowed(app.id)).map((app) => (
                 <button
                   key={app.id}
                   className="flex flex-col items-center gap-0.5 p-1.5 rounded hover:bg-slate-700 transition-colors"

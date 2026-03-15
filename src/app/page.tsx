@@ -68,6 +68,8 @@ export default function Home() {
       <MyanOSDesktop 
         onOpenAdmin={() => setShowAdmin(true)}
         isAdmin={isAdmin}
+        user={user}
+        onLogout={() => useAuthStore.getState().logout()}
       />
       
       {/* Admin Panel Overlay */}

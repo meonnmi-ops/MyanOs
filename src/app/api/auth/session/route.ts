@@ -21,6 +21,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ user: null })
     }
 
+    // Check for admin token
+    if (decoded.userId === 'admin-001' && decoded.role === 'admin') {
+      return NextResponse.json({
+        user: {
+          id: 'admin-001',
+          email: 'admin@myanos.local',
+          name: 'Administrator',
+          role: 'admin',
+          aiCredits: 999999,
+        }
+      })
+    }
+
     // Check session
     const session = await db.session.findUnique({ 
       where: { token },
@@ -42,6 +55,7 @@ export async function GET(request: NextRequest) {
         email: session.user.email,
         name: session.user.name,
         role: session.user.role,
+        aiCredits: session.user.aiCredits,
       }
     })
   } catch (error) {

@@ -5,10 +5,13 @@ import { useMyanOSStore } from '@/stores/myanos-store'
 import { DesktopIcons } from './Desktop'
 import { Window } from './Window'
 import { Taskbar } from './Taskbar'
+import type { User } from '@/stores/auth-store'
 
 interface MyanOSDesktopProps {
   onOpenAdmin?: () => void
   isAdmin?: boolean
+  user?: User | null
+  onLogout?: () => void
 }
 
 const wallpaperStyles: Record<string, React.CSSProperties> = {
@@ -20,7 +23,7 @@ const wallpaperStyles: Record<string, React.CSSProperties> = {
   purple: { background: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 50%, #2e1065 100%)' },
 }
 
-export function MyanOSDesktop({ onOpenAdmin, isAdmin }: MyanOSDesktopProps) {
+export function MyanOSDesktop({ onOpenAdmin, isAdmin, user, onLogout }: MyanOSDesktopProps) {
   const { windows, wallpaper } = useMyanOSStore()
 
   // Store admin callbacks in window for apps to access
@@ -44,7 +47,7 @@ export function MyanOSDesktop({ onOpenAdmin, isAdmin }: MyanOSDesktopProps) {
       ))}
 
       {/* Taskbar */}
-      <Taskbar />
+      <Taskbar user={user} onLogout={onLogout || (() => {})} />
     </div>
   )
 }

@@ -185,16 +185,7 @@ export function LoginPanel({ onLogin }: LoginPanelProps) {
                 </Button>
               </form>
 
-              <div className="mt-6 p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-xl border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-medium text-amber-400">🔑 Admin Login</span>
-                </div>
-                <div className="space-y-1 text-xs text-slate-400 font-mono">
-                  <p><span className="text-slate-500">Email:</span> admin@myanos.local</p>
-                  <p><span className="text-slate-500">Pass:</span> myanos-admin-2024</p>
-                </div>
-              </div>
+
             </TabsContent>
 
             <TabsContent value="register" className="mt-6">

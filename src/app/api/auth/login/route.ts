@@ -5,12 +5,32 @@ import { sign, verify } from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'myanos-secret-key-2024'
 
+// Hardcoded admin credentials (for system admin)
+const ADMIN_EMAIL = 'admin@myanos.local'
+const ADMIN_PASSWORD = 'myanos-admin-2024'
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
+    }
+
+    // Check for hardcoded admin login
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      const token = sign({ userId: 'admin-001', role: 'admin' }, JWT_SECRET, { expiresIn: '7d' })
+      
+      return NextResponse.json({
+        user: {
+          id: 'admin-001',
+          email: ADMIN_EMAIL,
+          name: 'Administrator',
+          role: 'admin',
+          aiCredits: 999999,
+        },
+        token,
+      })
     }
 
     // Find user
@@ -61,6 +81,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        aiCredits: user.aiCredits,
       },
       token,
     })
