@@ -9,10 +9,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API key required' }, { status: 400 })
     }
 
-    // Use z-ai-web-dev-sdk for AI chat
+    // Use z-ai-web-dev-sdk for AI chat with provided API key
     const ZAI = (await import('z-ai-web-dev-sdk')).default
     
-    const zai = await ZAI.create()
+    const zai = await ZAI.create({
+      apiKey: apiKey
+    })
     
     // Build messages array
     const messages = [
