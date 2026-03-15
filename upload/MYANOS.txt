@@ -1,0 +1,1597 @@
+Based on the provided documentation, here's a concise summary of MyanOS: MyanOS: A Web-Based Operating System for Myanmar Users Key Features: - Myanmar Language Support: Full Myanmar (Burmese) language interface. - AI-Powered Features:
+
+
+ MyanOS - Complete Project Documentation
+
+## Web Operating System for Myanmar 🇲🇲
+
+---
+
+# 📖 Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Architecture](#2-architecture)
+3. [Technology Stack](#3-technology-stack)
+4. [Project Structure](#4-project-structure)
+5. [Features](#5-features)
+6. [Installation Guide](#6-installation-guide)
+7. [Backend Services](#7-backend-services)
+8. [Frontend Components](#8-frontend-components)
+9. [API Documentation](#9-api-documentation)
+10. [Real Features Setup](#10-real-features-setup)
+11. [Deployment](#11-deployment)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Future Development](#13-future-development)
+
+---
+
+# 1. Project Overview
+
+## 1.1 What is MyanOS?
+
+MyanOS is a **Web-based Operating System** designed specifically for Myanmar users. It provides a complete desktop experience in the browser with:
+
+- **Myanmar Language Support** - Full Myanmar (Burmese) language interface
+- **AI-Powered Features** - Real AI code generation and assistance
+- **Real Terminal** - Docker-powered actual command execution
+- **Phone Repair Tools** - Real ADB commands for Android device management
+- **Database Management** - PostgreSQL integration
+- **File Management** - Virtual file system in browser
+
+## 1.2 Project Goals
+
+| Goal | Description |
+|------|-------------|
+| **Accessibility** | Access your desktop from anywhere via browser |
+| **Myanmar-First** | Designed with Myanmar users in mind |
+| **Real Functionality** | Not just UI - actual working tools |
+| **Self-Hosted** | Run on your own hardware |
+| **Privacy** | Your data stays on your machine |
+
+## 1.3 Use Cases
+
+1. **Phone Repair Shops** - Use ADB tools for device repair
+2. **Developers** - AI-assisted code generation
+3. **Remote Work** - Access desktop from any device
+4. **Learning** - Learn Linux commands safely
+5. **Server Management** - Manage servers via web terminal
+
+---
+
+# 2. Architecture
+
+## 2.1 System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CLIENT (Browser)                             │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                    MyanOS Frontend (Next.js)                  │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │   │
+│  │  │ Desktop  │ │ Taskbar  │ │ Windows  │ │     Apps         │ │   │
+│  │  │  UI      │ │  System  │ │ Manager  │ │ (Terminal,AI...) │ │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘ │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         SERVER (Arch Linux)                          │
+│                                                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │   Frontend  │  │   Terminal  │  │      AI Agent Worker        │ │
+│  │   :3000     │  │   :8001     │  │         :8002               │ │
+│  │  (Next.js)  │  │  (Docker)   │  │   (z-ai-web-dev-sdk)        │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+│                                                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │ PostgreSQL  │  │    ADB      │  │        Tailscale            │ │
+│  │   :5432     │  │   :5037     │  │      VPN Network            │ │
+│  │  (myanos)   │  │ (Android)   │  │    archlinux.ts.net         │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+│                                                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │   Docker    │  │   Systemd   │  │      Cloudflare             │ │
+│  │  Containers │  │  Services   │  │       Tunnel                │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      EXTERNAL SERVICES                               │
+│                                                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
+│  │   Galaxy    │  │   Android   │  │      z-ai-web-dev-sdk       │ │
+│  │   Note 8    │  │   Devices   │  │       AI API                │ │
+│  │ (ADB over   │  │  (via ADB)  │  │                             │ │
+│  │  Network)   │  │             │  │                             │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 2.2 Data Flow
+
+```
+User Action → Frontend (React) → API Call → Backend (FastAPI) → Docker/ADB/DB → Response → UI Update
+```
+
+## 2.3 Network Topology
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Tailscale Network (tail9dcf63)               │
+│                                                                 │
+│  ┌──────────────────┐         ┌──────────────────────────┐    │
+│  │   Arch Linux     │         │     Galaxy Note 8        │    │
+│  │   (Server)       │         │     (Phone)              │    │
+│  │  100.96.222.58   │◄───────►│     100.75.44.53         │    │
+│  │                  │  ADB    │                          │    │
+│  │  MyanOS Server   │  over   │  Android Device          │    │
+│  │  Port 3000       │ Network │  for Phone Repair        │    │
+│  └──────────────────┘         └──────────────────────────┘    │
+│                                                                 │
+│  ┌──────────────────┐                                          │
+│  │ Public Internet  │                                          │
+│  │ (via Tailscale   │                                          │
+│  │     Funnel)      │                                          │
+│  │ archlinux.tail   │                                          │
+│  │  9dcf63.ts.net   │                                          │
+│  └──────────────────┘                                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 3. Technology Stack
+
+## 3.1 Frontend
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Next.js** | 16.x | React framework for production |
+| **React** | 19.x | UI library |
+| **TypeScript** | 5.x | Type-safe JavaScript |
+| **Tailwind CSS** | 4.x | Utility-first CSS framework |
+| **shadcn/ui** | Latest | UI component library |
+| **Zustand** | 4.x | State management |
+| **React Markdown** | 9.x | Markdown rendering |
+| **Lucide Icons** | Latest | Icon library |
+
+## 3.2 Backend
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Python** | 3.12+ | Backend language |
+| **FastAPI** | 0.135+ | Modern web framework |
+| **Uvicorn** | 0.41+ | ASGI server |
+| **Docker SDK** | Latest | Container management |
+| **psycopg2** | Latest | PostgreSQL adapter |
+
+## 3.3 Infrastructure
+
+| Technology | Purpose |
+|------------|---------|
+| **Docker** | Container isolation for terminal |
+| **PostgreSQL** | Database for data storage |
+| **Android Tools (ADB)** | Phone repair features |
+| **Tailscale** | VPN for remote access |
+| **Cloudflare Tunnel** | Public URL access |
+| **Systemd** | Service management |
+
+---
+
+# 4. Project Structure
+
+## 4.1 Directory Layout
+
+```
+myanos/
+├── src/                          # Frontend source code
+│   ├── app/                      # Next.js App Router
+│   │   ├── layout.tsx            # Root layout
+│   │   ├── page.tsx              # Home page
+│   │   ├── globals.css           # Global styles
+│   │   └── api/                  # API routes
+│   │       ├── route.ts          # API endpoint
+│   │       └── chat/
+│   │           └── route.ts      # Chat API
+│   │
+│   ├── components/               # React components
+│   │   ├── ui/                   # shadcn/ui components
+│   │   │   ├── button.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── input.tsx
+│   │   │   └── ... (40+ components)
+│   │   │
+│   │   └── myanos/               # MyanOS specific components
+│   │       ├── Desktop.tsx       # Desktop with icons
+│   │       ├── Window.tsx        # Window manager
+│   │       ├── Taskbar.tsx       # Bottom taskbar
+│   │       └── apps/             # Application components
+│   │           ├── TerminalApp.tsx          # Local terminal
+│   │           ├── RealTerminalApp.tsx      # Real Docker terminal
+│   │           ├── AIAssistantApp.tsx       # AI chat interface
+│   │           ├── RealAIAgentApp.tsx       # Real AI agent
+│   │           ├── PhoneRepairApp.tsx       # Simulated phone repair
+│   │           ├── RealPhoneRepairApp.tsx   # Real ADB phone repair
+│   │           ├── CalculatorApp.tsx        # Calculator
+│   │           ├── NotepadApp.tsx           # Text editor
+│   │           ├── FileManagerApp.tsx       # File browser
+│   │           ├── SettingsApp.tsx          # System settings
+│   │           └── LinuxPostgresApp.tsx     # Database manager
+│   │
+│   ├── stores/                   # State management
+│   │   └── myanos-store.ts       # Zustand store
+│   │
+│   ├── hooks/                    # Custom hooks
+│   │   ├── use-toast.ts          # Toast notifications
+│   │   └── use-mobile.ts         # Mobile detection
+│   │
+│   ├── types/                    # TypeScript types
+│   │   └── myanos.ts             # Type definitions
+│   │
+│   └── lib/                      # Utility functions
+│       ├── utils.ts              # Helper functions
+│       └── db.ts                 # Database utilities
+│
+├── backend/                      # Backend services
+│   ├── real_terminal.py          # Docker terminal backend (Port 8001)
+│   ├── real_ai_agent.py          # AI agent backend (Port 8002)
+│   ├── simple_main.py            # Simple terminal backend
+│   └── ai_agent_worker.py        # AI worker with workflows
+│
+├── public/                       # Static assets
+│   ├── wallpaper.png             # Desktop wallpaper
+│   ├── wallpaper-myanmar.png     # Myanmar-themed wallpaper
+│   └── logo.svg                  # MyanOS logo
+│
+├── prisma/                       # Database schema
+│   └── schema.prisma             # Prisma schema
+│
+├── download/                     # Downloadable files
+│   ├── myanos-all-real.tar.gz    # Complete package
+│   ├── setup-all-real-arch.sh    # Setup script
+│   └── ... (other setup files)
+│
+├── package.json                  # Node.js dependencies
+├── tailwind.config.ts            # Tailwind configuration
+├── tsconfig.json                 # TypeScript configuration
+├── next.config.ts                # Next.js configuration
+└── README.md                     # Project documentation
+```
+
+## 4.2 Key Files Explained
+
+### Frontend Files
+
+| File | Purpose |
+|------|---------|
+| `src/app/layout.tsx` | Root layout with providers |
+| `src/app/page.tsx` | Main desktop page |
+| `src/stores/myanos-store.ts` | Global state (windows, settings, chat) |
+| `src/components/myanos/Window.tsx` | Window component with drag/resize |
+| `src/components/myanos/Desktop.tsx` | Desktop icons layout |
+
+### Backend Files
+
+| File | Purpose | Port |
+|------|---------|------|
+| `backend/real_terminal.py` | Docker-based terminal execution | 8001 |
+| `backend/real_ai_agent.py` | AI chat and code generation | 8002 |
+
+---
+
+# 5. Features
+
+## 5.1 Desktop Environment
+
+### Window Management
+- **Draggable Windows** - Click and drag title bar
+- **Resizable Windows** - Drag bottom-right corner
+- **Minimize/Maximize/Close** - Standard window controls
+- **Z-Index Management** - Click to bring to front
+- **Multiple Instances** - Open multiple windows
+
+### Taskbar
+- **Start Menu** - Application launcher
+- **Open Windows** - Click to focus/minimize
+- **System Tray** - Time, SOUL-DNA status
+- **Quick Launch** - Frequently used apps
+
+### SOUL-DNA Protocol
+- **Secret Activation** - Type `activate 221922` in terminal
+- **Enhanced Features** - Unlock hidden features
+- **Visual Indicators** - Status shown in apps
+
+## 5.2 Applications
+
+### Terminal (Real) - Docker Powered
+```
+Real command execution in Docker containers
+Features:
+├── Docker isolation (safe execution)
+├── Real bash commands
+├── WebSocket support (interactive)
+├── File system access
+└── Network access (host mode)
+```
+
+**Commands Supported:**
+- All Linux commands (ls, cd, pwd, cat, grep, etc.)
+- Package management (pacman, apt)
+- Docker commands
+- Network utilities (ping, curl, wget)
+- Development tools (node, python, git)
+
+### AI Agent (Real) - z-ai-web-dev-sdk
+```
+Real AI-powered code generation and chat
+Features:
+├── Chat interface with AI
+├── Code generation (multiple languages)
+├── Workflow execution
+├── API key management
+└── Template support
+```
+
+**Supported Languages:**
+- JavaScript/TypeScript
+- Python
+- Bash
+- SQL
+
+### Phone Repair (Real) - ADB Integration
+```
+Real Android Debug Bridge integration
+Features:
+├── USB device detection
+├── Network ADB (wireless)
+├── Tailscale device integration
+├── Command execution
+└── Quick actions (reboot, recovery, etc.)
+```
+
+**ADB Commands:**
+- `adb devices` - List connected devices
+- `adb connect IP:5555` - Wireless connection
+- `adb shell` - Remote shell
+- `adb install` - Install APK
+- `adb push/pull` - File transfer
+- `adb reboot` - Reboot device
+- `adb reboot recovery` - Boot to recovery
+- `adb reboot bootloader` - Boot to bootloader
+
+### Calculator
+```
+Standard calculator functionality
+Features:
+├── Basic operations (+, -, ×, ÷)
+├── Scientific functions
+├── Memory operations
+└── History
+```
+
+### Notepad
+```
+Text editor for notes
+Features:
+├── Create/Edit text files
+├── Auto-save
+├── Myanmar font support
+└── Virtual file system
+```
+
+### File Manager
+```
+Virtual file browser
+Features:
+├── Folder navigation
+├── Create/Delete files
+├── Rename items
+└── Virtual file system
+```
+
+### Settings
+```
+System configuration
+Features:
+├── Theme selection
+├── Font size adjustment
+├── Wallpaper change
+└── Desktop icon toggle
+```
+
+### Linux + PostgreSQL
+```
+Database management interface
+Features:
+├── Connection management
+├── Query execution
+├── Table browser
+└── SQL editor
+```
+
+---
+
+# 6. Installation Guide
+
+## 6.1 Prerequisites
+
+```bash
+# Required Software
+- Arch Linux (or any Linux distro)
+- Node.js 20+
+- Python 3.12+
+- Docker
+- PostgreSQL
+- ADB (android-tools)
+- Git
+```
+
+## 6.2 Quick Install (Arch Linux)
+
+```bash
+# 1. Download the package
+cd ~
+curl -O http://YOUR_SERVER:9999/myanos-all-real.tar.gz
+
+# 2. Extract
+tar -xzvf myanos-all-real.tar.gz
+
+# 3. Run setup script
+chmod +x setup-all-real-arch.sh
+./setup-all-real-arch.sh
+```
+
+## 6.3 Manual Installation
+
+### Step 1: System Dependencies
+
+```bash
+# Arch Linux
+sudo pacman -S --noconfirm nodejs npm python python-pip docker postgresql android-tools git
+
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y nodejs npm python3 python3-pip docker.io postgresql android-tools-adb git
+```
+
+### Step 2: Docker Setup
+
+```bash
+# Enable Docker
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+
+# Pull terminal image
+docker pull ubuntu:22.04
+```
+
+### Step 3: PostgreSQL Setup
+
+```bash
+# Initialize (Arch Linux)
+sudo -u postgres initdb -D /var/lib/postgres/data
+
+# Start PostgreSQL
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+
+# Create database
+sudo -u postgres psql -c "CREATE USER myanos WITH PASSWORD 'myanos123';"
+sudo -u postgres psql -c "CREATE DATABASE myanos OWNER myanos;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE myanos TO myanos;"
+```
+
+### Step 4: ADB Setup
+
+```bash
+# Start ADB server
+adb start-server
+
+# Enable network ADB (on phone)
+# First connect via USB, then:
+adb tcpip 5555
+adb connect <PHONE_IP>:5555
+```
+
+### Step 5: Frontend Setup
+
+```bash
+# Navigate to project
+cd ~/myanos
+
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+```
+
+### Step 6: Backend Setup
+
+```bash
+# Create virtual environment
+cd ~/myanos/backend
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install fastapi uvicorn python-multipart docker psycopg2-binary
+```
+
+### Step 7: Create Services
+
+```bash
+# Frontend Service
+sudo nano /etc/systemd/system/myanos-frontend.service
+```
+
+```ini
+[Unit]
+Description=MyanOS Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/myanos
+ExecStart=/usr/bin/npm start
+Restart=always
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Terminal Backend Service
+sudo nano /etc/systemd/system/myanos-terminal.service
+```
+
+```ini
+[Unit]
+Description=MyanOS Real Terminal Backend
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/myanos/backend
+ExecStart=/home/YOUR_USERNAME/myanos/backend/venv/bin/python -m uvicorn real_terminal:app --host 0.0.0.0 --port 8001
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# AI Agent Service
+sudo nano /etc/systemd/system/myanos-ai-agent.service
+```
+
+```ini
+[Unit]
+Description=MyanOS AI Agent Worker
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/myanos/backend
+ExecStart=/home/YOUR_USERNAME/myanos/backend/venv/bin/python -m uvicorn real_ai_agent:app --host 0.0.0.0 --port 8002
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start all services
+sudo systemctl daemon-reload
+sudo systemctl enable myanos-frontend myanos-terminal myanos-ai-agent
+sudo systemctl start myanos-frontend myanos-terminal myanos-ai-agent
+```
+
+---
+
+# 7. Backend Services
+
+## 7.1 Real Terminal Backend (Port 8001)
+
+### File: `backend/real_terminal.py`
+
+```python
+#!/usr/bin/env python3
+"""
+MyanOS Real Terminal Backend
+Uses Docker for actual command execution
+"""
+
+import subprocess
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional
+import docker
+
+app = FastAPI(title="MyanOS Real Terminal")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Docker client initialization
+DOCKER_AVAILABLE = False
+docker_client = None
+
+try:
+    docker_client = docker.from_env()
+    docker_client.ping()
+    DOCKER_AVAILABLE = True
+except Exception as e:
+    print(f"Docker not available: {e}")
+
+class ExecuteRequest(BaseModel):
+    command: str
+    cwd: Optional[str] = None
+
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "docker": DOCKER_AVAILABLE,
+        "mode": "docker" if DOCKER_AVAILABLE else "subprocess"
+    }
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "docker": DOCKER_AVAILABLE}
+
+@app.post("/execute")
+async def execute_command(request: ExecuteRequest):
+    """Execute a shell command and return the output"""
+    command = request.command
+    
+    if DOCKER_AVAILABLE:
+        # Execute in Docker container
+        container = docker_client.containers.run(
+            image="ubuntu:22.04",
+            command=["bash", "-c", command],
+            remove=True,
+            stdout=True,
+            stderr=True,
+            network_mode="host"
+        )
+        output = container.decode('utf-8')
+        return {"output": output, "exit_code": 0}
+    else:
+        # Fallback to subprocess
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        return {
+            "output": result.stdout + result.stderr,
+            "exit_code": result.returncode
+        }
+
+# WebSocket for interactive terminal
+@app.websocket("/ws/{user_id}")
+async def terminal_websocket(websocket: WebSocket, user_id: str):
+    await websocket.accept()
+    # Interactive terminal session implementation
+    # ...
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service status |
+| `/health` | GET | Health check |
+| `/execute` | POST | Execute command |
+| `/ws/{user_id}` | WebSocket | Interactive terminal |
+
+### Execute Request/Response
+
+**Request:**
+```json
+{
+  "command": "ls -la",
+  "cwd": "/home/user"
+}
+```
+
+**Response:**
+```json
+{
+  "output": "total 64\ndrwxr-xr-x  5 user user 4096 ...",
+  "exit_code": 0
+}
+```
+
+## 7.2 Real AI Agent Backend (Port 8002)
+
+### File: `backend/real_ai_agent.py`
+
+```python
+#!/usr/bin/env python3
+"""
+MyanOS Real AI Agent Worker
+Uses z-ai-web-dev-sdk for real AI code generation
+"""
+
+import os
+import json
+import subprocess
+import tempfile
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional
+
+app = FastAPI(title="MyanOS Real AI Agent")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+ADMIN_PASSWORD = "myanos-admin-secret-2024"
+API_KEY: Optional[str] = None
+
+class APIKeyRequest(BaseModel):
+    password: str
+    api_key: str
+
+class ChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = None
+
+class CodeGenRequest(BaseModel):
+    prompt: str
+    language: str = "javascript"
+    template: str = "express"
+
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "api_configured": API_KEY is not None
+    }
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "api_configured": API_KEY is not None}
+
+@app.get("/admin/status")
+async def admin_status():
+    return {
+        "api_configured": API_KEY is not None,
+        "admin_password_set": bool(ADMIN_PASSWORD)
+    }
+
+@app.post("/admin/api-key")
+async def set_api_key(request: APIKeyRequest):
+    """Set the API key for AI operations"""
+    global API_KEY
+    
+    if request.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid admin password")
+    
+    API_KEY = request.api_key
+    return {"status": "success", "message": "API key configured"}
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """Real AI chat using z-ai-web-dev-sdk"""
+    if not API_KEY:
+        raise HTTPException(status_code=400, detail="API key not configured")
+    
+    # Create Node.js script to call SDK
+    script = f'''
+const ZAI = require('z-ai-web-dev-sdk').default;
+
+async function main() {{
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({{
+        messages: [
+            {{ role: 'system', content: 'You are a helpful AI assistant.' }},
+            {{ role: 'user', content: {json.dumps(request.message)} }}
+        ]
+    }});
+    console.log(JSON.stringify({{ response: completion.choices[0]?.message?.content }}));
+}}
+
+main().catch(e => {{ console.log(JSON.stringify({{ error: e.message }})); process.exit(1); }});
+'''
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        f.write(script)
+        script_path = f.name
+    
+    result = subprocess.run(
+        ['node', script_path],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, 'ZAI_API_KEY': API_KEY}
+    )
+    
+    os.unlink(script_path)
+    response = json.loads(result.stdout)
+    return {"response": response.get('response')}
+
+@app.post("/generate-code")
+async def generate_code(request: CodeGenRequest):
+    """Generate real code using AI"""
+    # Similar implementation with code-specific prompts
+    pass
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service status |
+| `/health` | GET | Health check |
+| `/admin/status` | GET | API key status |
+| `/admin/api-key` | POST | Set API key |
+| `/chat` | POST | Chat with AI |
+| `/generate-code` | POST | Generate code |
+| `/execute-workflow` | POST | Run workflow |
+| `/templates` | GET | Get code templates |
+
+---
+
+# 8. Frontend Components
+
+## 8.1 Core Components
+
+### Desktop Component
+```typescript
+// src/components/myanos/Desktop.tsx
+export function DesktopIcons() {
+  const { openWindow } = useMyanOSStore();
+  
+  return (
+    <div className="absolute top-4 left-4 grid gap-2">
+      {APPS.map((app) => (
+        <button onClick={() => openWindow(app.id)}>
+          <AppIcon icon={app.icon} />
+          <span>{app.title}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Window Component
+```typescript
+// src/components/myanos/Window.tsx
+export function Window({ window }: WindowProps) {
+  const [position, setPosition] = useState(window.position);
+  const [size, setSize] = useState(window.size);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Drag handling
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    // Track mouse movement
+  };
+  
+  // Resize handling
+  const handleResize = (e) => {
+    // Update window size
+  };
+  
+  return (
+    <div
+      className="absolute flex flex-col"
+      style={{ top: position.y, left: position.x, width: size.width, height: size.height }}
+    >
+      <TitleBar onMouseDown={handleMouseDown} />
+      <Content>
+        <AppComponent windowId={window.id} />
+      </Content>
+      <ResizeHandle onMouseDown={handleResize} />
+    </div>
+  );
+}
+```
+
+### Taskbar Component
+```typescript
+// src/components/myanos/Taskbar.tsx
+export function Taskbar() {
+  const { windows, startMenuOpen, toggleStartMenu } = useMyanOSStore();
+  
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-12 bg-slate-900/90">
+      <StartButton onClick={toggleStartMenu} />
+      <WindowList windows={windows} />
+      <SystemTray>
+        <Clock />
+        <SoulDnaIndicator />
+      </SystemTray>
+    </div>
+  );
+}
+```
+
+## 8.2 App Components
+
+### Real Terminal App
+```typescript
+// src/components/myanos/apps/RealTerminalApp.tsx
+export function RealTerminalApp({ windowId }: Props) {
+  const [lines, setLines] = useState<TerminalLine[]>([]);
+  const [input, setInput] = useState('');
+  const [connected, setConnected] = useState(false);
+  
+  const sendCommand = async (command: string) => {
+    const response = await fetch('http://localhost:8001/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    const data = await response.json();
+    setLines(prev => [...prev, 
+      { type: 'input', content: `$ ${command}` },
+      { type: 'output', content: data.output }
+    ]);
+  };
+  
+  return (
+    <div className="h-full flex flex-col bg-slate-950">
+      <TerminalOutput lines={lines} />
+      <InputLine 
+        value={input} 
+        onChange={setInput}
+        onSubmit={sendCommand}
+      />
+    </div>
+  );
+}
+```
+
+### Real AI Agent App
+```typescript
+// src/components/myanos/apps/RealAIAgentApp.tsx
+export function RealAIAgentApp({ windowId }: Props) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [apiConfigured, setApiConfigured] = useState(false);
+  
+  const sendMessage = async () => {
+    const response = await fetch('http://localhost:8002/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: input }),
+    });
+    const data = await response.json();
+    setMessages(prev => [...prev, 
+      { role: 'user', content: input },
+      { role: 'assistant', content: data.response }
+    ]);
+  };
+  
+  return (
+    <div className="h-full flex">
+      <Sidebar />
+      <ChatArea messages={messages} />
+      <InputArea onSubmit={sendMessage} />
+    </div>
+  );
+}
+```
+
+### Real Phone Repair App
+```typescript
+// src/components/myanos/apps/RealPhoneRepairApp.tsx
+export function RealPhoneRepairApp({ windowId }: Props) {
+  const [adbDevices, setAdbDevices] = useState<Device[]>([]);
+  const [tailscaleDevices] = useState([
+    { name: 'archlinux', ip: '100.96.222.58' },
+    { name: 'galaxy-note8', ip: '100.75.44.53' },
+  ]);
+  
+  const executeAdb = async (command: string) => {
+    const response = await fetch('http://localhost:8001/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: `adb ${command}` }),
+    });
+    return response.json();
+  };
+  
+  return (
+    <div className="h-full flex flex-col">
+      <TabBar activeTab="devices" />
+      <DeviceList devices={adbDevices} />
+      <NetworkDevices devices={tailscaleDevices} />
+      <AdbShell onExecute={executeAdb} />
+    </div>
+  );
+}
+```
+
+---
+
+# 9. API Documentation
+
+## 9.1 Terminal API (Port 8001)
+
+### GET /
+Returns service status.
+
+**Response:**
+```json
+{
+  "status": "online",
+  "docker": true,
+  "mode": "docker"
+}
+```
+
+### GET /health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "docker": true
+}
+```
+
+### POST /execute
+Execute a shell command.
+
+**Request Body:**
+```json
+{
+  "command": "ls -la",
+  "cwd": "/home/user"
+}
+```
+
+**Response:**
+```json
+{
+  "output": "total 64\ndrwxr-xr-x 5 user...",
+  "error": null,
+  "exit_code": 0
+}
+```
+
+### WebSocket /ws/{user_id}
+Interactive terminal session.
+
+**Messages:**
+```json
+// Send command
+{ "type": "command", "data": "ls" }
+
+// Receive output
+{ "type": "output", "data": "file1\nfile2\n..." }
+
+// Resize terminal
+{ "type": "resize", "cols": 80, "rows": 24 }
+```
+
+## 9.2 AI Agent API (Port 8002)
+
+### GET /
+Returns service status.
+
+**Response:**
+```json
+{
+  "status": "online",
+  "api_configured": true
+}
+```
+
+### POST /admin/api-key
+Set the API key.
+
+**Request Body:**
+```json
+{
+  "password": "myanos-admin-secret-2024",
+  "api_key": "your-api-key"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "API key configured"
+}
+```
+
+### POST /chat
+Chat with AI.
+
+**Request Body:**
+```json
+{
+  "message": "Write a Python function to calculate factorial",
+  "context": null
+}
+```
+
+**Response:**
+```json
+{
+  "response": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)"
+}
+```
+
+### POST /generate-code
+Generate code from prompt.
+
+**Request Body:**
+```json
+{
+  "prompt": "Create a REST API with Express.js",
+  "language": "javascript",
+  "template": "express"
+}
+```
+
+**Response:**
+```json
+{
+  "code": "const express = require('express');\nconst app = express();\n..."
+}
+```
+
+---
+
+# 10. Real Features Setup
+
+## 10.1 Docker for Real Terminal
+
+```bash
+# Install Docker
+sudo pacman -S docker
+
+# Enable and start
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Logout and login again
+
+# Pull image for terminal
+docker pull ubuntu:22.04
+
+# Test
+docker run --rm ubuntu:22.04 echo "Hello from Docker!"
+```
+
+## 10.2 PostgreSQL for Real Database
+
+```bash
+# Install PostgreSQL
+sudo pacman -S postgresql
+
+# Initialize database
+sudo -u postgres initdb -D /var/lib/postgres/data
+
+# Start service
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+
+# Create database and user
+sudo -u postgres psql
+CREATE USER myanos WITH PASSWORD 'myanos123';
+CREATE DATABASE myanos OWNER myanos;
+GRANT ALL PRIVILEGES ON DATABASE myanos TO myanos;
+\q
+
+# Test connection
+psql -U myanos -d myanos -h localhost
+```
+
+## 10.3 ADB for Real Phone Repair
+
+```bash
+# Install Android Tools
+sudo pacman -S android-tools
+
+# Start ADB server
+adb start-server
+
+# Check connected devices
+adb devices
+
+# Enable network ADB on phone
+# 1. Enable Developer Options (Settings → About Phone → Tap Build Number 7 times)
+# 2. Enable USB Debugging
+# 3. Connect via USB
+# 4. Run: adb tcpip 5555
+# 5. Run: adb connect <PHONE_IP>:5555
+# 6. Disconnect USB - wireless ADB active!
+
+# For Tailscale network
+adb connect 100.75.44.53:5555
+
+# Common ADB commands
+adb shell                    # Remote shell
+adb install app.apk          # Install APK
+adb push file /sdcard/       # Push file
+adb pull /sdcard/file .      # Pull file
+adb reboot                   # Reboot device
+adb reboot recovery          # Reboot to recovery
+adb reboot bootloader        # Reboot to bootloader
+adb logcat                   # View logs
+```
+
+## 10.4 AI Agent Setup
+
+```bash
+# 1. Start the AI agent backend
+cd ~/myanos/backend
+source ~/venv/bin/activate
+python real_ai_agent.py
+
+# 2. Set API key via curl
+curl -X POST http://localhost:8002/admin/api-key \
+  -H 'Content-Type: application/json' \
+  -d '{"password":"myanos-admin-secret-2024","api_key":"YOUR_API_KEY"}'
+
+# 3. Or via UI
+# Open AI Agent (Real) app
+# Click "Setup API Key"
+# Enter password: myanos-admin-secret-2024
+# Enter your z-ai-web-dev-sdk API key
+```
+
+## 10.5 Tailscale for Remote Access
+
+```bash
+# Install Tailscale
+sudo pacman -S tailscale
+
+# Enable and start
+sudo systemctl enable tailscaled
+sudo systemctl start tailscaled
+
+# Connect to network
+sudo tailscale up
+
+# Check status
+tailscale status
+
+# Get your Tailscale IP
+tailscale ip -4
+
+# Funnel for public access
+sudo tailscale serve reset
+sudo tailscale funnel 3000
+
+# Your public URL
+https://archlinux.tail9dcf63.ts.net/  
+```
+
+---
+
+# 11. Deployment
+
+## 11.1 Production Checklist
+
+```bash
+# 1. Build frontend
+cd ~/myanos
+npm run build
+
+# 2. Test all services
+systemctl status myanos-frontend
+systemctl status myanos-terminal
+systemctl status myanos-ai-agent
+
+# 3. Check ports
+ss -tlnp | grep -E '3000|8001|8002'
+
+# 4. Test endpoints
+curl http://localhost:3000
+curl http://localhost:8001/health
+curl http://localhost:8002/health
+
+# 5. Enable firewall (if needed)
+sudo ufw allow 3000/tcp
+sudo ufw allow 8001/tcp
+sudo ufw allow 8002/tcp
+```
+
+## 11.2 Running with Screen
+
+```bash
+# Start all services in screen sessions
+screen -dmS myanos-frontend bash -c 'cd ~/myanos && npm start'
+screen -dmS myanos-terminal bash -c 'cd ~/myanos/backend && source ~/venv/bin/activate && python real_terminal.py'
+screen -dmS myanos-ai bash -c 'cd ~/myanos/backend && source ~/venv/bin/activate && python real_ai_agent.py'
+screen -dmS tunnel bash -c 'sudo tailscale funnel 3000'
+
+# List screens
+screen -ls
+
+# Attach to screen
+screen -r myanos-frontend
+
+# Detach from screen
+Ctrl+A, D
+```
+
+## 11.3 Running with Systemd
+
+```bash
+# Enable services
+sudo systemctl enable myanos-frontend myanos-terminal myanos-ai-agent
+
+# Start services
+sudo systemctl start myanos-frontend myanos-terminal myanos-ai-agent
+
+# Check status
+sudo systemctl status myanos-frontend
+
+# View logs
+journalctl -u myanos-frontend -f
+
+# Restart services
+sudo systemctl restart myanos-frontend
+```
+
+## 11.4 Nginx Reverse Proxy (Optional)
+
+```nginx
+# /etc/nginx/sites-available/myanos
+server {
+    listen 80;
+    server_name myanos.yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /api/terminal/ {
+        proxy_pass http://localhost:8001/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+
+    location /api/ai/ {
+        proxy_pass http://localhost:8002/;
+    }
+}
+```
+
+---
+
+# 12. Troubleshooting
+
+## 12.1 Common Issues
+
+### Port Already in Use
+```bash
+# Find process using port
+lsof -i :3000
+lsof -i :8001
+lsof -i :8002
+
+# Kill process
+kill -9 <PID>
+```
+
+### Docker Permission Denied
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Logout and login again
+# Or run:
+newgrp docker
+```
+
+### ADB Devices Not Showing
+```bash
+# Restart ADB server
+adb kill-server
+adb start-server
+
+# Check USB connection
+lsusb
+
+# Check udev rules
+sudo nano /etc/udev/rules.d/51-android.rules
+```
+
+### Tailscale Funnel Not Working
+```bash
+# Reset funnel config
+sudo tailscale serve reset
+
+# Start funnel again
+sudo tailscale funnel 3000
+```
+
+### PostgreSQL Connection Failed
+```bash
+# Check if running
+sudo systemctl status postgresql
+
+# Check connection
+psql -U myanos -d myanos -h localhost
+
+# Reset password
+sudo -u postgres psql
+ALTER USER myanos WITH PASSWORD 'myanos123';
+```
+
+### npm install Fails
+```bash
+# Clear cache
+npm cache clean --force
+
+# Delete node_modules
+rm -rf node_modules package-lock.json
+
+# Reinstall
+npm install
+```
+
+## 12.2 Logs
+
+```bash
+# Frontend logs
+journalctl -u myanos-frontend -f
+
+# Terminal backend logs
+journalctl -u myanos-terminal -f
+
+# AI agent logs
+journalctl -u myanos-ai-agent -f
+
+# Docker logs
+docker logs <container_id>
+
+# ADB logs
+adb logcat
+```
+
+---
+
+# 13. Future Development
+
+## 13.1 Planned Features
+
+| Feature | Status | Priority |
+|---------|--------|----------|
+| Multi-language Support | Planned | High |
+| File Sync | Planned | Medium |
+| Mobile App | Planned | Medium |
+| Plugin System | Planned | Low |
+| Cloud Backup | Planned | Low |
+| Collaboration | Planned | Low |
+
+## 13.2 Contributing
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/myanos.git  
+
+# Create branch
+git checkout -b feature/new-feature
+
+# Make changes
+# ...
+
+# Commit
+git add .
+git commit -m "Add new feature"
+
+# Push
+git push origin feature/new-feature
+
+# Create Pull Request
+```
+
+## 13.3 Roadmap
+
+**Version 1.0 (Current)**
+- ✅ Desktop environment
+- ✅ Real terminal (Docker)
+- ✅ Real AI agent
+- ✅ Real ADB integration
+- ✅ PostgreSQL support
+
+**Version 1.1 (Next)**
+- 🔲 Mobile responsive design
+- 🔲 File upload/download
+- 🔲 Multi-user support
+
+**Version 2.0 (Future)**
+- 🔲 Plugin marketplace
+- 🔲 Cloud sync
+- 🔲 Collaborative editing
+
+---
+
+# Appendix
+
+## A. Environment Variables
+
+```bash
+# .env file
+NODE_ENV=production
+DATABASE_URL=postgresql://myanos:myanos123@localhost:5432/myanos
+NEXT_PUBLIC_TERMINAL_URL=http://localhost:8001
+NEXT_PUBLIC_AI_AGENT_URL=http://localhost:8002
+MYANOS_ADMIN_PASSWORD=myanos-admin-secret-2024
+```
+
+## B. Useful Commands
+
+```bash
+# Start all services
+./start-all.sh
+
+# Stop all services
+./stop-all.sh
+
+# View all logs
+./logs.sh
+
+# Backup database
+pg_dump myanos > backup.sql
+
+# Restore database
+psql myanos < backup.sql
+```
+
+## C. File Sizes
+
+| Component | Size |
+|-----------|------|
+| Project (with node_modules) | ~500 MB |
+| Project (without node_modules) | ~1.5 MB |
+| Docker image (ubuntu:22.04) | ~77 MB |
+| Database (empty) | ~7 MB |
+
+---
+
+## Contact & Support
+
+- **Project**: MyanOS
+- **Version**: 1.0.0
+- **Author**: Myanmar Developer Community
+- **License**: MIT
+
+---
+
+**MyanOS - Web Operating System for Myanmar 🇲🇲**
+
+*Built with ❤️ for Myanmar developers*
