@@ -92,18 +92,6 @@ cd mini-services/database && bun run dev &
 
 ---
 
-## 🔑 Default Credentials
-
-### Admin Login
-```
-Email: admin@myanos.local
-Password: myanos-admin-2024
-```
-
-> ⚠️ **Important**: Change the admin password after first login!
-
----
-
 ## 📁 Project Structure
 
 ```
