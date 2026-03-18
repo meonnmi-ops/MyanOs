@@ -1,0 +1,19 @@
+[terminal] Installing dependencies...
+bun install v1.3.10 (30e609e0)
+
++ hono@4.12.8
+
+1 package installed [120.00ms]
+[terminal] Running bun run dev...
+$ bun --hot index.ts
+
+╔════════════════════════════════════════════════════════════╗
+║           MyanOS Terminal Service v1.0                    ║
+╠════════════════════════════════════════════════════════════╣
+║  🚀 Server running on port 3001                           ║
+║  📁 Working directory: /home/z                        ║
+║  🐚 Shell: /bin/bash                                      ║
+║  👤 User: z                                          ║
+╚════════════════════════════════════════════════════════════╝
+
+Started development server: http://localhost:3001
