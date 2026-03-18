@@ -4,7 +4,7 @@ bun install v1.3.10 (30e609e0)
 + hono@4.12.8
 + pg@8.20.0
 
-15 packages installed [151.00ms]
+15 packages installed [142.00ms]
 [database] Running bun run dev...
 $ bun --hot index.ts
 🗄️ MyanOS Database Service running on port 3002
