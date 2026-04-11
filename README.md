@@ -15,7 +15,7 @@
 
 ## Overview
 
-**Myanos** (မဲနမ်း) is Myanmar's first advanced Web Operating System, featuring a custom package manager, Linux-like terminal, PS2 game emulation, Android APK management, and a professional toolbox — all built with Python and designed to run on Termux/Linux systems.
+**Myanos** (မြန်နိုစ့်) is Myanmar's first advanced Web Operating System, featuring a custom package manager, Linux-like terminal, PS2 game emulation, Android APK management, and a professional toolbox — all built with Python and designed to run on Termux/Linux systems.
 
 > **Project Vision**: A complete web-based OS with its own package format (`.myan`), programming language integration (Myanmar Code with 127 keywords), and cross-platform capabilities.
 
