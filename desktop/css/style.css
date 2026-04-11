@@ -1,0 +1,524 @@
+/* ═══════════════════════════════════════════════════════
+   Myanos Desktop Environment v1.0.0
+   Myanmar's First Web OS Desktop
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Reset & Base ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', 'Noto Sans Myanmar', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+    background: #1a1b2e;
+    color: #c0caf5;
+}
+
+/* ── Desktop Area ── */
+#desktop {
+    width: 100vw;
+    height: calc(100vh - 48px);
+    position: relative;
+    background: linear-gradient(135deg, #1a1b2e 0%, #24283b 50%, #1f2335 100%);
+    overflow: hidden;
+}
+
+/* ── Wallpaper ── */
+.wallpaper {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: 
+        radial-gradient(ellipse at 20% 50%, rgba(122, 162, 247, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(187, 154, 247, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(158, 206, 106, 0.04) 0%, transparent 50%);
+    z-index: 0;
+}
+
+/* ── Desktop Icons Grid ── */
+.desktop-icons {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 90px);
+    grid-template-rows: repeat(auto-fill, 95px);
+    gap: 5px;
+    padding: 20px;
+    height: 100%;
+    align-content: start;
+}
+
+.desktop-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    width: 90px;
+    height: 90px;
+}
+.desktop-icon:hover { background: rgba(255,255,255,0.08); }
+.desktop-icon:active { background: rgba(255,255,255,0.12); }
+.desktop-icon.selected { background: rgba(122, 162, 247, 0.2); border: 1px solid rgba(122, 162, 247, 0.4); }
+
+.desktop-icon .icon {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.desktop-icon .label {
+    font-size: 11px;
+    text-align: center;
+    color: #c0caf5;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    max-width: 85px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Taskbar ── */
+#taskbar {
+    position: fixed;
+    bottom: 0; left: 0;
+    width: 100vw;
+    height: 48px;
+    background: rgba(24, 26, 41, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    z-index: 9999;
+    padding: 0 8px;
+}
+
+#start-btn {
+    width: 42px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 22px;
+    transition: background 0.15s;
+    margin-right: 8px;
+}
+#start-btn:hover { background: rgba(255,255,255,0.1); }
+
+#taskbar-apps {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 100%;
+    overflow-x: auto;
+}
+
+.taskbar-app {
+    height: 36px;
+    min-width: 44px;
+    max-width: 160px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #a9b1d6;
+    transition: background 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.taskbar-app:hover { background: rgba(255,255,255,0.08); }
+.taskbar-app.active { background: rgba(122, 162, 247, 0.15); border-bottom: 2px solid #7aa2f7; color: #c0caf5; }
+.taskbar-app .app-icon { font-size: 16px; }
+
+#system-tray {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    height: 100%;
+    font-size: 12px;
+    color: #7982a9;
+    border-left: 1px solid rgba(255,255,255,0.06);
+}
+#system-tray .tray-icon { cursor: pointer; font-size: 14px; }
+#system-tray .tray-icon:hover { color: #c0caf5; }
+#clock { font-variant-numeric: tabular-nums; cursor: pointer; }
+
+/* ── Start Menu ── */
+#start-menu {
+    position: fixed;
+    bottom: 56px; left: 8px;
+    width: 320px;
+    background: rgba(24, 26, 41, 0.97);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    z-index: 10000;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    overflow: hidden;
+}
+#start-menu.open { display: block; }
+
+.start-header {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+    font-weight: 600;
+    color: #c0caf5;
+    display: flex; align-items: center; gap: 8px;
+}
+
+.start-search {
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.start-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.05);
+    color: #c0caf5;
+    font-size: 13px;
+    outline: none;
+}
+.start-search input::placeholder { color: #565f89; }
+.start-search input:focus { border-color: #7aa2f7; }
+
+.start-apps {
+    padding: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+.start-app-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.start-app-item:hover { background: rgba(255,255,255,0.06); }
+.start-app-item .app-icon { font-size: 22px; width: 32px; text-align: center; }
+.start-app-item .app-info { flex: 1; }
+.start-app-item .app-name { font-size: 13px; color: #c0caf5; }
+.start-app-item .app-desc { font-size: 11px; color: #565f89; margin-top: 2px; }
+
+.start-footer {
+    padding: 10px 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: #565f89;
+}
+.start-footer span { cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+.start-footer span:hover { background: rgba(255,255,255,0.06); color: #a9b1d6; }
+
+/* ── Window System ── */
+.myanos-window {
+    position: absolute;
+    min-width: 320px;
+    min-height: 200px;
+    background: rgba(24, 26, 41, 0.97);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 100;
+    transition: box-shadow 0.2s;
+}
+.myanos-window.focused {
+    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+    border-color: rgba(122, 162, 247, 0.2);
+}
+.myanos-window.maximized {
+    top: 0 !important; left: 0 !important;
+    width: 100vw !important;
+    height: calc(100vh - 48px) !important;
+    border-radius: 0;
+}
+
+.window-titlebar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background: rgba(36, 40, 59, 0.8);
+    cursor: default;
+    flex-shrink: 0;
+}
+.window-title {
+    flex: 1;
+    font-size: 12px;
+    color: #a9b1d6;
+    display: flex; align-items: center; gap: 6px;
+    overflow: hidden;
+}
+.window-title .win-icon { font-size: 14px; }
+.window-title .win-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.window-controls {
+    display: flex;
+    gap: 6px;
+}
+.win-ctrl {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px;
+    color: transparent;
+    transition: all 0.15s;
+}
+.win-ctrl:hover { color: rgba(0,0,0,0.7); }
+.win-ctrl.minimize { background: #e0af68; }
+.win-ctrl.maximize { background: #9ece6a; }
+.win-ctrl.close { background: #f7768e; }
+
+.window-body {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.window-resize {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 16px; height: 16px;
+    cursor: nwse-resize;
+}
+
+/* ── Context Menu ── */
+.context-menu {
+    position: fixed;
+    background: rgba(24, 26, 41, 0.97);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px;
+    z-index: 99999;
+    display: none;
+    min-width: 180px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.context-menu.open { display: block; }
+.ctx-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    color: #a9b1d6;
+}
+.ctx-item:hover { background: rgba(122, 162, 247, 0.15); color: #c0caf5; }
+.ctx-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 8px; }
+
+/* ── App-specific Styles ── */
+/* Terminal */
+.app-terminal {
+    background: #1a1b26;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    padding: 12px;
+    height: 100%;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+.app-terminal .term-line { color: #a9b1d6; }
+.app-terminal .term-prompt { color: #9ece6a; }
+.app-terminal .term-path { color: #7aa2f7; }
+.app-terminal .term-input-line { display: flex; align-items: center; }
+.app-terminal .term-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #c0caf5;
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+    caret-color: #c0caf5;
+}
+
+/* File Manager */
+.app-filemanager {
+    display: flex;
+    height: 100%;
+}
+.fm-sidebar {
+    width: 180px;
+    background: rgba(30, 32, 50, 0.5);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    padding: 12px 8px;
+    overflow-y: auto;
+}
+.fm-sidebar-item {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    color: #a9b1d6;
+}
+.fm-sidebar-item:hover { background: rgba(255,255,255,0.06); }
+.fm-sidebar-item.active { background: rgba(122, 162, 247, 0.15); color: #7aa2f7; }
+.fm-content {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+}
+.fm-toolbar {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px;
+}
+.fm-path {
+    flex: 1;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 4px;
+    color: #a9b1d6;
+    font-size: 12px;
+}
+.fm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 90px);
+    gap: 8px;
+    padding: 8px;
+}
+.fm-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.fm-item:hover { background: rgba(255,255,255,0.06); }
+.fm-item .fm-icon { font-size: 32px; margin-bottom: 4px; }
+.fm-item .fm-name { font-size: 11px; text-align: center; color: #a9b1d6; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Settings */
+.app-settings {
+    display: flex; height: 100%;
+}
+.settings-sidebar {
+    width: 200px;
+    background: rgba(30, 32, 50, 0.5);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    padding: 12px 8px;
+}
+.settings-item {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #a9b1d6;
+    margin-bottom: 2px;
+}
+.settings-item:hover { background: rgba(255,255,255,0.06); }
+.settings-item.active { background: rgba(122, 162, 247, 0.15); color: #7aa2f7; }
+.settings-content {
+    flex: 1; padding: 24px; overflow-y: auto;
+}
+.settings-section h3 { font-size: 16px; color: #c0caf5; margin-bottom: 16px; }
+.settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.settings-row label { font-size: 13px; color: #a9b1d6; }
+.settings-row .value { font-size: 13px; color: #565f89; }
+
+/* Toggle Switch */
+.toggle {
+    width: 40px; height: 22px;
+    background: #414868;
+    border-radius: 11px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+}
+.toggle.on { background: #7aa2f7; }
+.toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    background: #c0caf5;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(18px); }
+
+/* Neofetch / About */
+.app-neofetch {
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.app-neofetch .logo { color: #bb9af7; }
+.app-neofetch .title { color: #7aa2f7; font-weight: bold; }
+.app-neofetch .info { color: #a9b1d6; }
+.app-neofetch .label { color: #9ece6a; }
+.app-neofetch .highlight { color: #ff9e64; }
+
+/* System Monitor */
+.app-monitor {
+    padding: 16px;
+    height: 100%;
+    overflow-y: auto;
+}
+.monitor-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+.monitor-card h4 { font-size: 13px; color: #7aa2f7; margin-bottom: 12px; }
+.monitor-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 6px 0;
+}
+.monitor-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+.fill-cpu { background: linear-gradient(90deg, #7aa2f7, #bb9af7); }
+.fill-mem { background: linear-gradient(90deg, #9ece6a, #73daca); }
+.fill-disk { background: linear-gradient(90deg, #ff9e64, #f7768e); }
+.monitor-stats {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: #565f89; margin-top: 4px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.myanos-window { animation: fadeIn 0.15s ease; }
+#start-menu { animation: fadeIn 0.12s ease; }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Myanos Desktop</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇲🇲</text></svg>">
+</head>
+<body>
+    <!-- Desktop Area -->
+    <div id="desktop">
+        <div class="wallpaper"></div>
+        <div id="desktop-icons" class="desktop-icons"></div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu">
+        <div class="ctx-item" data-action="open-terminal">⬛ Open Terminal</div>
+        <div class="ctx-item" data-action="open-settings">⚙️ Settings</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="refresh">⟳ Refresh Desktop</div>
+        <div class="ctx-item" data-action="about">ℹ️ About Myanos</div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu">
+        <div class="start-header">🇲🇲 Myanos</div>
+        <div class="start-search">
+            <input type="text" id="start-search-input" placeholder="Search apps...">
+        </div>
+        <div id="start-apps" class="start-apps"></div>
+        <div class="start-footer">
+            <span>📁 Files</span>
+            <span>⚙️ Settings</span>
+            <span>⏻ Shutdown</span>
+        </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div id="taskbar">
+        <div id="start-btn" title="Start Menu">🇲🇲</div>
+        <div id="taskbar-apps"></div>
+        <div id="system-tray"></div>
+    </div>
+
+    <script src="js/desktop.js"></script>
+</body>
+</html>

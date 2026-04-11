@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Myanos Web OS v1.0.0 - Unified Command Hub
+Myanos Web OS v2.0.0 - Unified Command Hub
 CTO: Meonnmi-ops | Myanmar Advanced Web Operating System
 
-Integrates: Package Manager, Terminal, Display Engine, PS2 Layer,
-           Android Layer, Toolbox, Myanmar Code
+Integrates: Package Manager, Terminal, Desktop, Display Engine, PS2 Layer,
+           Android Layer, Toolbox, MyanAi, Myanmar Code
 """
 
 import os, sys, subprocess, platform, json, time
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 BANNER = r"""
        ┌──────────────┐
        │   Myanos OS   │
@@ -78,6 +78,12 @@ def show_help():
     print("  myanos ps2 launch        Launch PS2 game\n")
     print("Toolbox:")
     print("  myanos toolbox           Open professional toolbox\n")
+    print("Desktop:")
+    print("  myanos desktop            Launch web desktop\n")
+    print("MyanAi:")
+    print("  myanos ai                 MyanAi agent builder\n")
+    print("  myanos ai run             Run AI agent\n")
+    print("  myanos ai create          Create new agent\n\n")
     print("Examples:")
     print("  myanos neofetch")
     print("  myanos pkg install ./dist/myanmar-code-2.0.1.myan")
@@ -262,6 +268,29 @@ def cmd_toolbox():
     elif choice == "8":
         cmd_pkg(["myanos", "pkg", "list"])
 
+def cmd_desktop():
+    """Launch Myanos Desktop Environment"""
+    desktop_index = BASE_DIR / "desktop" / "index.html"
+    if desktop_index.exists():
+        import webbrowser
+        webbrowser.open(f"file://{desktop_index}")
+        print("[OK] Desktop launched in browser!")
+        print("     Open: file://" + str(desktop_index))
+    else:
+        print("[WARN] Desktop not found")
+        print("       Install: myanos pkg install ./dist/myanos-desktop-1.0.0.myan")
+
+def cmd_ai(args):
+    """MyanAi agent builder"""
+    myanai_script = BASE_DIR / "myanai" / "myanai.py"
+    if not myanai_script.exists():
+        print("[WARN] MyanAi not found")
+        print("       Install: myanos pkg install ./dist/myanai-1.0.0.myan")
+        return
+    sys.path.insert(0, str(BASE_DIR / "myanai"))
+ os.chdir(str(BASE_DIR / "myanai"))
+ os.system(f"{sys.executable} {myanai_script} {' '.join(args[1:])}")
+
 def main():
     args = sys.argv[1:]
     if not args or args[0] in ("help", "-h", "--help"):
@@ -282,6 +311,10 @@ def main():
         cmd_ps2(args)
     elif args[0] == "toolbox":
         cmd_toolbox()
+    elif args[0] == "desktop":
+        cmd_desktop()
+    elif args[0] == "ai":
+        cmd_ai(args)
     elif args[0] == "version" or args[0] == "-v":
         print(f"Myanos Web OS v{VERSION}")
     else:
