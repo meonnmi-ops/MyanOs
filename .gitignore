@@ -1,8 +1,6 @@
-# Python
+# Myanos Web OS - Python Package & Cache Files
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
 *.egg-info/
 dist/
 build/
@@ -10,29 +8,28 @@ build/
 
 # Myanos specific
 .myan_db.json
+.myan_repos.json
+.myan_cache/
 installed/
-.terminal_history
 
-# Packages
-*.myan
+# App Store data
+appstore/data/
+appstore/data/cache/
+appstore/data/repo/
+appstore/data/registry.json
+appstore/data/users.json
+
+# Build artifacts
+_build_data/
+_build_checksum.sha256
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Environment
-.env
-.venv/
-venv/
-
-# Build artifacts
-_build_data/
-_build_checksum.sha256
+# Logs
 *.log
