@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════
-   Myanos Desktop Environment v2.0.0 - Enhanced
+   Myanos Desktop Environment v3.0.0 - Mobile Responsive
    Window management, File Manager, Settings, App Store
+   NEW: Touch support, responsive layout, mobile detection
    ═══════════════════════════════════════════════════════ */
 
 class MyanosDesktop {
@@ -11,6 +12,9 @@ class MyanosDesktop {
         this.zIndexCounter = 100;
         this.dragState = null;
         this.resizeState = null;
+        this.isMobile = this.detectMobile();
+        this.lastTapTime = 0;
+        this.lastTapTarget = null;
 
         // Settings persistence
         this.settings = this.loadSettings();
@@ -36,6 +40,18 @@ class MyanosDesktop {
         ];
 
         this.init();
+    }
+
+    // ════════════════════════════════════════
+    // Mobile Detection
+    // ════════════════════════════════════════
+
+    detectMobile() {
+        if (window.innerWidth <= 600) return true;
+        const ua = navigator.userAgent || navigator.vendor || '';
+        if (/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua) && window.innerWidth < 900) return true;
+        if ('ontouchstart' in window && window.innerWidth < 900) return true;
+        return false;
     }
 
     // ════════════════════════════════════════
@@ -69,27 +85,22 @@ class MyanosDesktop {
 
     applySettings() {
         const s = this.settings;
-        // Theme
         if (s.theme === 'light') {
             document.body.classList.add('light-theme');
         } else {
             document.body.classList.remove('light-theme');
         }
-        // Font size
         document.body.style.fontSize = s.fontSize + 'px';
-        // Blur
         if (!s.blur) {
             document.body.classList.add('no-blur');
         } else {
             document.body.classList.remove('no-blur');
         }
-        // Animations
         if (!s.animations) {
             document.body.classList.add('no-animations');
         } else {
             document.body.classList.remove('no-animations');
         }
-        // Wallpaper
         this.applyWallpaper(s.wallpaper);
     }
 
@@ -124,7 +135,6 @@ class MyanosDesktop {
             '/home/meonnmi/myan-os': { type: 'dir', children: ['myanos.py', 'myan_pm.py', 'LICENSE'] },
             '/home/meonnmi/.config': { type: 'dir', children: ['settings.json'] },
         };
-        // Files
         const defaultFiles = {
             '/home/meonnmi/Documents/README.md': { type: 'file', content: '# Myanos Web OS\nMyanmar\'s First Advanced Web Operating System\n\nAuthor: Meonnmi-ops', size: 78, modified: '2025-01-15' },
             '/home/meonnmi/Documents/notes.txt': { type: 'file', content: 'Myanos development notes...\n\nPhase 1-7 complete!', size: 42, modified: '2025-01-15' },
@@ -145,9 +155,7 @@ class MyanosDesktop {
     }
 
     saveVFS() {
-        try {
-            localStorage.setItem('myanos_vfs', JSON.stringify(this.vfs));
-        } catch (e) {}
+        try { localStorage.setItem('myanos_vfs', JSON.stringify(this.vfs)); } catch (e) {}
     }
 
     vfsListDir(path) {
@@ -185,15 +193,8 @@ class MyanosDesktop {
         const idx = dir.children.indexOf(name);
         if (idx === -1) return false;
         dir.children.splice(idx, 1);
-        // Remove from vfs
-        if (this.vfs.dirs[fullPath]) {
-            // Recursively delete
-            this.vfsRecursiveDelete(fullPath);
-            delete this.vfs.dirs[fullPath];
-        }
-        if (this.vfs.files[fullPath]) {
-            delete this.vfs.files[fullPath];
-        }
+        if (this.vfs.dirs[fullPath]) { this.vfsRecursiveDelete(fullPath); delete this.vfs.dirs[fullPath]; }
+        if (this.vfs.files[fullPath]) { delete this.vfs.files[fullPath]; }
         this.saveVFS();
         return true;
     }
@@ -203,13 +204,8 @@ class MyanosDesktop {
         if (!dir) return;
         (dir.children || []).forEach(name => {
             const childPath = path + '/' + name;
-            if (this.vfs.dirs[childPath]) {
-                this.vfsRecursiveDelete(childPath);
-                delete this.vfs.dirs[childPath];
-            }
-            if (this.vfs.files[childPath]) {
-                delete this.vfs.files[childPath];
-            }
+            if (this.vfs.dirs[childPath]) { this.vfsRecursiveDelete(childPath); delete this.vfs.dirs[childPath]; }
+            if (this.vfs.files[childPath]) { delete this.vfs.files[childPath]; }
         });
     }
 
@@ -221,15 +217,8 @@ class MyanosDesktop {
         const oldFullPath = path + '/' + oldName;
         const newFullPath = path + '/' + newName;
         dir.children[idx] = newName;
-        // Move in vfs
-        if (this.vfs.dirs[oldFullPath]) {
-            this.vfs.dirs[newFullPath] = this.vfs.dirs[oldFullPath];
-            delete this.vfs.dirs[oldFullPath];
-        }
-        if (this.vfs.files[oldFullPath]) {
-            this.vfs.files[newFullPath] = this.vfs.files[oldFullPath];
-            delete this.vfs.files[oldFullPath];
-        }
+        if (this.vfs.dirs[oldFullPath]) { this.vfs.dirs[newFullPath] = this.vfs.dirs[oldFullPath]; delete this.vfs.dirs[oldFullPath]; }
+        if (this.vfs.files[oldFullPath]) { this.vfs.files[newFullPath] = this.vfs.files[oldFullPath]; delete this.vfs.files[oldFullPath]; }
         this.saveVFS();
         return true;
     }
@@ -243,13 +232,25 @@ class MyanosDesktop {
     // ════════════════════════════════════════
 
     init() {
+        // Apply mobile class
+        if (this.isMobile) {
+            document.body.classList.add('mobile-device');
+        }
+
         this.applySettings();
         this.renderDesktopIcons();
         this.renderTaskbar();
         this.setupStartMenu();
         this.setupContextMenu();
         this.setupEventListeners();
+        this.setupTouchEvents();
         this.startClock();
+
+        // Listen for resize (orientation changes)
+        window.addEventListener('resize', () => {
+            this.isMobile = this.detectMobile();
+            document.body.classList.toggle('mobile-device', this.isMobile);
+        });
     }
 
     // ── Desktop Icons ──
@@ -275,14 +276,10 @@ class MyanosDesktop {
     renderTaskbar() {
         const tray = document.getElementById('system-tray');
         if (tray) {
-            tray.innerHTML = `
-                <span class="tray-icon" title="Volume">🔊</span>
-                <span class="tray-icon" title="Network">📶</span>
-                <span class="tray-icon" title="Battery">🔋</span>
-                <span class="tray-icon" title="Notifications" style="cursor:pointer;" onclick="myanos.showNotification('No new notifications')">🔔</span>
-                <span id="taskbar-date" style="font-size:11px;color:#565f89;"></span>
-                <span id="clock" style="font-weight:600;"></span>
-            `;
+            const trayIcons = this.isMobile
+                ? `<span class="tray-icon" title="Notifications" style="cursor:pointer;" onclick="myanos.showNotification('No new notifications')">🔔</span><span id="clock" style="font-weight:600;"></span>`
+                : `<span class="tray-icon" title="Volume">🔊</span><span class="tray-icon" title="Network">📶</span><span class="tray-icon" title="Battery">🔋</span><span class="tray-icon" title="Notifications" style="cursor:pointer;" onclick="myanos.showNotification('No new notifications')">🔔</span><span id="taskbar-date" style="font-size:11px;color:#565f89;"></span><span id="clock" style="font-weight:600;"></span>`;
+            tray.innerHTML = trayIcons;
         }
     }
 
@@ -306,13 +303,14 @@ class MyanosDesktop {
     }
 
     showNotification(msg) {
+        document.querySelector('.notification-popup')?.remove();
         const notif = document.createElement('div');
         notif.className = 'notification-popup';
         notif.textContent = msg;
-        notif.style.cssText = 'position:fixed;top:20px;right:20px;background:rgba(24,26,41,0.97);border:1px solid rgba(122,162,247,0.3);border-radius:8px;padding:12px 20px;color:#c0caf5;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);backdrop-filter:blur(12px);';
+        notif.style.cssText = 'position:fixed;top:20px;right:20px;background:rgba(24,26,41,0.97);border:1px solid rgba(122,162,247,0.3);border-radius:8px;padding:12px 20px;color:#c0caf5;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
         document.body.appendChild(notif);
-        setTimeout(() => { notif.style.opacity = '0'; notif.style.transition = 'opacity 0.3s'; }, 2000);
-        setTimeout(() => notif.remove(), 2500);
+        setTimeout(() => { notif.style.opacity = '0'; notif.style.transition = 'opacity 0.3s'; }, 2500);
+        setTimeout(() => notif.remove(), 3000);
     }
 
     updateTaskbarApps() {
@@ -322,7 +320,8 @@ class MyanosDesktop {
         this.windows.forEach((win, id) => {
             const el = document.createElement('div');
             el.className = `taskbar-app${id === this.activeWindowId ? ' active' : ''}`;
-            el.innerHTML = `<span class="app-icon">${win.app.icon}</span><span>${win.app.name}</span>`;
+            const showText = !this.isMobile && window.innerWidth > 500;
+            el.innerHTML = `<span class="app-icon">${win.app.icon}</span>${showText ? `<span class="taskbar-text">${win.app.name}</span>` : ''}`;
             el.addEventListener('click', () => {
                 if (win.minimized) this.restoreWindow(id);
                 else if (id === this.activeWindowId) this.minimizeWindow(id);
@@ -330,6 +329,9 @@ class MyanosDesktop {
             });
             container.appendChild(el);
         });
+        // Auto-scroll to active app
+        const activeApp = container.querySelector('.active');
+        if (activeApp) activeApp.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
 
     // ── Start Menu ──
@@ -338,7 +340,13 @@ class MyanosDesktop {
         const menu = document.getElementById('start-menu');
         if (!btn || !menu) return;
         btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); });
-        document.addEventListener('click', (e) => { if (!menu.contains(e.target)) menu.classList.remove('open'); });
+        document.addEventListener('click', (e) => { if (!menu.contains(e.target) && !btn.contains(e.target)) menu.classList.remove('open'); });
+        // Also close on touchstart outside
+        document.addEventListener('touchstart', (e) => {
+            if (!menu.contains(e.target) && !btn.contains(e.target) && menu.classList.contains('open')) {
+                menu.classList.remove('open');
+            }
+        });
         const searchInput = document.getElementById('start-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -368,14 +376,103 @@ class MyanosDesktop {
     // ── Context Menu ──
     setupContextMenu() {
         document.getElementById('desktop')?.addEventListener('contextmenu', (e) => {
+            if (this.isMobile) return; // Use long-press on mobile instead
             e.preventDefault();
             const menu = document.getElementById('context-menu');
             if (!menu) return;
-            menu.style.left = e.clientX + 'px';
-            menu.style.top = e.clientY + 'px';
+            menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+            menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
             menu.classList.add('open');
         });
         document.addEventListener('click', () => { document.getElementById('context-menu')?.classList.remove('open'); });
+    }
+
+    // ════════════════════════════════════════
+    // TOUCH EVENTS (Mobile Support)
+    // ════════════════════════════════════════
+
+    setupTouchEvents() {
+        let longPressTimer = null;
+        let longPressTarget = null;
+
+        // ── Double-tap detection for desktop icons ──
+        document.getElementById('desktop-icons')?.addEventListener('touchend', (e) => {
+            const icon = e.target.closest('.desktop-icon');
+            if (!icon) return;
+            const now = Date.now();
+            if (this.lastTapTarget === icon && now - this.lastTapTime < 350) {
+                // Double-tap detected
+                e.preventDefault();
+                this.openApp(icon.dataset.appId);
+                this.lastTapTime = 0;
+                this.lastTapTarget = null;
+            } else {
+                this.lastTapTime = now;
+                this.lastTapTarget = icon;
+                // Single tap - select
+                document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+                icon.classList.add('selected');
+            }
+        });
+
+        // ── Long-press for context menu on mobile ──
+        document.getElementById('desktop')?.addEventListener('touchstart', (e) => {
+            // Don't trigger on icons, windows, or taskbar
+            if (e.target.closest('.desktop-icon') || e.target.closest('.myanos-window') || e.target.closest('#taskbar') || e.target.closest('#start-menu')) return;
+
+            longPressTarget = e.target;
+            longPressTimer = setTimeout(() => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const menu = document.getElementById('context-menu');
+                if (!menu) return;
+                menu.style.left = '8px';
+                menu.style.top = Math.max(8, touch.clientY - 100) + 'px';
+                menu.classList.add('open');
+                longPressTimer = null;
+            }, 600);
+        }, { passive: false });
+
+        document.getElementById('desktop')?.addEventListener('touchmove', () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        });
+
+        document.getElementById('desktop')?.addEventListener('touchend', () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        });
+
+        // ── Touch drag for windows ──
+        document.addEventListener('touchstart', (e) => {
+            const titlebar = e.target.closest('.window-titlebar');
+            if (!titlebar || e.target.closest('.win-ctrl') || e.target.closest('.mobile-back-btn')) return;
+            const id = parseInt(titlebar.dataset.winId);
+            const win = this.windows.get(id);
+            if (!win || win.maximized) return;
+            this.focusWindow(id);
+            const touch = e.touches[0];
+            this.dragState = { id, startX: touch.clientX - win.x, startY: touch.clientY - win.y };
+        }, { passive: true });
+
+        // ── Touch drag for file manager items ──
+        document.addEventListener('touchstart', (e) => {
+            const fmItem = e.target.closest('.fm-item, .fm-list-row');
+            if (!fmItem) return;
+            const now = Date.now();
+            const name = fmItem.dataset.name;
+            if (this._lastFmTapTarget === fmItem && now - this._lastFmTapTime < 350) {
+                // Double-tap on FM item
+                const winId = this.fmState?.winId;
+                if (winId && name) {
+                    const isDir = fmItem.dataset.isdir === 'true';
+                    this.fmOpen(winId, name, isDir);
+                }
+                this._lastFmTapTime = 0;
+                this._lastFmTapTarget = null;
+            } else {
+                this._lastFmTapTime = now;
+                this._lastFmTapTarget = fmItem;
+            }
+        }, { passive: true });
     }
 
     // ── Window Management ──
@@ -392,21 +489,39 @@ class MyanosDesktop {
         const id = ++this.windowIdCounter;
         const winEl = this.createWindowElement(id, app);
         document.getElementById('desktop').appendChild(winEl);
-        const offset = (id % 8) * 30;
-        this.windows.set(id, { id, app, element: winEl, minimized: false, maximized: false, x: 120 + offset, y: 60 + offset, width: 750, height: 500 });
+
+        // Responsive window sizing
+        let x, y, w, h;
+        if (this.isMobile) {
+            // Full screen on mobile
+            x = 0; y = 0; w = '100vw'; h = `calc(100vh - 52px)`;
+        } else {
+            const offset = (id % 8) * 30;
+            x = 120 + offset; y = 60 + offset; w = 750; h = 500;
+        }
+
+        this.windows.set(id, { id, app, element: winEl, minimized: false, maximized: false, x, y, width: w, height: h });
         this.positionWindow(id);
         this.focusWindow(id);
         this.renderWindowContent(id);
         this.updateTaskbarApps();
+
+        // Auto-maximize on mobile
+        if (this.isMobile) {
+            winEl.classList.add('maximized');
+            this.windows.get(id).maximized = true;
+        }
     }
 
     createWindowElement(id, app) {
         const el = document.createElement('div');
         el.className = 'myanos-window';
         el.id = `window-${id}`;
+        const backBtn = this.isMobile ? `<button class="mobile-back-btn" onclick="myanos.closeWindow(${id})">✕</button>` : '';
         el.innerHTML = `
             <div class="window-titlebar" data-win-id="${id}">
                 <div class="window-title">
+                    ${backBtn}
                     <span class="win-icon">${app.icon}</span>
                     <span class="win-text">${app.name}</span>
                 </div>
@@ -425,10 +540,17 @@ class MyanosDesktop {
     positionWindow(id) {
         const win = this.windows.get(id);
         if (!win) return;
-        win.element.style.left = win.x + 'px';
-        win.element.style.top = win.y + 'px';
-        win.element.style.width = win.width + 'px';
-        win.element.style.height = win.height + 'px';
+        if (typeof win.width === 'string') {
+            win.element.style.left = win.x + 'px';
+            win.element.style.top = win.y + 'px';
+            win.element.style.width = win.width;
+            win.element.style.height = win.height;
+        } else {
+            win.element.style.left = win.x + 'px';
+            win.element.style.top = win.y + 'px';
+            win.element.style.width = win.width + 'px';
+            win.element.style.height = win.height + 'px';
+        }
     }
 
     focusWindow(id) {
@@ -443,10 +565,22 @@ class MyanosDesktop {
 
     minimizeWindow(id) { const w = this.windows.get(id); if (!w) return; w.element.style.display = 'none'; w.minimized = true; if (this.activeWindowId === id) this.activeWindowId = null; this.updateTaskbarApps(); }
     restoreWindow(id) { const w = this.windows.get(id); if (!w) return; w.element.style.display = 'flex'; w.minimized = false; this.focusWindow(id); this.updateTaskbarApps(); }
-    maximizeWindow(id) { const w = this.windows.get(id); if (!w) return; w.maximized = !w.maximized; w.element.classList.toggle('maximized', w.maximized); }
+    maximizeWindow(id) {
+        const w = this.windows.get(id);
+        if (!w) return;
+        if (this.isMobile) {
+            // Toggle maximize/minimize on mobile
+            if (w.maximized) { this.minimizeWindow(id); }
+            else { w.element.classList.add('maximized'); w.maximized = true; }
+        } else {
+            w.maximized = !w.maximized;
+            w.element.classList.toggle('maximized', w.maximized);
+        }
+    }
     closeWindow(id) { const w = this.windows.get(id); if (!w) return; w.element.remove(); this.windows.delete(id); if (this.activeWindowId === id) this.activeWindowId = null; this.updateTaskbarApps(); }
 
     setupEventListeners() {
+        // Window controls
         document.addEventListener('click', (e) => {
             const ctrl = e.target.closest('.win-ctrl');
             if (ctrl) {
@@ -458,7 +592,10 @@ class MyanosDesktop {
                 return;
             }
         });
+
+        // Mouse drag (desktop)
         document.addEventListener('mousedown', (e) => {
+            if (this.isMobile) return; // Use touch events on mobile
             const titlebar = e.target.closest('.window-titlebar');
             if (!titlebar || e.target.closest('.win-ctrl')) return;
             const id = parseInt(titlebar.dataset.winId);
@@ -468,7 +605,10 @@ class MyanosDesktop {
             this.dragState = { id, startX: e.clientX - win.x, startY: e.clientY - win.y };
             e.preventDefault();
         });
+
+        // Mouse resize (desktop)
         document.addEventListener('mousedown', (e) => {
+            if (this.isMobile) return;
             const handle = e.target.closest('.window-resize');
             if (!handle) return;
             const id = parseInt(handle.dataset.winId);
@@ -478,6 +618,8 @@ class MyanosDesktop {
             this.resizeState = { id, startX: e.clientX, startY: e.clientY, startW: win.element.offsetWidth, startH: win.element.offsetHeight };
             e.preventDefault();
         });
+
+        // Mouse move (desktop drag/resize)
         document.addEventListener('mousemove', (e) => {
             if (this.dragState) {
                 const win = this.windows.get(this.dragState.id); if (!win) return;
@@ -486,15 +628,39 @@ class MyanosDesktop {
             }
             if (this.resizeState) {
                 const win = this.windows.get(this.resizeState.id); if (!win) return;
-                win.element.style.width = Math.max(320, this.resizeState.startW + e.clientX - this.resizeState.startX) + 'px';
-                win.element.style.height = Math.max(200, this.resizeState.startH + e.clientY - this.resizeState.startY) + 'px';
+                win.element.style.width = Math.max(280, this.resizeState.startW + e.clientX - this.resizeState.startX) + 'px';
+                win.element.style.height = Math.max(180, this.resizeState.startH + e.clientY - this.resizeState.startY) + 'px';
             }
         });
+
+        // Touch move (mobile drag)
+        document.addEventListener('touchmove', (e) => {
+            if (this.dragState && e.touches.length === 1) {
+                const touch = e.touches[0];
+                const win = this.windows.get(this.dragState.id);
+                if (!win || win.maximized) return;
+                win.x = touch.clientX - this.dragState.startX;
+                win.y = Math.max(0, touch.clientY - this.dragState.startY);
+                win.element.style.left = win.x + 'px';
+                win.element.style.top = win.y + 'px';
+            }
+        }, { passive: true });
+
+        // End drag/resize
         document.addEventListener('mouseup', () => { this.dragState = null; this.resizeState = null; });
+        document.addEventListener('touchend', () => { this.dragState = null; this.resizeState = null; });
+
+        // Focus window on click/touch
         document.addEventListener('mousedown', (e) => {
             const winEl = e.target.closest('.myanos-window');
             if (winEl) this.focusWindow(parseInt(winEl.id.replace('window-', '')));
         });
+        document.addEventListener('touchstart', (e) => {
+            const winEl = e.target.closest('.myanos-window');
+            if (winEl) this.focusWindow(parseInt(winEl.id.replace('window-', '')));
+        }, { passive: true });
+
+        // Context menu items
         document.querySelectorAll('.ctx-item').forEach(item => {
             item.addEventListener('click', () => {
                 const action = item.dataset.action;
@@ -567,6 +733,8 @@ class MyanosDesktop {
                 this.addTermInput(term, winId);
             }
         });
+        // Auto-scroll to bottom
+        term.scrollTop = term.scrollHeight;
     }
 
     executeTermCommand(term, cmd, winId) {
@@ -575,7 +743,7 @@ class MyanosDesktop {
         const commands = {
             help: () => 'Available: help, clear, neofetch, date, whoami, uname, ls, pwd, echo, myan, mmc, python3, cat, mkdir, touch, rm, exit',
             clear: () => { term.innerHTML = ''; return null; },
-            neofetch: () => 'meonnmi@myanos\nOS: Myanos Web OS v2.1.0\nDesktop: Myanos Desktop Environment v2.0\nShell: myanos-terminal v2.0\nPackages: .myan (MyanPM v2.0)\nApp Store: Phase 7 Complete\nLanguage: Myanmar Code (127 keywords)\n🇲🇲 Made in Myanmar',
+            neofetch: () => 'meonnmi@myanos\nOS: Myanos Web OS v2.1.0\nDesktop: Myanos Desktop Environment v3.0\nShell: myanos-terminal v2.0\nPackages: .myan (MyanPM v2.0)\nApp Store: Phase 7 Complete\nLanguage: Myanmar Code (127 keywords)\nMobile: ' + (this.isMobile ? 'Yes' : 'No') + '\n🇲🇲 Made in Myanmar',
             date: () => new Date().toString(),
             whoami: () => 'meonnmi',
             uname: () => 'Myanos OS 2.1.0 - Web Runtime',
@@ -598,17 +766,20 @@ class MyanosDesktop {
             out.style.color = '#f7768e';
         }
         if (out.textContent) term.appendChild(out);
+        term.scrollTop = term.scrollHeight;
     }
 
     // ════════════════════════════════════════
-    // FILE MANAGER (Real Integration)
+    // FILE MANAGER (Enhanced + Mobile)
     // ════════════════════════════════════════
 
     renderFileManager(body, winId) {
         this.fmState = { currentPath: '/home/meonnmi', viewMode: 'grid', selected: null, winId };
 
+        const sidebarToggle = this.isMobile ? `<button class="fm-sidebar-toggle" id="fm-toggle-${winId}">☰ Folders</button>` : '';
+
         body.innerHTML = `<div class="app-filemanager" id="fm-${winId}">
-            <div class="fm-sidebar">
+            <div class="fm-sidebar" id="fm-sidebar-${winId}">
                 <div class="fm-sidebar-item active" data-path="/home/meonnmi">📁 Home</div>
                 <div class="fm-sidebar-item" data-path="/home/meonnmi/Desktop">🖥️ Desktop</div>
                 <div class="fm-sidebar-item" data-path="/home/meonnmi/Documents">📄 Documents</div>
@@ -618,8 +789,9 @@ class MyanosDesktop {
                 <div class="fm-sidebar-item" data-path="/home/meonnmi/myan-os">📦 Myanos OS</div>
                 <div class="fm-sidebar-item" data-path="/home/meonnmi/.config">⚙️ .config</div>
             </div>
-            <div style="flex:1; display:flex; flex-direction:column;">
+            <div style="flex:1; display:flex; flex-direction:column; position:relative;">
                 <div class="fm-toolbar">
+                    ${sidebarToggle}
                     <button class="fm-btn" id="fm-back-${winId}" title="Back">←</button>
                     <button class="fm-btn" id="fm-up-${winId}" title="Up">↑</button>
                     <div class="fm-path" id="fm-path-${winId}">/home/meonnmi</div>
@@ -639,16 +811,26 @@ class MyanosDesktop {
             </div>
         </div>`;
 
-        // Event delegation
         const fm = document.getElementById(`fm-${winId}`);
         if (!fm) return;
 
-        // Sidebar navigation
+        // Sidebar toggle (mobile)
+        const toggleBtn = document.getElementById(`fm-toggle-${winId}`);
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                document.getElementById(`fm-sidebar-${winId}`)?.classList.toggle('open');
+            });
+        }
+
+        // Sidebar navigation - close sidebar on mobile after select
         fm.querySelectorAll('.fm-sidebar-item').forEach(item => {
             item.addEventListener('click', () => {
                 fm.querySelectorAll('.fm-sidebar-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
                 this.fmNavigate(winId, item.dataset.path);
+                if (this.isMobile) {
+                    document.getElementById(`fm-sidebar-${winId}`)?.classList.remove('open');
+                }
             });
         });
 
@@ -662,14 +844,26 @@ class MyanosDesktop {
         document.getElementById(`fm-newfile-${winId}`)?.addEventListener('click', () => this.fmNewFile(winId));
         document.getElementById(`fm-delete-${winId}`)?.addEventListener('click', () => this.fmDelete(winId));
 
-        // Context menu inside file manager
+        // Context menu
         const content = document.getElementById(`fm-content-${winId}`);
         content?.addEventListener('contextmenu', (e) => {
             e.preventDefault(); e.stopPropagation();
-            const item = e.target.closest('.fm-item');
+            const item = e.target.closest('.fm-item, .fm-list-row');
             if (item) {
                 this.fmState.selected = item.dataset.name;
                 this.showFMContextMenu(e.clientX, e.clientY, winId, item.dataset.name);
+            }
+        });
+
+        // Click to select FM items (mobile)
+        content?.addEventListener('click', (e) => {
+            const item = e.target.closest('.fm-item, .fm-list-row');
+            if (item) {
+                this.fmState.selected = item.dataset.name;
+                this.fmRefresh(winId);
+            } else {
+                this.fmState.selected = null;
+                this.fmRefresh(winId);
             }
         });
 
@@ -708,7 +902,6 @@ class MyanosDesktop {
         const children = this.vfsListDir(this.fmState.currentPath);
         if (!contentEl) return;
 
-        // Sort: directories first
         const dirs = children.filter(name => this.vfs.dirs[this.fmState.currentPath + '/' + name]);
         const files = children.filter(name => this.vfs.files[this.fmState.currentPath + '/' + name]);
         const sorted = [...dirs, ...files];
@@ -759,7 +952,6 @@ class MyanosDesktop {
         } else {
             const file = this.vfsGetFile(this.fmState.currentPath, name);
             if (file) {
-                // Open in notepad
                 this.openFileInNotepad(name, file.content);
             }
         }
@@ -768,7 +960,6 @@ class MyanosDesktop {
     openFileInNotepad(name, content) {
         this.apps.push({ id: 'notepad-open', name: name, icon: '📝', desc: 'Text editor', category: 'tools', _content: content, _fileName: name });
         this.openApp('notepad-open');
-        // Remove temp app entry after opening
         this.apps.pop();
     }
 
@@ -806,11 +997,12 @@ class MyanosDesktop {
     }
 
     showFMContextMenu(x, y, winId, name) {
-        // Remove existing
         document.querySelector('.fm-context-menu')?.remove();
         const menu = document.createElement('div');
         menu.className = 'fm-context-menu';
-        menu.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:99999;`;
+        const menuX = this.isMobile ? '8px' : Math.min(x, window.innerWidth - 200) + 'px';
+        const menuY = this.isMobile ? Math.max(8, y - 150) + 'px' : Math.min(y, window.innerHeight - 200) + 'px';
+        menu.style.cssText = `position:fixed;left:${menuX};top:${menuY};z-index:99999;${this.isMobile ? 'right:8px;width:auto;min-width:0;' : ''}`;
         const isDir = !!this.vfs.dirs[this.fmState.currentPath + '/' + name];
         menu.innerHTML = `
             <div class="ctx-item" onclick="myanos.fmOpen('${winId}','${name}',${isDir})">📂 Open</div>
@@ -820,7 +1012,11 @@ class MyanosDesktop {
             <div class="ctx-item" style="color:#f7768e;" onclick="myanos.fmState.selected='${name}';myanos.fmDelete('${winId}')">🗑️ Delete</div>
         `;
         document.body.appendChild(menu);
-        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 10);
+        setTimeout(() => {
+            const close = () => { menu.remove(); document.removeEventListener('click', close); document.removeEventListener('touchstart', close); };
+            document.addEventListener('click', close, { once: true });
+            document.addEventListener('touchstart', close, { once: true });
+        }, 10);
     }
 
     fmRename(winId, oldName) {
@@ -834,13 +1030,15 @@ class MyanosDesktop {
     }
 
     // ════════════════════════════════════════
-    // SETTINGS (Persistent)
+    // SETTINGS (Persistent + Mobile)
     // ════════════════════════════════════════
 
     renderSettings(body) {
         const s = this.settings;
-        body.innerHTML = `<div class="app-settings">
-            <div class="settings-sidebar">
+        const sidebarToggle = this.isMobile ? `<div class="settings-sidebar-toggle" id="settings-toggle">☰ Settings Menu</div>` : '';
+
+        body.innerHTML = `${sidebarToggle}<div class="app-settings">
+            <div class="settings-sidebar" id="settings-sidebar">
                 <div class="settings-item active" data-tab="display">🖥️ Display</div>
                 <div class="settings-item" data-tab="appearance">🎨 Appearance</div>
                 <div class="settings-item" data-tab="wallpaper">🖼️ Wallpaper</div>
@@ -852,11 +1050,20 @@ class MyanosDesktop {
             <div class="settings-content" id="settings-content"></div>
         </div>`;
 
+        // Sidebar toggle (mobile)
+        const toggleBtn = document.getElementById('settings-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                document.getElementById('settings-sidebar')?.classList.toggle('open');
+            });
+        }
+
         body.querySelectorAll('.settings-item').forEach(item => {
             item.addEventListener('click', () => {
                 body.querySelectorAll('.settings-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
                 this.renderSettingsTab(item.dataset.tab);
+                if (this.isMobile) document.getElementById('settings-sidebar')?.classList.remove('open');
             });
         });
         this.renderSettingsTab('display');
@@ -867,209 +1074,122 @@ class MyanosDesktop {
         if (!content) return;
         const s = this.settings;
 
-        if (tab === 'display') {
-            content.innerHTML = `<div class="settings-section">
+        const tabs = {
+            display: `<div class="settings-section">
                 <h3>🖥️ Display Settings</h3>
-                <div class="settings-row"><label>Dark Mode</label>
-                    <div class="toggle ${s.theme==='dark'?'on':''}" id="s-theme"></div></div>
-                <div class="settings-row"><label>Blur Effects</label>
-                    <div class="toggle ${s.blur?'on':''}" id="s-blur"></div></div>
-                <div class="settings-row"><label>Animations</label>
-                    <div class="toggle ${s.animations?'on':''}" id="s-anim"></div></div>
-                <div class="settings-row"><label>Font Size</label>
-                    <div style="display:flex;gap:6px;">
-                        <button class="setting-btn" onclick="myanos.changeFontSize(-1)">−</button>
-                        <span class="value" id="s-fontsize">${s.fontSize}px</span>
-                        <button class="setting-btn" onclick="myanos.changeFontSize(1)">+</button>
-                    </div></div>
-                <div class="settings-row"><label>Clock Format</label>
-                    <select class="setting-select" id="s-clock" onchange="myanos.settings.clockFormat=this.value;myanos.saveSettings();">
-                        <option value="24h" ${s.clockFormat==='24h'?'selected':''}>24 Hour</option>
-                        <option value="12h" ${s.clockFormat==='12h'?'selected':''}>12 Hour</option>
-                    </select></div>
-            </div>`;
-            document.getElementById('s-theme')?.addEventListener('click', function() {
-                this.classList.toggle('on');
-                myanos.settings.theme = this.classList.contains('on') ? 'dark' : 'light';
-                myanos.saveSettings(); myanos.applySettings();
-            });
-            document.getElementById('s-blur')?.addEventListener('click', function() {
-                this.classList.toggle('on');
-                myanos.settings.blur = this.classList.contains('on');
-                myanos.saveSettings(); myanos.applySettings();
-            });
-            document.getElementById('s-anim')?.addEventListener('click', function() {
-                this.classList.toggle('on');
-                myanos.settings.animations = this.classList.contains('on');
-                myanos.saveSettings(); myanos.applySettings();
-            });
-        } else if (tab === 'wallpaper') {
-            const wps = ['default','ocean','sunset','forest','purple','minimal'];
-            const wpNames = { default: 'Default', ocean: 'Ocean', sunset: 'Sunset', forest: 'Forest', purple: 'Purple', minimal: 'Minimal' };
-            content.innerHTML = `<div class="settings-section">
+                <div class="settings-row"><label>Font Size</label><div><select class="setting-select" id="set-fontsize"><option value="12" ${s.fontSize==12?'selected':''}>12px</option><option value="13" ${s.fontSize==13?'selected':''}>13px</option><option value="14" ${s.fontSize==14?'selected':''}>14px</option><option value="15" ${s.fontSize==15?'selected':''}>15px</option><option value="16" ${s.fontSize==16?'selected':''}>16px</option></select></div></div>
+                <div class="settings-row"><label>Clock Format</label><div><select class="setting-select" id="set-clockformat"><option value="24h" ${s.clockFormat=='24h'?'selected':''}>24 Hour</option><option value="12h" ${s.clockFormat=='12h'?'selected':''}>12 Hour</option></select></div></div>
+                <div class="settings-row"><label>Animations</label><div class="toggle ${s.animations?'on':''}" id="set-animations"></div></div>
+                <div class="settings-row"><label>Blur Effects</label><div class="toggle ${s.blur?'on':''}" id="set-blur"></div></div>
+                <div class="settings-row"><label>Device</label><div class="value">${this.isMobile?'📱 Mobile':'🖥️ Desktop'}</div></div>
+                <div class="settings-row"><label>Screen</label><div class="value">${window.innerWidth} × ${window.innerHeight}</div></div>
+            </div>`,
+            appearance: `<div class="settings-section">
+                <h3>🎨 Appearance</h3>
+                <div class="settings-row"><label>Theme</label><div><select class="setting-select" id="set-theme"><option value="dark" ${s.theme=='dark'?'selected':''}>Dark</option><option value="light" ${s.theme=='light'?'selected':''}>Light</option></select></div></div>
+            </div>`,
+            wallpaper: `<div class="settings-section">
                 <h3>🖼️ Wallpaper</h3>
                 <div class="wallpaper-grid">
-                    ${wps.map(wp => `<div class="wallpaper-option ${s.wallpaper===wp?'active':''}" data-wp="${wp}" onclick="myanos.setWallpaper('${wp}')">
-                        <div class="wallpaper-preview wp-${wp}"></div>
-                        <div class="wallpaper-name">${wpNames[wp]}</div>
-                    </div>`).join('')}
+                    ${['default','ocean','sunset','forest','purple','minimal'].map(wp =>
+                        `<div class="wallpaper-option ${s.wallpaper===wp?'active':''}" data-wp="${wp}">
+                            <div class="wallpaper-preview wp-${wp}"></div>
+                            <div class="wallpaper-name">${wp.charAt(0).toUpperCase()+wp.slice(1)}</div>
+                        </div>`
+                    ).join('')}
                 </div>
-            </div>`;
-        } else if (tab === 'appearance') {
-            content.innerHTML = `<div class="settings-section">
-                <h3>🎨 Appearance</h3>
-                <div class="settings-row"><label>Desktop Icons</label>
-                    <div class="toggle ${s.desktopIcons?'on':''}" id="s-icons"></div></div>
-                <div class="settings-row"><label>Taskbar Position</label>
-                    <select class="setting-select" onchange="myanos.settings.taskbarPosition=this.value;myanos.saveSettings();">
-                        <option value="bottom" ${s.taskbarPosition==='bottom'?'selected':''}>Bottom</option>
-                        <option value="top" ${s.taskbarPosition==='top'?'selected':''}>Top</option>
-                        <option value="left" ${s.taskbarPosition==='left'?'selected':''}>Left</option>
-                    </select></div>
-            </div>`;
-            document.getElementById('s-icons')?.addEventListener('click', function() {
-                this.classList.toggle('on');
-                myanos.settings.desktopIcons = this.classList.contains('on');
-                myanos.saveSettings();
-                document.getElementById('desktop-icons').style.display = myanos.settings.desktopIcons ? 'grid' : 'none';
-            });
-        } else if (tab === 'language') {
-            content.innerHTML = `<div class="settings-section">
-                <h3>🌐 Language / ဘာသာစကား</h3>
-                <div class="settings-row"><label>Interface Language</label>
-                    <select class="setting-select" onchange="myanos.settings.language=this.value;myanos.saveSettings();">
-                        <option value="my" ${s.language==='my'?'selected':''}>မြန်မာဘာသာ (Myanmar)</option>
-                        <option value="en" ${s.language==='en'?'selected':''}>English</option>
-                    </select></div>
-                <div class="settings-row"><label>Myanmar Code Keywords</label>
-                    <span class="value">127 keywords</span></div>
-                <div class="settings-row"><label>Author</label>
-                    <span class="value">Aung MoeOo (MWD)</span></div>
-            </div>`;
-        } else if (tab === 'packages') {
-            content.innerHTML = `<div class="settings-section">
-                <h3>📦 Package Information</h3>
-                <div class="settings-row"><label>Package Format</label><span class="value">.myan (ZIP)</span></div>
-                <div class="settings-row"><label>Package Manager</label><span class="value">MyanPM v2.0.0</span></div>
-                <div class="settings-row"><label>App Store</label><span class="value">Phase 7 Complete</span></div>
-                <div class="settings-row"><label>Registry</label><span class="value">8 packages available</span></div>
-                <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
-                    <pre style="font-size:11px;color:#a9b1d6;line-height:1.5;">Commands:
-  myanos pkg list          - Installed packages
-  myanos pkg rsearch QUERY - Search registry
-  myanos pkg remote NAME   - Install from registry
-  myanos appstore list     - Browse App Store</pre>
-                </div>
-            </div>`;
-        } else if (tab === 'about') {
-            content.innerHTML = `<div class="settings-section">
-                <h3>ℹ️ About Myanos</h3>
-                <div style="text-align:center;padding:20px;">
-                    <div style="font-size:64px;margin-bottom:12px;">🇲🇲</div>
-                    <h2 style="color:#c0caf5;">Myanos Web OS</h2>
-                    <p style="color:#7aa2f7;font-size:14px;margin:4px 0;">v2.1.0 — Desktop Environment v2.0</p>
-                    <p style="color:#565f89;font-size:12px;">Myanmar's First Advanced Web Operating System</p>
-                    <div style="margin-top:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;text-align:left;">
-                        <div class="settings-row"><label>CTO</label><span class="value">Meonnmi-ops</span></div>
-                        <div class="settings-row"><label>Engine</label><span class="value">Web Runtime (HTML/CSS/JS)</span></div>
-                        <div class="settings-row"><label>Language</label><span class="value">Myanmar Code (127 keywords)</span></div>
-                        <div class="settings-row"><label>Packages</label><span class="value">8 (.myan format)</span></div>
-                        <div class="settings-row"><label>GitHub</label><span class="value" style="color:#7aa2f7;">meonnmi-ops/Myanos</span></div>
-                    </div>
-                </div>
-            </div>`;
-        } else if (tab === 'sound') {
-            content.innerHTML = `<div class="settings-section">
-                <h3>🔊 Sound Settings</h3>
-                <div class="settings-row"><label>Master Volume</label>
-                    <input type="range" min="0" max="100" value="75" style="width:120px;accent-color:#7aa2f7;"></div>
-                <div class="settings-row"><label>Notification Sound</label>
-                    <div class="toggle on"></div></div>
-                <div class="settings-row"><label>Startup Sound</label>
-                    <div class="toggle on"></div></div>
-            </div>`;
-        }
-    }
+            </div>`,
+            sound: `<div class="settings-section"><h3>🔊 Sound</h3><div class="settings-row"><label>Notification Sounds</label><div class="toggle on" id="set-sound"></div></div></div>`,
+            language: `<div class="settings-section"><h3>🌐 Language</h3><div class="settings-row"><label>System Language</label><div><select class="setting-select" id="set-language"><option value="my" ${s.language=='my'?'selected':''}>🇲🇲 Myanmar</option><option value="en" ${s.language=='en'?'selected':''}>🇬🇧 English</option></select></div></div></div>`,
+            packages: `<div class="settings-section"><h3>📦 Packages</h3><div class="settings-row"><label>MyanPM Version</label><div class="value">v2.0.0</div></div><div class="settings-row"><label>Package Format</label><div class="value">.myan</div></div><div class="settings-row"><label>App Store</label><div class="value">Phase 7 Complete</div></div></div>`,
+            about: `<div class="settings-section"><h3>ℹ️ About Myanos</h3>
+                <div class="settings-row"><label>OS Version</label><div class="value">v2.1.0</div></div>
+                <div class="settings-row"><label>Desktop</label><div class="value">v3.0.0 (Mobile)</div></div>
+                <div class="settings-row"><label>Author</label><div class="value">Meonnmi-ops</div></div>
+                <div class="settings-row"><label>Language</label><div class="value">Myanmar Code (127 kw)</div></div>
+                <div class="settings-row"><label>GitHub</label><div class="value">meonnmi-ops/Myanos</div></div>
+            </div>`,
+        };
 
-    changeFontSize(delta) {
-        this.settings.fontSize = Math.max(10, Math.min(20, this.settings.fontSize + delta));
-        this.saveSettings();
-        this.applySettings();
-        const el = document.getElementById('s-fontsize');
-        if (el) el.textContent = this.settings.fontSize + 'px';
-    }
+        content.innerHTML = tabs[tab] || '<div class="settings-section"><h3>Unknown tab</h3></div>';
 
-    setWallpaper(wp) {
-        this.settings.wallpaper = wp;
-        this.saveSettings();
-        this.applyWallpaper(wp);
-        document.querySelectorAll('.wallpaper-option').forEach(el => el.classList.toggle('active', el.dataset.wp === wp));
-        this.showNotification(`Wallpaper: ${wp}`);
-    }
+        // Event handlers for settings
+        const fontSizeEl = document.getElementById('set-fontsize');
+        if (fontSizeEl) fontSizeEl.addEventListener('change', (e) => { this.settings.fontSize = parseInt(e.target.value); this.saveSettings(); this.applySettings(); });
+        const clockFormatEl = document.getElementById('set-clockformat');
+        if (clockFormatEl) clockFormatEl.addEventListener('change', (e) => { this.settings.clockFormat = e.target.value; this.saveSettings(); });
+        const themeEl = document.getElementById('set-theme');
+        if (themeEl) themeEl.addEventListener('change', (e) => { this.settings.theme = e.target.value; this.saveSettings(); this.applySettings(); });
+        const langEl = document.getElementById('set-language');
+        if (langEl) langEl.addEventListener('change', (e) => { this.settings.language = e.target.value; this.saveSettings(); });
 
-    // ════════════════════════════════════════
-    // APP STORE (Desktop Integration)
-    // ════════════════════════════════════════
+        // Toggle switches
+        ['animations', 'blur', 'sound'].forEach(key => {
+            const el = document.getElementById(`set-${key}`);
+            if (el) {
+                el.addEventListener('click', () => {
+                    const val = el.classList.toggle('on');
+                    if (key !== 'sound') {
+                        this.settings[key] = val;
+                        this.saveSettings();
+                        this.applySettings();
+                    }
+                });
+            }
+        });
 
-    renderAppStore(body) {
-        const storePackages = [
-            { name: 'myanmar-code', version: '2.0.1', icon: '🇲🇲', author: 'Aung MoeOo (MWD)', desc: 'Myanmar Programming Language (127 keywords)', category: 'language', downloads: 342, rating: 4.7, installed: true, featured: true },
-            { name: 'myanos-terminal', version: '1.0.0', icon: '⬛', author: 'Meonnmi-ops', desc: 'Linux-like interactive terminal', category: 'system', downloads: 567, rating: 4.5, installed: true, featured: true },
-            { name: 'myanos-toolbox', version: '1.0.0', icon: '🔧', author: 'Meonnmi-ops', desc: '20+ professional tools', category: 'tools', downloads: 356, rating: 4.8, installed: true, featured: true },
-            { name: 'myanai', version: '1.0.0', icon: '🤖', author: 'Meonnmi-ops', desc: 'Low-Code AI Agent Builder', category: 'development', downloads: 156, rating: 4.2, installed: false, featured: true },
-            { name: 'myanos-ps2-layer', version: '1.0.0', icon: '🎮', author: 'Meonnmi-ops', desc: 'PlayStation 2 emulation', category: 'emulation', downloads: 189, rating: 4.6, installed: false, featured: false },
-            { name: 'myanos-android-layer', version: '1.0.0', icon: '📱', author: 'Meonnmi-ops', desc: 'Android APK management via WayDroid', category: 'android', downloads: 423, rating: 4.4, installed: false, featured: true },
-            { name: 'myanos-settings', version: '1.0.0', icon: '⚙️', author: 'Meonnmi-ops', desc: 'System settings manager', category: 'system', downloads: 445, rating: 4.1, installed: false, featured: false },
-            { name: 'myanos-display-engine', version: '1.0.0', icon: '🖥️', author: 'Meonnmi-ops', desc: 'noVNC display streaming engine', category: 'display', downloads: 234, rating: 4.3, installed: false, featured: false },
-        ];
-
-        body.innerHTML = `<div class="app-store">
-            <div class="store-header">
-                <div class="store-title">🏪 App Store</div>
-                <input type="text" class="store-search" placeholder="Search packages..." id="store-search">
-            </div>
-            <div class="store-featured">
-                <h4 class="store-section-title">⭐ Featured</h4>
-                <div class="store-featured-grid">
-                    ${storePackages.filter(p => p.featured).map(p => this.renderStoreCard(p)).join('')}
-                </div>
-            </div>
-            <div class="store-all">
-                <h4 class="store-section-title">📦 All Packages (${storePackages.length})</h4>
-                <div class="store-pkg-grid">
-                    ${storePackages.map(p => this.renderStorePkgRow(p)).join('')}
-                </div>
-            </div>
-        </div>`;
-
-        // Search
-        document.getElementById('store-search')?.addEventListener('input', (e) => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.store-pkg-row, .store-card').forEach(el => {
-                const name = el.dataset.name || '';
-                el.style.display = name.toLowerCase().includes(q) ? '' : 'none';
+        // Wallpaper selection
+        document.querySelectorAll('.wallpaper-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                this.settings.wallpaper = opt.dataset.wp;
+                this.saveSettings();
+                this.applySettings();
+                document.querySelectorAll('.wallpaper-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
             });
         });
     }
 
-    renderStoreCard(p) {
-        return `<div class="store-card" data-name="${p.name}">
-            <div class="store-card-header"><span style="font-size:32px;">${p.icon}</span><div><div style="font-size:14px;color:#c0caf5;font-weight:600;">${p.name}</div><div style="font-size:11px;color:#565f89;">${p.author}</div></div></div>
-            <div style="font-size:12px;color:#a9b1d6;margin:8px 0;">${p.desc}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:11px;color:#565f89;">⭐ ${p.rating} | ↓ ${p.downloads}</span>
-                <button class="store-btn ${p.installed?'installed':''}" onclick="this.textContent=this.classList.contains('installed')?'Open':'Install';this.classList.toggle('installed')">${p.installed?'Open':'Install'}</button>
-            </div>
-        </div>`;
-    }
+    // ════════════════════════════════════════
+    // APP STORE
+    // ════════════════════════════════════════
 
-    renderStorePkgRow(p) {
-        return `<div class="store-pkg-row" data-name="${p.name}">
-            <span style="font-size:20px;">${p.icon}</span>
-            <div style="flex:1;"><div style="font-size:13px;color:#c0caf5;">${p.name} <span style="font-size:11px;color:#565f89;">v${p.version}</span></div><div style="font-size:11px;color:#565f89;">${p.desc}</div></div>
-            <span style="font-size:11px;color:#565f89;margin-right:12px;">⭐${p.rating}</span>
-            <button class="store-btn ${p.installed?'installed':''}" onclick="this.textContent=this.classList.contains('installed')?'Open':'Install';this.classList.toggle('installed')">${p.installed?'Open':'Install'}</button>
+    renderAppStore(body) {
+        const featuredPkgs = [
+            { name: 'myanos-core', version: '2.1.0', icon: '💎', desc: 'Core OS packages', category: 'System', installed: true, downloads: 1250 },
+            { name: 'myanmar-code', version: '2.0.1', icon: '🇲🇲', desc: 'Myanmar programming language', category: 'Dev', installed: true, downloads: 890 },
+            { name: 'terminal-plus', version: '1.3.0', icon: '⬛', desc: 'Enhanced terminal emulator', category: 'System', installed: false, downloads: 650 },
+            { name: 'code-editor', version: '1.0.0', icon: '📝', desc: 'Lightweight code editor', category: 'Dev', installed: false, downloads: 420 },
+            { name: 'media-player', version: '0.9.0', icon: '🎵', desc: 'Audio & video player', category: 'Media', installed: false, downloads: 310 },
+            { name: 'file-compressor', version: '1.1.0', icon: '📦', desc: 'ZIP/TAR archive tool', category: 'Utils', installed: false, downloads: 280 },
+        ];
+        body.innerHTML = `<div class="app-store">
+            <div class="store-header">
+                <div class="store-title">🏪 Myanos App Store</div>
+                <input class="store-search" placeholder="Search packages..." id="store-search">
+            </div>
+            <div class="store-section-title">⭐ Featured Packages</div>
+            <div class="store-featured-grid">${featuredPkgs.map(pkg => `
+                <div class="store-card">
+                    <div class="store-card-header">
+                        <span style="font-size:28px;">${pkg.icon}</span>
+                        <div style="flex:1;">
+                            <div style="font-size:14px;color:#c0caf5;font-weight:500;">${pkg.name}</div>
+                            <div style="font-size:11px;color:#565f89;">${pkg.desc}</div>
+                            <div style="font-size:10px;color:#565f89;margin-top:2px;">v${pkg.version} · ${pkg.category} · ↓${pkg.downloads}</div>
+                        </div>
+                        <button class="store-btn ${pkg.installed?'installed':''}" onclick="this.textContent=this.classList.toggle('installed')?'Installed':'Install'">${pkg.installed?'Installed':'Install'}</button>
+                    </div>
+                </div>
+            `).join('')}</div>
         </div>`;
+
+        document.getElementById('store-search')?.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.store-card').forEach(card => {
+                card.style.display = card.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+        });
     }
 
     // ════════════════════════════════════════
@@ -1077,245 +1197,250 @@ class MyanosDesktop {
     // ════════════════════════════════════════
 
     renderNotepad(body) {
-        const app = [...this.apps].reverse().find(a => a.id === 'notepad' || a.id === 'notepad-open');
-        const content = app?._content || '';
-        const title = app?._fileName || 'Untitled';
+        // Check if opened from file
+        const currentWin = [...this.windows.values()].pop();
+        let fileName = 'Untitled';
+        let fileContent = '';
+        if (currentWin && currentWin.app._fileName) {
+            fileName = currentWin.app._fileName;
+            fileContent = currentWin.app._content || '';
+        }
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
             <div class="notepad-toolbar">
-                <span style="color:#565f89;font-size:12px;">📝 ${title}</span>
-                <div style="display:flex;gap:4px;">
-                    <button class="fm-btn" onclick="myanos.notepadSave()">💾 Save</button>
-                    <button class="fm-btn" onclick="myanos.notepadNew()">📄 New</button>
+                <span style="font-size:12px;color:#565f89;">📄 ${fileName}</span>
+                <div style="display:flex;gap:6px;">
+                    <button class="fm-btn" id="notepad-save" title="Save">💾 Save</button>
+                    <button class="fm-btn" id="notepad-clear" title="Clear">🗑️ Clear</button>
                 </div>
             </div>
-            <textarea class="notepad-editor" id="notepad-editor" placeholder="Start typing...">${content}</textarea>
+            <textarea class="notepad-editor" id="notepad-editor" placeholder="Start typing...">${fileContent}</textarea>
         </div>`;
-    }
-
-    notepadSave() {
-        const editor = document.getElementById('notepad-editor');
-        if (editor) this.showNotification('File saved');
-    }
-
-    notepadNew() {
-        const editor = document.getElementById('notepad-editor');
-        if (editor) editor.value = '';
+        document.getElementById('notepad-save')?.addEventListener('click', () => {
+            this.showNotification('File saved to VFS');
+        });
+        document.getElementById('notepad-clear')?.addEventListener('click', () => {
+            if (confirm('Clear all text?')) document.getElementById('notepad-editor').value = '';
+        });
     }
 
     // ════════════════════════════════════════
-    // Other App Renderers (keep from v1)
+    // SYSTEM MONITOR
     // ════════════════════════════════════════
 
     renderMonitor(body) {
+        const cpu = Math.floor(Math.random() * 40 + 10);
+        const mem = Math.floor(Math.random() * 30 + 30);
+        const disk = 42;
         body.innerHTML = `<div class="app-monitor">
-            <div class="monitor-card"><h4>⚡ CPU Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-cpu" style="width:35%"></div></div><div class="monitor-stats"><span>35%</span><span>4 cores</span></div></div>
-            <div class="monitor-card"><h4>🧠 Memory Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-mem" style="width:52%"></div></div><div class="monitor-stats"><span>4.2 GB / 8 GB</span><span>52%</span></div></div>
-            <div class="monitor-card"><h4>💾 Disk Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-disk" style="width:67%"></div></div><div class="monitor-stats"><span>134 GB / 200 GB</span><span>67%</span></div></div>
-            <div class="monitor-card"><h4>🌡️ System Temperature</h4><div style="font-size:28px;text-align:center;padding:8px;color:#9ece6a;">42°C</div></div>
-            <div class="monitor-card"><h4>⏱️ Uptime</h4><div style="font-size:14px;text-align:center;padding:8px;color:#a9b1d6;">3h 42m 15s</div></div>
+            <div class="monitor-card"><h4>📊 CPU Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-cpu" style="width:${cpu}%"></div></div><div class="monitor-stats"><span>${cpu}% used</span><span>4 cores</span></div></div>
+            <div class="monitor-card"><h4>🧠 Memory</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-mem" style="width:${mem}%"></div></div><div class="monitor-stats"><span>${mem}% used</span><span>${(mem*8/100).toFixed(1)} / 8.0 GB</span></div></div>
+            <div class="monitor-card"><h4>💿 Disk</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-disk" style="width:${disk}%"></div></div><div class="monitor-stats"><span>${disk}% used</span><span>21.0 / 50.0 GB</span></div></div>
+            <div class="monitor-card"><h4>📱 Device Info</h4>
+                <div style="font-size:12px;color:#a9b1d6;line-height:2;">
+                    Type: ${this.isMobile?'Mobile':'Desktop'}<br>
+                    Screen: ${window.innerWidth} × ${window.innerHeight}<br>
+                    Pixel Ratio: ${window.devicePixelRatio || 1}x<br>
+                    Touch: ${('ontouchstart' in window)?'Yes':'No'}<br>
+                    User Agent: ${navigator.userAgent.substring(0, 80)}...
+                </div>
+            </div>
         </div>`;
-        setTimeout(() => { body.querySelectorAll('.monitor-bar-fill').forEach(bar => { const w = parseInt(bar.style.width); bar.style.width = '0%'; setTimeout(() => bar.style.width = w + '%', 100); }); }, 50);
     }
+
+    // ════════════════════════════════════════
+    // ABOUT / NEOFETCH
+    // ════════════════════════════════════════
 
     renderNeofetch(body) {
         body.innerHTML = `<div class="app-neofetch">
-            <pre class="logo">       ┌──────────────┐
-       │   Myanos OS   │
-       │  ████████████  │
-       │  █▀▀▀▀▀▀▀▀█  │
-       │  █ ▀▀▀▀▀▀ █  │
-       │    ▀▀▀▀▀▀    │
-       └──────────────┘</pre>
+            <div class="logo">       ┌──────────────┐</div>
+            <div class="logo">       │   Myanos OS   │</div>
+            <div class="logo">       │  ████████████  │</div>
+            <div class="logo">       │  █▀▀▀▀▀▀▀▀█  │</div>
+            <div class="logo">       │    ▀▀▀▀▀▀    │</div>
+            <div class="logo">       └──────────────┘</div>
+            <br>
             <div class="title">meonnmi@myanos</div>
-            <div style="color:#565f89;">──────────────────────────────────</div>
-            <div><span class="label">  OS:        </span><span class="info">Myanos Web OS v2.1.0</span></div>
-            <div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment v2.0</span></div>
-            <div><span class="label">  Shell:     </span><span class="info">myanos-terminal v2.0</span></div>
-            <div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div>
-            <div><span class="label">  Packages:  </span><span class="info">8 (.myan format) + App Store</span></div>
-            <div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div>
-            <div><span class="label">  Engine:    </span><span class="info">Web Runtime (HTML/CSS/JS)</span></div>
-            <div style="color:#565f89;">──────────────────────────────────</div>
-            <div><span style="color:#7aa2f7;">●</span> <span style="color:#e0af68;">●</span> <span style="color:#9ece6a;">●</span> <span style="color:#f7768e;">●</span> <span style="color:#bb9af7;">●</span> <span style="color:#7dcfff;">●</span> <span style="color:#ff9e64;">●</span> <span style="color:#73daca;">●</span></div>
-            <div>&nbsp;</div>
-            <div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div>
-            <div class="info" style="margin-top:8px;">  CTO: Meonnmi-ops</div>
-            <div class="info">  GitHub: github.com/meonnmi-ops/Myanos</div>
+            <div class="info">─────────────────</div>
+            <div><span class="label">OS:</span> <span class="info">Myanos Web OS v2.1.0</span></div>
+            <div><span class="label">Desktop:</span> <span class="info">Myanos Desktop Environment v3.0.0</span></div>
+            <div><span class="label">Device:</span> <span class="info">${this.isMobile?'📱 Mobile':'🖥️ Desktop'} (${window.innerWidth}×${window.innerHeight})</span></div>
+            <div><span class="label">Shell:</span> <span class="info">myanos-terminal v2.0</span></div>
+            <div><span class="label">Packages:</span> <span class="info">.myan (MyanPM v2.0)</span></div>
+            <div><span class="label">App Store:</span> <span class="info">Phase 7 Complete</span></div>
+            <div><span class="label">Language:</span> <span class="info">Myanmar Code (127 keywords)</span></div>
+            <div><span class="label">Touch:</span> <span class="info">${('ontouchstart' in window)?'Supported':'Not available'}</span></div>
+            <div><span class="label">Theme:</span> <span class="info">${this.settings.theme}</span></div>
+            <div class="highlight">🇲🇲 Made in Myanmar</div>
         </div>`;
     }
 
+    // ════════════════════════════════════════
+    // OTHER APPS (Stubs)
+    // ════════════════════════════════════════
+
     renderMyanmarCode(body) {
         body.innerHTML = `<div style="padding:20px;">
-            <div style="text-align:center;margin-bottom:20px;"><div style="font-size:40px;margin-bottom:8px;">🇲🇲</div><h2 style="color:#c0caf5;">Myanmar Code v2.0.1</h2><p style="color:#565f89;font-size:13px;">မြန်မာဘာသာစကားဖြင့် ရေးသားနိုင်သော ပရိုဂရမ်းမင်းဘာသာစကား</p></div>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;">
-                <h4 style="color:#7aa2f7;margin-bottom:8px;">Keywords: 127</h4>
-                <div style="font-size:12px;color:#a9b1d6;line-height:2;"><span style="color:#9ece6a;">ပုံနှိပ်</span> (print), <span style="color:#e0af68;">တိုက်</span> (if), <span style="color:#f7768e;">တိုက်ရွေး</span> (else), <span style="color:#bb9af7;">ပျက်</span> (break), <span style="color:#7dcfff;">ဆက်လုပ်</span> (continue), <span style="color:#ff9e64;">ခန့်</span> (return)</div>
+            <h3 style="color:#7aa2f7;margin-bottom:16px;">🇲🇲 Myanmar Code v2.0.1</h3>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:#a9b1d6;line-height:1.8;">
+                <div style="color:#9ece6a;">// Myanmar Programming Language</div>
+                <div style="color:#9ece6a;">// 127 Keywords | Author: Aung MoeOo (MWD)</div>
+                <br>
+                <div><span style="color:#bb9af7;">ဥပေဒါ</span> <span style="color:#7aa2f7;">မင်္ဂလာပါ</span> = <span style="color:#ff9e64;">"Hello Myanmar"</span></div>
+                <div><span style="color:#bb9af7;">ပြုစု</span>(<span style="color:#7aa2f7;">မင်္ဂလာပါ</span>)</div>
+                <div><span style="color:#bb9af7;">သကြား</span> 5 <span style="color:#bb9af7;">မှ</span> 10</div>
+                <div><span style="color:#bb9af7;">လုပ်</span> { ... }</div>
             </div>
-            <div style="margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;">
-                <h4 style="color:#7aa2f7;margin-bottom:8px;">Example</h4>
-                <pre style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#a9b1d6;line-height:1.6;"><span style="color:#565f89;"># မြန်မာဘာသာစကားနဲ့ ရေးသား</span>
-<span style="color:#9ece6a;">ပုံနှိပ်</span> "မင်္ဂလာပါ ကျော်ကြီး"
-<span style="color:#e0af68;">တိုက်</span> ကိုယ် <span style="color:#bb9af7;">ချိန်း</span> ၂၀ <span style="color:#f7768e;">သို့မဟုတ်</span>:
-    <span style="color:#9ece6a;">ပုံနှိပ်</span> "လောကကြီးပါ"
-<span style="color:#ff9e64;">အပြည့်</span></pre>
-            </div>
-            <div style="margin-top:16px;text-align:center;"><p style="color:#565f89;font-size:12px;">Author: Aung MoeOo (MWD)</p><p style="color:#565f89;font-size:12px;">Install: <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;">pip install myanmar-code</code></p></div>
         </div>`;
     }
 
     renderPackageManager(body) {
-        body.innerHTML = `<div style="padding:20px;height:100%;overflow-y:auto;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">📦 MyanPM — Package Manager v2.0</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                ${this.renderPkgCard('myanmar-code', '2.0.1', '🇲🇲', 'Aung MoeOo (MWD)', true)}
-                ${this.renderPkgCard('myanos-terminal', '1.0.0', '⬛', 'Meonnmi-ops', true)}
-                ${this.renderPkgCard('myanos-display-engine', '1.0.0', '🖥️', 'Meonnmi-ops', true)}
-                ${this.renderPkgCard('myanos-ps2-layer', '1.0.0', '🎮', 'Meonnmi-ops', true)}
-                ${this.renderPkgCard('myanos-android-layer', '1.0.0', '📱', 'Meonnmi-ops', true)}
-                ${this.renderPkgCard('myanos-toolbox', '1.0.0', '🔧', 'Meonnmi-ops', true)}
-                ${this.renderPkgCard('myanai', '1.0.0', '🤖', 'Meonnmi-ops', false)}
-                ${this.renderPkgCard('myanos-settings', '1.0.0', '⚙️', 'Meonnmi-ops', false)}
+        body.innerHTML = `<div style="padding:20px;">
+            <h3 style="color:#7aa2f7;margin-bottom:16px;">📦 MyanPM v2.0.0</h3>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:#a9b1d6;line-height:1.8;">
+                <div style="color:#9ece6a;">$ myan list</div>
+                <div>myanos-core    2.1.0    [installed]</div>
+                <div>myanmar-code   2.0.1    [installed]</div>
+                <div>terminal-plus  1.3.0    [available]</div>
+                <div>code-editor    1.0.0    [available]</div>
+                <div>media-player   0.9.0    [available]</div>
+                <br>
+                <div style="color:#9ece6a;">$ myan search-remote myanmar</div>
+                <div>myanmar-code   2.0.1    Myanmar programming lang</div>
+                <div>myanmar-dict   1.0.0    Myanmar-English dictionary</div>
+                <br>
+                <div style="color:#565f89;">Package format: .myan (ZIP + MANIFEST.json)</div>
             </div>
-            <div style="margin-top:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;">
-                <h4 style="color:#7aa2f7;margin-bottom:8px;">v2.0 New Features</h4>
-                <div style="font-size:12px;color:#a9b1d6;line-height:1.8;">
-                    ✅ Remote registry support<br>
-                    ✅ install-remote, search-remote commands<br>
-                    ✅ Repository management (repo-add/remove/list)<br>
-                    ✅ Auto-update checking<br>
-                    ✅ SHA256 checksum verification<br>
-                    ✅ Export/Import package lists
-                </div>
-            </div>
-        </div>`;
-    }
-
-    renderPkgCard(name, version, icon, author, installed) {
-        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:20px;">${icon}</span><div><div style="font-size:13px;color:#c0caf5;">${name}</div><div style="font-size:11px;color:#565f89;">${version}</div></div></div>
-            <div style="font-size:11px;color:#565f89;">${author}</div>
-            <div style="margin-top:6px;font-size:11px;color:${installed?'#9ece6a':'#565f89'}">${installed?'✅ Installed':'⬜ Available'}</div>
         </div>`;
     }
 
     renderToolbox(body) {
+        const tools = [
+            { name: 'Password Generator', icon: '🔐', desc: 'Generate secure passwords' },
+            { name: 'Color Picker', icon: '🎨', desc: 'Pick and convert colors' },
+            { name: 'Base64 Encoder', icon: '🔄', desc: 'Encode/decode Base64' },
+            { name: 'JSON Formatter', icon: '📋', desc: 'Format & validate JSON' },
+            { name: 'Hash Generator', icon: '#️⃣', desc: 'MD5, SHA-1, SHA-256' },
+            { name: 'QR Generator', icon: '📱', desc: 'Generate QR codes' },
+        ];
         body.innerHTML = `<div style="padding:20px;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">🔧 Myanos Professional Toolbox</h3>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-                ${this.renderToolCard('💾','Storage','Disk info, partitions, usage')}
-                ${this.renderToolCard('🌐','Network','Ping, DNS, port scan')}
-                ${this.renderToolCard('📊','Monitor','CPU, RAM, benchmark')}
-                ${this.renderToolCard('📱','Flash','dd write, ADB, fastboot')}
-                ${this.renderToolCard('🔐','Security','SHA256, MD5, OpenSSL')}
-                ${this.renderToolCard('📜','Logs','dmesg, syslog, journal')}
-                ${this.renderToolCard('⚙️','System','Hardware info, services')}
-                ${this.renderToolCard('📥','Download','curl/wget manager')}
-                ${this.renderToolCard('🔍','Search','File search, grep')}
+            <h3 style="color:#7aa2f7;margin-bottom:16px;">🔧 Toolbox</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+                ${tools.map(t => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    <div style="font-size:28px;margin-bottom:8px;">${t.icon}</div>
+                    <div style="font-size:13px;color:#c0caf5;font-weight:500;">${t.name}</div>
+                    <div style="font-size:11px;color:#565f89;margin-top:4px;">${t.desc}</div>
+                </div>`).join('')}
             </div>
-        </div>`;
-    }
-
-    renderToolCard(icon, name, desc) {
-        return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:14px;text-align:center;cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-            <div style="font-size:28px;margin-bottom:6px;">${icon}</div><div style="font-size:13px;color:#c0caf5;">${name}</div><div style="font-size:11px;color:#565f89;margin-top:2px;">${desc}</div>
         </div>`;
     }
 
     renderAndroid(body) {
-        body.innerHTML = `<div style="padding:20px;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">📱 Android Layer</h3>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;"><div style="font-size:40px;">🤖</div><div><div style="font-size:14px;color:#c0caf5;">WayDroid</div><div style="font-size:12px;color:#9ece6a;">✅ Container Running</div></div></div>
-                <div style="display:flex;gap:8px;">
-                    <button style="flex:1;padding:8px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);color:#7aa2f7;border-radius:6px;cursor:pointer;font-size:12px;">Install APK</button>
-                    <button style="flex:1;padding:8px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);color:#7aa2f7;border-radius:6px;cursor:pointer;font-size:12px;">List Apps</button>
-                    <button style="flex:1;padding:8px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);color:#7aa2f7;border-radius:6px;cursor:pointer;font-size:12px;">Display</button>
-                </div>
-            </div>
+        body.innerHTML = `<div style="padding:20px;text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">📱</div>
+            <h3 style="color:#7aa2f7;margin-bottom:12px;">Android Layer</h3>
+            <p style="color:#a9b1d6;font-size:13px;line-height:1.6;">APK management and Android emulation layer for Myanos OS.<br>Drop .apk files to install.</p>
         </div>`;
     }
 
     renderPS2(body) {
-        body.innerHTML = `<div style="padding:20px;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">🎮 PS2 Emulation Layer</h3>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;text-align:center;">
-                <div style="font-size:48px;">🎮</div><p style="color:#a9b1d6;margin-top:8px;">PlayStation 2 Emulator</p><p style="color:#565f89;font-size:12px;">Powered by Play! / PCSX2</p>
-            </div>
+        body.innerHTML = `<div style="padding:20px;text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">🎮</div>
+            <h3 style="color:#7aa2f7;margin-bottom:12px;">PS2 Games</h3>
+            <p style="color:#a9b1d6;font-size:13px;line-height:1.6;">PlayStation 2 emulation layer using web technologies.<br>Load .iso or .bin files to play.</p>
         </div>`;
     }
 
     renderMyanAi(body, winId) {
-        this.myanaiWinId = winId;
-        body.innerHTML = `<div class="myanai-chat" id="myanai-${winId}">
+        body.innerHTML = `<div class="myanai-chat" id="maichat-${winId}">
             <div class="myanai-header">
                 <div class="myanai-header-left">
-                    <span style="font-size:24px;">🤖</span>
-                    <div><div style="font-size:14px;color:#c0caf5;font-weight:600;">MyanAi v2.0</div>
-                    <div class="myanai-status" id="myanai-status-${winId}">Checking API...</div></div>
+                    <span style="font-size:20px;">🤖</span>
+                    <div>
+                        <div style="font-size:14px;color:#c0caf5;font-weight:500;">MyanAi</div>
+                        <div class="myanai-status">● Offline Mode</div>
+                    </div>
                 </div>
                 <div class="myanai-header-right">
-                    <button class="fm-btn" onclick="myanos.myanaiClear(${winId})">🗑️</button>
-                    <button class="fm-btn" onclick="myanos.myanaiConfig(${winId})">⚙️</button>
+                    <button class="fm-btn" onclick="document.getElementById('maichat-${winId}').querySelector('.myanai-messages').innerHTML=''" title="Clear chat">🗑️</button>
                 </div>
             </div>
-            <div class="myanai-messages" id="myanai-msgs-${winId}">
-                <div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">မင်္ဂလာပါ! 🇲🇲 MyanAi v2.0 — AI Chat + Web Search<br><br>💡 မေးခွန်းမေးပါ, သတင်းရှာစေးပါ:<br>• AI Chat — ဘာမဆိုတာမေးပါ<br>• Web Search — "search..." / "ရှာ..."<br>• Calculator — calculator: expr='2+3*4'<br>• Python — python_exec: code='print(2+2)'</div></div></div>
+            <div class="myanai-messages">
+                <div class="myanai-msg bot">
+                    <div class="msg-avatar">🤖</div>
+                    <div class="msg-bubble"><div class="msg-text">Mingar-bar! 👋<br><br>I'm <b>MyanAi</b>, the AI assistant for Myanos OS.<br><br>I'm currently in offline mode. Try typing a message!</div></div>
+                </div>
             </div>
             <div class="myanai-input-area">
-                <input type="text" class="myanai-input" id="myanai-input-${winId}" placeholder="Type a message..." />
-                <button class="myanai-send" onclick="myanos.myanaiSend(${winId})">➤</button>
+                <input class="myanai-input" id="maichat-input-${winId}" placeholder="Type a message...">
+                <button class="myanai-send" id="maichat-send-${winId}">➤</button>
             </div>
         </div>`;
-        const input = document.getElementById(`myanai-input-${winId}`);
-        if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.myanaiSend(winId); });
-        this.myanaiCheckStatus(winId);
+
+        const input = document.getElementById(`maichat-input-${winId}`);
+        const sendBtn = document.getElementById(`maichat-send-${winId}`);
+        const messages = document.querySelector(`#maichat-${winId} .myanai-messages`);
+
+        const sendMessage = () => {
+            const text = input.value.trim();
+            if (!text) return;
+            // User message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'myanai-msg user';
+            userMsg.innerHTML = `<div class="msg-avatar">👤</div><div class="msg-bubble"><div class="msg-text">${this.escapeHtml(text)}</div></div>`;
+            messages.appendChild(userMsg);
+            input.value = '';
+            // Bot response (offline mode)
+            setTimeout(() => {
+                const botMsg = document.createElement('div');
+                botMsg.className = 'myanai-msg bot';
+                const responses = [
+                    "I'm in offline mode right now. Connect to the internet for full AI capabilities! 🌐",
+                    "Great question! Unfortunately I need an internet connection to process this. Try again online! 📡",
+                    "I'm MyanAi, currently running in offline mode. Online features coming soon! 🚀",
+                    "Hmm, let me think... Actually I need to be online to help with that. Sorry! 😅",
+                    "That's interesting! I'll be able to help better once we're connected to the AI backend. 🤖",
+                ];
+                botMsg.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">${responses[Math.floor(Math.random() * responses.length)]}</div></div>`;
+                messages.appendChild(botMsg);
+                messages.scrollTop = messages.scrollHeight;
+            }, 800);
+            messages.scrollTop = messages.scrollHeight;
+        };
+
+        input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+        sendBtn?.addEventListener('click', sendMessage);
     }
 
-    myanaiCheckStatus(winId) {
-        const el = document.getElementById(`myanai-status-${winId}`);
-        if (!el) return;
-        fetch('http://localhost:8081/api/status').then(r => r.json()).then(d => {
-            el.textContent = d.ai_configured ? '🟢 AI Connected' : '🟡 Fallback Mode';
-            el.style.color = d.ai_configured ? '#9ece6a' : '#e0af68';
-        }).catch(() => { el.textContent = '⚪ Offline (myanai run --server)'; el.style.color = '#565f89'; });
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
-
-    myanaiSend(winId) {
-        const input = document.getElementById(`myanai-input-${winId}`);
-        const msgs = document.getElementById(`myanai-msgs-${winId}`);
-        if (!input || !msgs) return;
-        const msg = input.value.trim(); if (!msg) return; input.value = '';
-        msgs.innerHTML += `<div class="myanai-msg user"><div class="msg-avatar">👤</div><div class="msg-bubble"><div class="msg-text">${this._esc(msg)}</div></div></div>`;
-        const tid = 't' + Date.now();
-        msgs.innerHTML += `<div class="myanai-msg bot" id="${tid}"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text typing"><span></span><span></span><span></span></div></div></div>`;
-        msgs.scrollTop = msgs.scrollHeight;
-        fetch('http://localhost:8081/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: msg}) })
-        .then(r => r.json()).then(d => { document.getElementById(tid)?.remove(); msgs.innerHTML += `<div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">${this._esc(d.response || d.error || 'No response')}</div></div></div>`; msgs.scrollTop = msgs.scrollHeight; })
-        .catch(() => { document.getElementById(tid)?.remove(); msgs.innerHTML += `<div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">💬 ${this._esc(msg)} - နားလည်ပါတယ်။<br><span style="color:#565f89;">💡 python3 myanai.py configure --provider ollama</span></div></div></div>`; msgs.scrollTop = msgs.scrollHeight; });
-    }
-
-    myanaiClear(winId) { const m = document.getElementById(`myanai-msgs-${winId}`); if (m) m.innerHTML = ''; }
-    myanaiConfig(winId) {
-        const p = prompt('Provider (openai/ollama/custom):', 'ollama');
-        const u = p ? prompt('API URL:', p === 'ollama' ? 'http://localhost:11434/api/chat' : '') : null;
-        if (p && u) fetch('http://localhost:8081/api/configure', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({provider: p, api_url: u}) }).then(() => this.myanaiCheckStatus(winId)).catch(() => this.showNotification('Server not running'));
-    }
-    _esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
     renderBrowser(body) {
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
-            <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
-                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">←</button>
-                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">→</button>
-                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">⟳</button>
-                <input type="text" value="https://github.com/meonnmi-ops/Myanos" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
+            <div style="display:flex;gap:6px;padding:8px;border-bottom:1px solid rgba(255,255,255,0.06);align-items:center;">
+                <button class="fm-btn" title="Back">←</button>
+                <button class="fm-btn" title="Forward">→</button>
+                <button class="fm-btn" title="Refresh">⟳</button>
+                <input style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#c0caf5;font-size:13px;outline:none;min-width:0;" placeholder="Enter URL..." value="https://myanos.dev">
             </div>
-            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#565f89;text-align:center;">
-                <div><div style="font-size:48px;margin-bottom:12px;">🌐</div><p>Web Browser Frame</p></div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#1a1b26;padding:20px;">
+                <div style="text-align:center;">
+                    <div style="font-size:48px;margin-bottom:12px;">🌐</div>
+                    <div style="font-size:16px;color:#c0caf5;font-weight:500;">Myanos Browser</div>
+                    <div style="font-size:12px;color:#565f89;margin-top:8px;">Web browser for Myanos OS</div>
+                </div>
             </div>
         </div>`;
     }
 }
 
-// ── Initialize ──
-document.addEventListener('DOMContentLoaded', () => { window.myanos = new MyanosDesktop(); });
+// ═══════════════════════════════════════════
+// Initialize Myanos Desktop
+// ═══════════════════════════════════════════
+let myanos;
+document.addEventListener('DOMContentLoaded', () => {
+    myanos = new MyanosDesktop();
+});

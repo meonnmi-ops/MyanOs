@@ -2,10 +2,15 @@
 <html lang="my">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1b2e">
     <title>Myanos Desktop</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇲🇲</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇲🇲</text></svg>">
 </head>
 <body>
     <!-- Desktop Area -->
@@ -31,9 +36,9 @@
         </div>
         <div id="start-apps" class="start-apps"></div>
         <div class="start-footer">
-            <span>📁 Files</span>
-            <span>⚙️ Settings</span>
-            <span>⏻ Shutdown</span>
+            <span onclick="myanos.openApp('files')">📁 Files</span>
+            <span onclick="myanos.openApp('settings')">⚙️ Settings</span>
+            <span onclick="document.body.style.opacity='0';setTimeout(()=>alert('Shutdown - Myanos OS'),300)">⏻ Shutdown</span>
         </div>
     </div>
 
