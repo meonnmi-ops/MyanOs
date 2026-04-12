@@ -1,423 +1,325 @@
 #!/usr/bin/env python3
 """
-Myanos Web OS v2.1.0 - Unified Command Hub
+Myanos Web OS v2.0.0 - Unified Command Hub
 CTO: Meonnmi-ops | Myanmar Advanced Web Operating System
 
 Integrates: Package Manager, Terminal, Desktop, Display Engine, PS2 Layer,
-           Android Layer, Toolbox, MyanAi, Myanmar Code, App Store
-
-v2.1.0 Changes:
-  - App Store integration (search, install, browse, categories)
-  - Enhanced pkg command (remote install, search, update)
-  - Repository management commands
+           Android Layer, Toolbox, MyanAi, Myanmar Code
 """
 
-import os
-import sys
-import subprocess
-import platform
-import json
-import time
-import argparse
+import os, sys, subprocess, platform, json, time
 from pathlib import Path
 
-VERSION = "2.1.0"
+VERSION = "2.0.0"
+BANNER = r"""
+       ┌──────────────┐
+       │   Myanos OS   │
+       │  ████████████  │
+       │  █▀▀▀▀▀▀▀▀█  │
+       │  █ ▀▀▀▀▀▀ █  │
+       │    ▀▀▀▀▀▀    │
+       └──────────────┘
+"""
 BASE_DIR = Path(__file__).parent
 
-BANNER = r"""
-       ┌──────────────────┐
-       │   Myanos OS v2.1 │
-       │  ██████████████   │
-       │  █▀▀▀▀▀▀▀▀▀█    │
-       │  █ ▀▀▀▀▀▀▀ █    │
-       │  █ APP STORE █    │
-       │    ▀▀▀▀▀▀▀▀     │
-       └──────────────────┘
-"""
+def show_banner():
+    print(f"\033[0;32m{BANNER}\033[0m")
+    print(f"  \033[1;36mMyanos Web OS v{VERSION}\033[0m")
+    print(f"  Myanmar Programming Language & Web OS")
+    print(f"  CTO: Meonnmi-ops")
+    print()
 
-HELP_TEXT = """
-Myanos Web OS v{version} - Unified Command Hub
-CTO: Meonnmi-ops | Myanmar Advanced Web Operating System
-
-Commands:
-  myanos help              Show this help message
-  myanos version           Show version info
-  myanos neofetch          Display system info
-
-  Package Manager:
-  myanos pkg list          List installed packages
-  myanos pkg install PATH  Install .myan package (local)
-  myanos pkg remote NAME   Install package from registry
-  myanos pkg search QUERY  Search installed packages
-  myanos pkg rsearch QUERY Search remote registry
-  myanos pkg update        Check for updates
-  myanos pkg info NAME     Package details
-  myanos pkg remove NAME   Remove package
-  myanos pkg build         Build .myan package
-
-  App Store:
-  myanos appstore search QUERY    Search App Store
-  myanos appstore list            List all packages
-  myanos appstore info NAME       Package details
-  myanos appstore install NAME    Download & install
-  myanos appstore featured        Featured packages
-  myanos appstore popular         Popular packages
-  myanos appstore recent          Recent updates
-  myanos appstore categories      List categories
-  myanos appstore stats           Registry statistics
-
-  Repository:
-  myanos repo list          List configured repos
-  myanos repo add URL       Add remote repo
-  myanos repo remove URL    Remove repo
-
-  Other:
-  myanos terminal          Interactive terminal
-  myanos desktop           Launch web desktop
-  myanos display android|ps2  Display engine
-  myanos android STATUS    Android layer
-  myanos ps2 list          PS2 games
-  myanos toolbox           Professional toolbox
-  myanos ai [run|create]   MyanAi agent
-  myanos mmc run 'CODE'    Myanmar Code
-
-Examples:
-  myanos appstore search tool
-  myanos appstore install myanmar-code
-  myanos pkg remote myanos-toolbox
-  myanos repo list
-"""
-
-
-def cmd_neofetch():
-    """Display system information"""
-    uname = platform.uname()
-    print(f"""
-    OS:        Myanos Web OS v{VERSION}
-    Host:      {uname.node}
-    Kernel:    {uname.system} {uname.release}
-    Arch:      {uname.machine}
-    Python:    {platform.python_version()}
-    Terminal:  {os.environ.get('TERM', 'unknown')}
-    Shell:     {os.environ.get('SHELL', 'unknown')}
-    PWD:       {os.getcwd()}
-    Packages:  {len(get_installed_count())} installed
-    """)
-
-
-def get_installed_count():
-    """Get count of installed packages"""
-    db_file = BASE_DIR / ".myan_db.json"
-    if db_file.exists():
-        with open(db_file, 'r') as f:
+def show_neofetch():
+    show_banner()
+    user = os.environ.get("USER", "meonnmi")
+    hostname = "myanos"
+    print(f"\033[1;33m{user}@{hostname}\033[0m")
+    print("─" * 45)
+    print(f"  OS:        Myanos Web OS v{VERSION}")
+    print(f"  Shell:     myanos-terminal v1.0.0")
+    print(f"  Language:  Myanmar Code (127 keywords)")
+    print(f"  Python:    {platform.python_version()}")
+    print(f"  Platform:  {platform.system()} {platform.machine()}")
+    print(f"  Packages:  .myan (MyanPM)")
+    # Count installed packages
+    db_path = BASE_DIR / ".myan_db.json"
+    if db_path.exists():
+        with open(db_path) as f:
             db = json.load(f)
-        return db.get("packages", {})
-    return {}
+        count = len(db.get("packages", {}))
+        print(f"  Installed: {count} packages")
+    print("─" * 45)
+    print("  🇲🇲 Myanos Web OS - Made in Myanmar")
 
-
-def cmd_pkg(args):
-    """Package Manager commands"""
-    pm_path = BASE_DIR / "myan_pm.py"
-    if not pm_path.exists():
-        print(f"[ERR] MyanPM not found: {pm_path}")
-        return
-
-    if not args:
-        print("Usage: myanos pkg [list|install|remote|search|rsearch|update|info|remove|build]")
-        return
-
-    subcmd = args[0]
-
-    if subcmd == "list":
-        run_pm(["list"])
-    elif subcmd == "install" and len(args) > 1:
-        run_pm(["install", args[1]])
-    elif subcmd == "remote" and len(args) > 1:
-        run_pm(["install-remote", args[1]])
-    elif subcmd == "search" and len(args) > 1:
-        run_pm(["search", " ".join(args[1:])])
-    elif subcmd == "rsearch" and len(args) > 1:
-        category = None
-        query_parts = []
-        for a in args[1:]:
-            if a.startswith("--category=") or a.startswith("-c="):
-                category = a.split("=", 1)[1]
-            else:
-                query_parts.append(a)
-        cmd = ["search-remote", " ".join(query_parts)]
-        if category:
-            cmd.extend(["--category", category])
-        run_pm(cmd)
-    elif subcmd == "update":
-        name = args[1] if len(args) > 1 else None
-        cmd = ["update"]
-        if name:
-            cmd.append(name)
-        run_pm(cmd)
-    elif subcmd == "info" and len(args) > 1:
-        run_pm(["info", args[1]])
-    elif subcmd == "remove" and len(args) > 1:
-        run_pm(["remove", args[1]])
-    elif subcmd == "build":
-        run_pm(["build"] + args[1:])
-    elif subcmd == "repo-add" and len(args) > 1:
-        run_pm(["repo-add", args[1]])
-    elif subcmd == "repo-remove" and len(args) > 1:
-        run_pm(["repo-remove", args[1]])
-    elif subcmd == "repo-list":
-        run_pm(["repo-list"])
-    else:
-        print("Usage: myanos pkg [list|install|remote|search|rsearch|update|info|remove|build|repo-add|repo-remove|repo-list]")
-
-
-def run_pm(pm_args):
-    """Run MyanPM with arguments"""
-    pm_path = BASE_DIR / "myan_pm.py"
-    try:
-        result = subprocess.run(
-            [sys.executable, str(pm_path)] + pm_args,
-            capture_output=True, text=True, timeout=30
-        )
-        if result.stdout:
-            print(result.stdout.rstrip())
-        if result.stderr:
-            print(result.stderr.rstrip(), file=sys.stderr)
-    except subprocess.TimeoutExpired:
-        print("[ERR] Command timed out")
-    except Exception as e:
-        print(f"[ERR] {e}")
-
-
-def cmd_appstore(args):
-    """App Store commands"""
-    client_path = BASE_DIR / "appstore" / "client.py"
-    if not client_path.exists():
-        print(f"[ERR] App Store client not found: {client_path}")
-        print("       Run: python3 appstore/registry_server.py --init")
-        return
-
-    if not args:
-        # Default: show featured packages
-        run_appstore_client(["featured"])
-        return
-
-    subcmd = args[0]
-
-    if subcmd == "search" and len(args) > 1:
-        run_appstore_client(["search", " ".join(args[1:])])
-    elif subcmd == "list":
-        extra = []
-        for a in args[1:]:
-            extra.append(a)
-        run_appstore_client(["list"] + extra)
-    elif subcmd == "info" and len(args) > 1:
-        run_appstore_client(["info", args[1]])
-    elif subcmd == "install" and len(args) > 1:
-        run_appstore_client(["install", args[1]])
-    elif subcmd == "featured":
-        run_appstore_client(["featured"])
-    elif subcmd == "popular":
-        run_appstore_client(["popular"] + args[1:])
-    elif subcmd == "recent":
-        run_appstore_client(["recent"] + args[1:])
-    elif subcmd == "categories":
-        run_appstore_client(["categories"])
-    elif subcmd == "stats":
-        run_appstore_client(["stats"])
-    elif subcmd == "publish" and len(args) > 1:
-        run_appstore_client(["publish", args[1]])
-    else:
-        print("Usage: myanos appstore [search|list|info|install|featured|popular|recent|categories|stats|publish]")
-
-
-def run_appstore_client(client_args):
-    """Run App Store client"""
-    client_path = BASE_DIR / "appstore" / "client.py"
-    try:
-        result = subprocess.run(
-            [sys.executable, str(client_path)] + client_args,
-            capture_output=True, text=True, timeout=30
-        )
-        if result.stdout:
-            print(result.stdout.rstrip())
-        if result.stderr:
-            print(result.stderr.rstrip(), file=sys.stderr)
-    except subprocess.TimeoutExpired:
-        print("[ERR] Request timed out")
-    except Exception as e:
-        print(f"[ERR] {e}")
-
-
-def cmd_repo(args):
-    """Repository management commands"""
-    pm_path = BASE_DIR / "myan_pm.py"
-    if not args:
-        run_pm(["repo-list"])
-        return
-
-    subcmd = args[0]
-    if subcmd == "list":
-        run_pm(["repo-list"])
-    elif subcmd == "add" and len(args) > 1:
-        run_pm(["repo-add", args[1]])
-    elif subcmd == "remove" and len(args) > 1:
-        run_pm(["repo-remove", args[1]])
-    else:
-        print("Usage: myanos repo [list|add URL|remove URL]")
-
+def show_help():
+    show_banner()
+    print("📋 Myanos Commands:\n")
+    print("System:")
+    print("  myanos terminal          Start interactive terminal")
+    print("  myanos neofetch          Show system info")
+    print("  myanos help              Show this help\n")
+    print("Package Manager:")
+    print("  myanos pkg list          List installed packages")
+    print("  myanos pkg install <file>  Install .myan package")
+    print("  myanos pkg remove <name>   Remove package")
+    print("  myanos pkg search <q>      Search packages")
+    print("  myanos pkg info <name>     Package details\n")
+    print("Myanmar Code:")
+    print("  myanos mmc run '<code>'  Execute Myanmar Code\n")
+    print("Display Engine:")
+    print("  myanos display android   Start Android display (noVNC)")
+    print("  myanos display ps2       Start PS2 display\n")
+    print("Android Layer:")
+    print("  myanos android status    Show Android status")
+    print("  myanos android install   Install APK file")
+    print("  myanos android list      List Android apps\n")
+    print("PS2 Layer:")
+    print("  myanos ps2 list          List PS2 games")
+    print("  myanos ps2 launch        Launch PS2 game\n")
+    print("Toolbox:")
+    print("  myanos toolbox           Open professional toolbox\n")
+    print("Desktop:")
+    print("  myanos desktop            Launch web desktop\n")
+    print("MyanAi:")
+    print("  myanos ai                 MyanAi agent builder\n")
+    print("  myanos ai run             Run AI agent\n")
+    print("  myanos ai create          Create new agent\n\n")
+    print("Examples:")
+    print("  myanos neofetch")
+    print("  myanos pkg install ./dist/myanmar-code-2.0.1.myan")
+    print("  myanos mmc run 'ပုံနှိပ် \"မင်္ဂလာပါ\"'")
+    print("  myanos display android")
+    print("  myanos toolbox")
 
 def cmd_terminal():
-    """Launch interactive terminal"""
-    term_path = BASE_DIR / "terminal" / "terminal.py"
-    if term_path.exists():
-        os.system(f"{sys.executable} {term_path}")
+    """Start Myanos interactive terminal"""
+    term_script = BASE_DIR / "terminal" / "terminal.py"
+    if term_script.exists():
+        os.system(f"{sys.executable} {term_script}")
     else:
-        print("[ERR] Terminal not found")
+        print("[WARN] Terminal module not found")
+        print("       Install: myanos pkg install ./dist/myanos-terminal-1.0.0.myan")
 
-
-def cmd_desktop():
-    """Launch web desktop"""
-    desktop_path = BASE_DIR / "desktop" / "index.html"
-    if desktop_path.exists():
-        print(f"[INFO] Opening desktop...")
-        import webbrowser
-        webbrowser.open(f"file://{desktop_path}")
+def cmd_pkg(args):
+    """Package manager commands"""
+    sys.path.insert(0, str(BASE_DIR))
+    from myan_pm import MyanPM
+    pm = MyanPM()
+    if len(args) < 2:
+        pm.list()
+        return
+    action = args[1]
+    if action == "list":
+        pm.list()
+    elif action == "install" and len(args) > 2:
+        pm.install(args[2])
+    elif action == "remove" and len(args) > 2:
+        pm.remove(args[2])
+    elif action == "search" and len(args) > 2:
+        pm.search(args[2])
+    elif action == "info" and len(args) > 2:
+        pm.info(args[2])
     else:
-        print("[ERR] Desktop not found")
+        print("[ERR] Usage: myanos pkg [list|install|remove|search|info]")
 
+def cmd_mmc(args):
+    """Myanmar Code execution"""
+    if len(args) < 3 or args[1] != "run":
+        print("[ERR] Usage: myanos mmc run '<myanmar_code>'")
+        return
+    code = " ".join(args[2:])
+    print(f"[Myanmar Code] Executing...")
+    # Try to use myanmar-code package
+    try:
+        import myanmar_code
+        result = myanmar_code.execute(code)
+        if result:
+            print(result)
+    except ImportError:
+        print("[INFO] myanmar-code not installed")
+        print("       Install: pip install myanmar-code")
+        print("       Or:      myanos pkg install ./dist/myanmar-code-2.0.1.myan")
 
 def cmd_display(args):
     """Display engine commands"""
-    disp_path = BASE_DIR / "display_engine" / "display_engine.py"
-    if disp_path.exists():
-        run_py(disp_path, args)
+    if len(args) < 2:
+        print("[ERR] Usage: myanos display [android|ps2]")
+        return
+    target = args[1]
+    engine_script = BASE_DIR / "display_engine" / "display_engine.py"
+    if engine_script.exists():
+        os.system(f"{sys.executable} {engine_script} {target}")
     else:
-        print("[ERR] Display engine not found")
-
+        print(f"[WARN] Display Engine not installed")
+        print("       Install: myanos pkg install ./dist/myanos-display-engine-1.0.0.myan")
 
 def cmd_android(args):
     """Android layer commands"""
-    vnc_path = BASE_DIR / "android_layer" / "vnc_server.py"
-    if vnc_path.exists():
-        run_py(vnc_path, args)
+    if len(args) < 2:
+        print("[ERR] Usage: myanos android [status|install|list]")
+        return
+    action = args[1]
+    android_dir = BASE_DIR / "android_layer"
+    if not android_dir.exists():
+        print("[WARN] Android Layer not installed")
+        return
+    if action == "status":
+        print("[Android Layer Status]")
+        print("  WayDroid: Checking...")
+        r = os.system("which waydroid > /dev/null 2>&1")
+        if r == 0:
+            print("  WayDroid: ✅ Installed")
+        else:
+            print("  WayDroid: ❌ Not installed")
+            print("  Install: bash android_layer/setup_waydroid.sh")
+        r2 = os.system("which adb > /dev/null 2>&1")
+        if r2 == 0:
+            print("  ADB: ✅ Available")
+        else:
+            print("  ADB: ❌ Not available (pkg install android-tools)")
+    elif action == "install" and len(args) > 2:
+        apk = args[2]
+        if os.path.exists(apk):
+            print(f"[Android] Installing {apk}...")
+            os.system(f"adb install {apk} 2>/dev/null || waydroid app install {apk} 2>/dev/null")
+        else:
+            print(f"[ERR] APK not found: {apk}")
+    elif action == "list":
+        print("[Android] Listing apps...")
+        os.system("adb shell pm list packages 2>/dev/null || waydroid app list 2>/dev/null")
     else:
-        print("[ERR] Android layer not found")
-
+        print("[ERR] Usage: myanos android [status|install|list]")
 
 def cmd_ps2(args):
     """PS2 layer commands"""
-    ps2_path = BASE_DIR / "ps2_layer" / "ps2_layer.py"
-    if ps2_path.exists():
-        run_py(ps2_path, args)
+    if len(args) < 2:
+        print("[ERR] Usage: myanos ps2 [list|launch]")
+        return
+    action = args[1]
+    ps2_dir = BASE_DIR / "ps2_layer"
+    if not ps2_dir.exists():
+        print("[WARN] PS2 Layer not installed")
+        return
+    if action == "list":
+        print("[PS2] Scanning game images...")
+        game_dirs = ["~/PS2", "~/games/ps2", "./games"]
+        for d in game_dirs:
+            expanded = os.path.expanduser(d)
+            if os.path.exists(expanded):
+                for f in os.listdir(expanded):
+                    if f.endswith(('.iso', '.bin', '.img')):
+                        print(f"  🎮 {f}")
+    elif action == "launch" and len(args) > 2:
+        game = args[2]
+        print(f"[PS2] Launching {game}...")
+        ps2_script = ps2_dir / "ps2_layer.py"
+        if ps2_script.exists():
+            os.system(f"{sys.executable} {ps2_script} {game}")
+        else:
+            print("[WARN] PS2 runner not found")
     else:
-        print("[ERR] PS2 layer not found")
+        print("[ERR] Usage: myanos ps2 [list|launch <game>]")
 
+def cmd_toolbox():
+    """Open professional toolbox"""
+    tb_dir = BASE_DIR / "toolbox"
+    if tb_dir.exists():
+        tb_script = tb_dir / "toolbox.py"
+        if tb_script.exists():
+            os.system(f"{sys.executable} {tb_script}")
+            return
+    print("╔══════════════════════════════════════════════╗")
+    print("║  🔧 Myanos Professional Toolbox v1.0.0      ║")
+    print("║  Firmware • Bypass • Storage • Network      ║")
+    print("╚══════════════════════════════════════════════╝")
+    print()
+    tools = [
+        ("1", "Firmware Info", "lshw, dmidecode"),
+        ("2", "Storage Manager", "lsblk, fdisk, df"),
+        ("3", "Network Scanner", "nmap, ss, ip"),
+        ("4", "Flash Tool", "dd, etcher-like"),
+        ("5", "System Benchmark", "CPU, RAM, Disk speed"),
+        ("6", "Process Manager", "htop-like monitor"),
+        ("7", "Log Viewer", "syslog, dmesg, journalctl"),
+        ("8", "Package Manager", "apt/pkg operations"),
+    ]
+    print("Available Tools:")
+    for num, name, desc in tools:
+        print(f"  [{num}] {name:<22} ({desc})")
+    print("\n  [0] Exit")
+    print()
+    choice = input("Myanos $> ").strip()
+    if choice == "0":
+        print("Bye!")
+    elif choice == "1":
+        os.system("lshw -short 2>/dev/null || echo 'lshw not available'")
+    elif choice == "2":
+        os.system("lsblk && echo '---' && df -h")
+    elif choice == "3":
+        os.system("ip addr 2>/dev/null || ifconfig 2>/dev/null")
+    elif choice == "4":
+        print("Flash Tool: sudo dd if=image.iso of=/dev/sdX bs=4M status=progress")
+    elif choice == "5":
+        os.system("python3 -c \"import time; print('Benchmarking...'); t=time.time(); a=list(range(1000000)); print(f'List creation: {time.time()-t:.3f}s')\"")
+    elif choice == "6":
+        os.system("ps aux --sort=-%mem | head -15 2>/dev/null || ps aux | head -15")
+    elif choice == "7":
+        os.system("dmesg | tail -20 2>/dev/null || echo 'No dmesg access'")
+    elif choice == "8":
+        cmd_pkg(["myanos", "pkg", "list"])
 
-def cmd_toolbox(args):
-    """Professional toolbox"""
-    tb_path = BASE_DIR / "toolbox" / "toolbox.py"
-    if tb_path.exists():
-        run_py(tb_path, args)
+def cmd_desktop():
+    """Launch Myanos Desktop Environment"""
+    desktop_index = BASE_DIR / "desktop" / "index.html"
+    if desktop_index.exists():
+        import webbrowser
+        webbrowser.open(f"file://{desktop_index}")
+        print("[OK] Desktop launched in browser!")
+        print("     Open: file://" + str(desktop_index))
     else:
-        print("[ERR] Toolbox not found")
-
+        print("[WARN] Desktop not found")
+        print("       Install: myanos pkg install ./dist/myanos-desktop-1.0.0.myan")
 
 def cmd_ai(args):
-    """MyanAi agent"""
-    ai_path = BASE_DIR / "myanai" / "myanai.py"
-    if ai_path.exists():
-        run_py(ai_path, args)
-    else:
-        print("[ERR] MyanAi not found")
-
-
-def cmd_mmc(args):
-    """Myanmar Code interpreter"""
-    mmc_path = BASE_DIR / "packages" / "myanmar-code" / "mmc.py"
-    if mmc_path.exists():
-        run_py(mmc_path, args)
-    else:
-        print("[ERR] Myanmar Code not found")
-
-
-def cmd_server(args):
-    """Start App Store registry server"""
-    server_path = BASE_DIR / "appstore" / "registry_server.py"
-    if server_path.exists():
-        run_py(server_path, args)
-    else:
-        print("[ERR] Registry server not found")
-
-
-def run_py(script_path, args):
-    """Run a Python script with arguments"""
-    try:
-        result = subprocess.run(
-            [sys.executable, str(script_path)] + (args or []),
-            capture_output=True, text=True, timeout=120
-        )
-        if result.stdout:
-            print(result.stdout.rstrip())
-        if result.stderr:
-            print(result.stderr.rstrip(), file=sys.stderr)
-    except subprocess.TimeoutExpired:
-        print("[ERR] Command timed out")
-    except Exception as e:
-        print(f"[ERR] {e}")
-
+    """MyanAi agent builder"""
+    myanai_script = BASE_DIR / "myanai" / "myanai.py"
+    if not myanai_script.exists():
+        print("[WARN] MyanAi not found")
+        print("       Install: myanos pkg install ./dist/myanai-1.0.0.myan")
+        return
+    sys.path.insert(0, str(BASE_DIR / "myanai"))
+ os.chdir(str(BASE_DIR / "myanai"))
+ os.system(f"{sys.executable} {myanai_script} {' '.join(args[1:])}")
 
 def main():
-    parser = argparse.ArgumentParser(
-        prog="myanos",
-        description="Myanos Web OS v2.1.0 - Unified Command Hub",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=HELP_TEXT.format(version=VERSION),
-    )
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Command arguments")
-    parser.add_argument("--version", "-v", action="version", version=f"Myanos OS v{VERSION}")
-
-    args = parser.parse_args()
-
-    if not args.command or args.command == "help":
-        print(BANNER)
-        print(HELP_TEXT.format(version=VERSION))
-        return
-
-    if args.command == "version":
-        print(f"Myanos Web OS v{VERSION}")
-        return
-
-    if args.command == "neofetch":
-        cmd_neofetch()
-    elif args.command == "pkg":
-        cmd_pkg(args.args)
-    elif args.command == "appstore":
-        cmd_appstore(args.args)
-    elif args.command == "repo":
-        cmd_repo(args.args)
-    elif args.command == "terminal":
+    args = sys.argv[1:]
+    if not args or args[0] in ("help", "-h", "--help"):
+        show_help()
+    elif args[0] == "neofetch":
+        show_neofetch()
+    elif args[0] == "terminal":
         cmd_terminal()
-    elif args.command == "desktop":
+    elif args[0] == "pkg":
+        cmd_pkg(args)
+    elif args[0] == "mmc":
+        cmd_mmc(args)
+    elif args[0] == "display":
+        cmd_display(args)
+    elif args[0] == "android":
+        cmd_android(args)
+    elif args[0] == "ps2":
+        cmd_ps2(args)
+    elif args[0] == "toolbox":
+        cmd_toolbox()
+    elif args[0] == "desktop":
         cmd_desktop()
-    elif args.command == "display":
-        cmd_display(args.args)
-    elif args.command == "android":
-        cmd_android(args.args)
-    elif args.command == "ps2":
-        cmd_ps2(args.args)
-    elif args.command == "toolbox":
-        cmd_toolbox(args.args)
-    elif args.command == "ai":
-        cmd_ai(args.args)
-    elif args.command == "mmc":
-        cmd_mmc(args.args)
-    elif args.command == "server":
-        cmd_server(args.args)
+    elif args[0] == "ai":
+        cmd_ai(args)
+    elif args[0] == "version" or args[0] == "-v":
+        print(f"Myanos Web OS v{VERSION}")
     else:
-        print(f"[ERR] Unknown command: {args.command}")
-        print("Run 'myanos help' for available commands")
-
+        print(f"[ERR] Unknown command: {args[0]}")
+        print("       Run 'myanos help' for available commands")
 
 if __name__ == "__main__":
     main()

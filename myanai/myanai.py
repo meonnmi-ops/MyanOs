@@ -1,47 +1,20 @@
 #!/usr/bin/env python3
 """
-MyanAi — Low-Code AI Agent Builder v2.0.0
+MyanAi — Low-Code AI Agent Builder v1.0.0
 Myanmar's First AI Agent Framework for Myanos Web OS
 
-v2.0.0 Changes:
-  - Live Web Search (DuckDuckGo integration)
-  - Live AI Chat (OpenAI / Ollama / Custom API)
-  - API configuration management
-  - Enhanced tool execution with real APIs
-  - REST API server mode for desktop integration
-
 Build custom AI agents with minimal code.
-Define tools, personality, and workflows in simple config.
-
+Define tools, personality, and workflows in simple YAML-like config.
 Author: Meonnmi-ops (CTO, Myanos Project)
 """
 
-import os
-import sys
-import json
-import time
-import re
-import argparse
-import subprocess
-import urllib.request
-import urllib.parse
-import urllib.error
+import os, sys, json, time, re
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from http.server import HTTPServer, BaseHTTPRequestHandler
 
-VERSION = "2.0.0"
-BASE_DIR = Path(__file__).parent
-AGENTS_DIR = BASE_DIR / "agents"
-TEMPLATES_DIR = BASE_DIR / "templates"
-
-# ── Import API Client ──
-try:
-    from api_client import Config as APIConfig, Cache, WebSearch, AIChat
-    HAS_API = True
-except ImportError:
-    HAS_API = False
-
+VERSION = "1.0.0"
+AGENTS_DIR = Path(__file__).parent / "agents"
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 # ════════════════════════════════════════════════════════
 # Agent Definition Schema
@@ -51,9 +24,18 @@ class AgentDefinition:
     """Defines an AI agent's configuration"""
 
     SCHEMA = {
-        "name": str, "version": str, "description": str, "author": str,
-        "personality": str, "language": str, "greeting": str, "farewell": str,
-        "tools": list, "workflows": list, "memory": dict, "safety": dict,
+        "name": str,
+        "version": str,
+        "description": str,
+        "author": str,
+        "personality": str,       # System prompt / personality description
+        "language": str,          # Response language (default: "myanmar")
+        "greeting": str,          # First message to user
+        "farewell": str,          # Last message
+        "tools": list,            # List of tool definitions
+        "workflows": list,        # Multi-step workflow definitions
+        "memory": dict,           # Memory configuration
+        "safety": dict,           # Safety rules
     }
 
     def __init__(self, config: Dict[str, Any]):
@@ -75,6 +57,7 @@ class AgentDefinition:
                     validated[key] = value
             else:
                 validated[key] = value
+        # Defaults
         validated.setdefault("language", "myanmar")
         validated.setdefault("memory", {"enabled": True, "max_turns": 50})
         validated.setdefault("safety", {"max_retries": 3, "timeout": 30})
@@ -84,6 +67,7 @@ class AgentDefinition:
         tools = []
         for t in tools_raw:
             if isinstance(t, str):
+                # Built-in tool reference
                 tools.append({"name": t, "type": "builtin", "enabled": True})
             elif isinstance(t, dict):
                 tools.append(t)
@@ -99,64 +83,58 @@ class AgentDefinition:
 
 BUILTIN_TOOLS = {
     "web_search": {
-        "name": "web_search", "description": "အင်တာနက်ပေါ်မှ သတင်းရှာဖွေရန် (Live)",
+        "name": "web_search",
+        "description": "အင်တာနက်ပေါ်မှ သတင်းရှာဖွေရန်",
         "params": ["query"],
         "example": "web_search: query='မြန်မာ့ သတင်း'",
-        "live": True,
-    },
-    "ai_chat": {
-        "name": "ai_chat", "description": "AI နှင့် စပြီး ဆက်စပ်မှု (Live)",
-        "params": ["message"],
-        "example": "ai_chat: message='မြန်မာ့ အကြောင်း ပြောပေး'",
-        "live": True,
     },
     "shell_command": {
-        "name": "shell_command", "description": "Shell command အလုပ်ပြန်ရန်",
-        "params": ["command"], "example": "shell_command: command='ls -la'",
+        "name": "shell_command",
+        "description": "Shell command အလုပ်ပြန်ရန်",
+        "params": ["command"],
+        "example": "shell_command: command='ls -la'",
     },
     "file_read": {
-        "name": "file_read", "description": "ဖိုင်ဖတ်ရှုရန်",
-        "params": ["path"], "example": "file_read: path='./myfile.txt'",
+        "name": "file_read",
+        "description": "ဖိုင်ဖတ်ရှုရန်",
+        "params": ["path"],
+        "example": "file_read: path='./myfile.txt'",
     },
     "file_write": {
-        "name": "file_write", "description": "ဖိုင်ရေးရန်",
+        "name": "file_write",
+        "description": "ဖိုင်ရေးရန်",
         "params": ["path", "content"],
         "example": "file_write: path='./out.txt', content='Hello'",
     },
     "python_exec": {
-        "name": "python_exec", "description": "Python code အလုပ်ပြန်ရန်",
-        "params": ["code"], "example": "python_exec: code='print(2+2)'",
+        "name": "python_exec",
+        "description": "Python code အလုပ်ပြန်ရန်",
+        "params": ["code"],
+        "example": "python_exec: code='print(2+2)'",
     },
     "http_request": {
-        "name": "http_request", "description": "HTTP request ပြုစုရန်",
+        "name": "http_request",
+        "description": "HTTP request ပြုစုရန်",
         "params": ["url", "method"],
         "example": "http_request: url='https://api.example.com', method='GET'",
     },
     "send_notification": {
-        "name": "send_notification", "description": "Notification ပေးရန်",
+        "name": "send_notification",
+        "description": "Notification ပေးရန်",
         "params": ["message", "title"],
         "example": "send_notification: title='Alert', message='Done!'",
     },
     "timer": {
-        "name": "timer", "description": "Timer/Reminder သတ်မှတ်ရန်",
+        "name": "timer",
+        "description": "Timer/Reminder သတ်မှတ်ရန်",
         "params": ["seconds", "message"],
         "example": "timer: seconds=60, message='Time up!'",
-    },
-    "calculator": {
-        "name": "calculator", "description": "ကုန်ပ显示屏ကိရိယာ (calculations)",
-        "params": ["expression"],
-        "example": "calculator: expression='2+3*4'",
-    },
-    "translate": {
-        "name": "translate", "description": "ဘာသာစကားပြန်ဆိုခြင်း",
-        "params": ["text", "to"],
-        "example": "translate: text='Hello', to='myanmar'",
     },
 }
 
 
 # ════════════════════════════════════════════════════════
-# Agent Runtime (v2.0 with Live API)
+# Agent Runtime
 # ════════════════════════════════════════════════════════
 
 class AgentRuntime:
@@ -170,96 +148,41 @@ class AgentRuntime:
         self.turn_count = 0
         self.max_turns = agent.config.get("memory", {}).get("max_turns", 50)
 
-        # Initialize API clients
-        self.web_search = None
-        self.ai_chat = None
-        if HAS_API:
-            api_config = APIConfig()
-            cache = Cache(api_config)
-            self.web_search = WebSearch(api_config, cache)
-            self.ai_chat = AIChat(api_config, cache)
-
     def process_message(self, user_message: str) -> str:
         """Process user message and generate response"""
         self.turn_count += 1
         if self.turn_count > self.max_turns:
             return self._cleanup_and_respond()
 
+        # Add to history
         self.conversation_history.append({
-            "role": "user", "content": user_message,
+            "role": "user",
+            "content": user_message,
             "timestamp": time.strftime("%H:%M:%S")
         })
 
-        # Check for tool calls
+        # Check for tool calls in message
         tool_result = self._check_tool_call(user_message)
         if tool_result:
             self.conversation_history.append({
-                "role": "assistant", "content": tool_result,
+                "role": "assistant",
+                "content": tool_result,
                 "timestamp": time.strftime("%H:%M:%S")
             })
             return tool_result
 
-        # Check for search intent (auto web search)
-        search_result = self._check_search_intent(user_message)
-        if search_result:
-            self.conversation_history.append({
-                "role": "assistant", "content": search_result,
-                "timestamp": time.strftime("%H:%M:%S")
-            })
-            return search_result
-
-        # Try AI chat first (if configured)
-        ai_result = self._try_ai_chat(user_message)
-        if ai_result:
-            self.conversation_history.append({
-                "role": "assistant", "content": ai_result,
-                "timestamp": time.strftime("%H:%M:%S")
-            })
-            return ai_result
-
-        # Fallback to pattern-based response
+        # Generate response based on personality
         response = self._generate_response(user_message)
         self.conversation_history.append({
-            "role": "assistant", "content": response,
+            "role": "assistant",
+            "content": response,
             "timestamp": time.strftime("%H:%M:%S")
         })
         return response
 
-    def _try_ai_chat(self, message: str) -> Optional[str]:
-        """Try to get response from AI API"""
-        if not self.ai_chat or not self.ai_chat.is_configured():
-            return None
-
-        personality = self.agent.config.get("personality", "")
-        if not personality:
-            personality = "You are a helpful AI assistant. Respond in Myanmar language."
-
-        result = self.ai_chat.chat(message, personality)
-        if result:
-            return result
-        return None
-
-    def _check_search_intent(self, message: str) -> Optional[str]:
-        """Auto-detect search intent and perform web search"""
-        # Search keywords
-        search_keywords = [
-            "search", "find", "look up", "what is", "who is", "when was",
-            "where is", "how to", "why does", "latest", "news",
-            "ရှာ", "ရှာပါ", "ဘာ", "အကြောင်း", "ကျေးဇူး", "သတင်း",
-            "google", "ddg",
-        ]
-
-        msg_lower = message.lower()
-        for kw in search_keywords:
-            if kw in msg_lower:
-                if self.web_search:
-                    return self.web_search.search(message)
-                return f"[Web Search] Searching: {message}\n(Note: Install api_client.py for live search)"
-
-        return None
-
     def _check_tool_call(self, message: str) -> Optional[str]:
         """Check if message contains a tool call pattern"""
+        # Pattern: tool_name: param=value, param=value
         tool_pattern = r'^(\w+):\s*(.+)$'
         match = re.match(tool_pattern, message.strip())
         if not match:
@@ -268,6 +191,7 @@ class AgentRuntime:
         tool_name = match.group(1)
         params_str = match.group(2)
 
+        # Parse params
         params = {}
         for pair in params_str.split(','):
             pair = pair.strip()
@@ -277,13 +201,16 @@ class AgentRuntime:
             else:
                 params['query'] = pair.strip().strip("'\"")
 
+        # Execute tool
         return self._execute_tool(tool_name, params)
 
     def _execute_tool(self, tool_name: str, params: dict) -> str:
         """Execute a tool by name"""
+        # Check built-in tools
         if tool_name in BUILTIN_TOOLS:
             return self._run_builtin_tool(tool_name, params)
 
+        # Check custom tools
         for tool in self.agent.tools:
             if tool.get("name") == tool_name and tool.get("type") == "custom":
                 return self._run_custom_tool(tool, params)
@@ -294,9 +221,11 @@ class AgentRuntime:
         """Run a built-in tool"""
         try:
             if name == "shell_command":
+                import subprocess
                 cmd = params.get("command", "echo hello")
                 r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                return f"[Shell] $ {cmd}\n{(r.stdout or r.stderr or '(no output)').strip()[:500]}"
+                result = r.stdout or r.stderr or "(no output)"
+                return f"[Shell] $ {cmd}\n{result.strip()[:500]}"
 
             elif name == "python_exec":
                 code = params.get("code", "print('hello')")
@@ -311,7 +240,8 @@ class AgentRuntime:
                 path = params.get("path", "")
                 if os.path.exists(path):
                     with open(path) as f:
-                        return f"[File: {path}]\n{f.read()[:2000]}"
+                        content = f.read()[:2000]
+                    return f"[File: {path}]\n{content}"
                 return f"[Error] File not found: {path}"
 
             elif name == "file_write":
@@ -324,45 +254,19 @@ class AgentRuntime:
 
             elif name == "web_search":
                 query = params.get("query", "")
-                if self.web_search:
-                    return self.web_search.search(query)
-                return f"[Web Search] Searching: {query}\n(Install api_client for live search)"
-
-            elif name == "ai_chat":
-                message = params.get("message", "")
-                if self.ai_chat and self.ai_chat.is_configured():
-                    result = self.ai_chat.chat(message)
-                    return f"[AI] {result}" if result else "[AI] No response"
-                return "[AI Chat] Not configured. Run:\n  python3 api_client.py configure --provider openai --key YOUR_KEY\n  python3 api_client.py configure --provider ollama --url http://localhost:11434/api/chat"
+                return f"[Web Search] Searching: {query}\n(Note: Requires API integration for live search)"
 
             elif name == "http_request":
                 url = params.get("url", "")
                 method = params.get("method", "GET").upper()
-                req = urllib.request.Request(url, method=method)
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = resp.read().decode('utf-8', errors='replace')[:1000]
-                return f"[HTTP {method} {url}]\n{data}"
-
-            elif name == "calculator":
-                expr = params.get("expression", "")
                 try:
-                    # Safe eval - only math operations
-                    allowed = set("0123456789+-*/().^% ")
-                    if all(c in allowed for c in expr):
-                        expr = expr.replace('^', '**')
-                        result = eval(expr)
-                        return f"[Calculator] {params.get('expression')} = {result}"
-                    return "[Calculator] Invalid expression"
+                    import urllib.request
+                    req = urllib.request.Request(url, method=method)
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        data = resp.read().decode('utf-8', errors='replace')[:1000]
+                    return f"[HTTP {method} {url}]\n{data}"
                 except Exception as e:
-                    return f"[Calculator Error] {e}"
-
-            elif name == "translate":
-                text = params.get("text", "")
-                to_lang = params.get("to", "myanmar")
-                # Simple translation detection via web
-                if self.web_search:
-                    return self.web_search.search(f"translate {text} to {to_lang}")
-                return f"[Translate] {text} -> {to_lang}\n(Install api_client for translation)"
+                    return f"[HTTP Error] {e}"
 
             elif name == "timer":
                 secs = int(params.get("seconds", "5"))
@@ -383,6 +287,7 @@ class AgentRuntime:
         """Run a custom tool defined in agent config"""
         script = tool.get("script", "")
         if script and os.path.exists(script):
+            import subprocess
             r = subprocess.run(
                 [sys.executable, script] + [f"{k}={v}" for k, v in params.items()],
                 capture_output=True, text=True, timeout=30
@@ -391,50 +296,35 @@ class AgentRuntime:
         return f"[Custom Tool: {tool.get('name')}] No script configured"
 
     def _generate_response(self, message: str) -> str:
-        """Generate a response (fallback when AI is not configured)"""
+        """Generate a response based on personality"""
         personality = self.agent.config.get("personality", "")
         lang = self.agent.config.get("language", "myanmar")
 
+        # Check for greetings
         greetings = ["hello", "hi", "hey", "မင်္ဂလာပါ", "ဟဲ့လို", "ဘာလိုပါ"]
         if any(g in message.lower() for g in greetings):
-            return self.agent.config.get("greeting", f"မင်္ဂလာပါ! ကျွန်တော် {self.agent.name} ဖြစ်ပါတယ်။ ဘာကူညီပေးရမလဲ?")
+            greeting = self.agent.config.get("greeting", f"မင်္ဂလာပါ! ကျွန်တော် {self.agent.name} ဖြစ်ပါတယ်။ ဘာကူညီပေးရမလဲ?")
+            return greeting
 
+        # Check for farewells
         farewells = ["bye", "exit", "quit", "ကျေးဇူးပါ", "ဆက်ပါ"]
         if any(f in message.lower() for f in farewells):
-            return self.agent.config.get("farewell", "ကျေးဇူးပါ! နောက်ထပ် တိုင်းကျွန်းစွာ!")
+            farewell = self.agent.config.get("farewell", "ကျေးဇူးပါ! နောက်ထပ် တိုင်းကျွန်းစွာ!")
+            return farewell
 
+        # Check for help
         if "help" in message.lower() or "ကူညီ" in message:
             return self._generate_help()
 
-        if "tools" in message.lower():
+        # Check for tool list
+        if "tools" in message.lower() or "tool" in message.lower():
             return self._generate_tools_list()
 
-        if "status" in message.lower() or "config" in message.lower():
-            return self._generate_api_status()
-
-        # Default
+        # Default response
         if lang == "myanmar":
-            hint = ""
-            if not self.ai_chat or not self.ai_chat.is_configured():
-                hint = "\n\n💡 AI Chat ကို အသုံးပြုဖို့:\n   python3 api_client.py configure --provider openai --key YOUR_KEY\n   python3 api_client.py configure --provider ollama"
-            return f"[{self.agent.name}] \"{message}\" ဆိုတဲ့ မေးခွန်းနဲ့ပတ်ဝန်းကျင်းဖြစ်ပါတယ်။\n{hint}\n\n" + self._generate_help()
+            return f"[{self.agent.name}] ကျွန်တော်နားလည်ပါတယ်။ \"{message}\" ဆိုတဲ့ မေးခွန်းနဲ့ပတ်ဝန်းကျင်းဖြစ်ပါတယ်။\n\n" + self._generate_help()
         else:
-            hint = ""
-            if not self.ai_chat or not self.ai_chat.is_configured():
-                hint = "\n\n💡 To enable AI Chat:\n   python3 api_client.py configure --provider openai --key YOUR_KEY\n   python3 api_client.py configure --provider ollama"
-            return f"[{self.agent.name}] I understand: \"{message}\"{hint}\n\n" + self._generate_help()
-
-    def _generate_api_status(self) -> str:
-        """Generate API configuration status"""
-        status = "📊 API Status\n" + "─" * 40 + "\n"
-        if self.ai_chat:
-            status += self.ai_chat.get_config_status()
-        else:
-            status += "  API Client: Not installed\n"
-            status += "  (api_client.py not found)"
-        status += "\n\n🔍 Web Search: "
-        status += "Available" if self.web_search else "Not installed"
-        return status
+            return f"[{self.agent.name}] I understand your message: \"{message}\"\n\n" + self._generate_help()
 
     def _generate_help(self) -> str:
         tools = self._list_tools()
@@ -443,31 +333,31 @@ class AgentRuntime:
         help_text += "Commands:\n"
         help_text += "  help      Show this help\n"
         help_text += "  tools     List available tools\n"
-        help_text += "  status    API configuration status\n"
         help_text += "  info      Agent information\n"
         help_text += "  history   Conversation history\n"
-        help_text += "  clear     Clear conversation\n"
         help_text += "  exit      Close agent\n\n"
-        help_text += "Live Features:\n"
-        help_text += "  • Type any question for AI Chat\n"
-        help_text += "  • Include 'search' or 'ရှာ' for Web Search\n"
-        help_text += "  • tool_name: param=value for direct tools\n\n"
-        help_text += f"Tools ({len(tools)}):\n"
+        help_text += "Tool Usage:\n"
+        help_text += "  tool_name: param=value, param=value\n\n"
+        help_text += f"Available Tools ({len(tools)}):\n"
         for t in tools:
             help_text += f"  • {t}\n"
         return help_text
 
     def _generate_tools_list(self) -> str:
-        tools_text = f"🔧 Tools ({len(self._list_tools())})\n" + "─" * 40 + "\n"
+        tools_text = f"🔧 Tools ({len(self._list_tools())})\n"
+        tools_text += "─" * 40 + "\n"
+
+        # Built-in tools
         for name, info in BUILTIN_TOOLS.items():
             active = any(t.get("name") == name for t in self.agent.tools)
             status = "✅" if active else "⬜"
-            live = " 🌐 LIVE" if info.get("live") else ""
-            tools_text += f"  {status} {name:<20} {info['description']}{live}\n"
+            tools_text += f"  {status} {name:<20} {info['description']}\n"
             tools_text += f"     Example: {info['example']}\n"
+
         return tools_text
 
     def _list_tools(self) -> List[str]:
+        """List all available tool names"""
         names = []
         for t in self.agent.tools:
             if t.get("enabled", True):
@@ -475,11 +365,14 @@ class AgentRuntime:
         return [n for n in names if n]
 
     def _cleanup_and_respond(self) -> str:
-        return self.agent.config.get("farewell", "Session ended.")
+        farewell = self.agent.config.get("farewell", "Session ended.")
+        return farewell
 
     def show_info(self):
+        """Show agent information"""
         cfg = self.agent.config
-        info = f"\n🤖 Agent: {cfg.get('name', 'Unknown')}\n" + "═" * 45 + "\n"
+        info = f"\n🤖 Agent: {cfg.get('name', 'Unknown')}\n"
+        info += "═" * 45 + "\n"
         info += f"  Version:     {cfg.get('version', '?')}\n"
         info += f"  Author:      {cfg.get('author', '?')}\n"
         info += f"  Description: {cfg.get('description', '?')}\n"
@@ -487,13 +380,11 @@ class AgentRuntime:
         info += f"  Tools:       {len(self.agent.tools)}\n"
         info += f"  Workflows:   {len(self.agent.workflows)}\n"
         info += f"  Turns:       {self.turn_count}/{self.max_turns}\n"
-        ai_status = "Configured" if (self.ai_chat and self.ai_chat.is_configured()) else "Not configured"
-        info += f"  AI Chat:     {ai_status}\n"
-        info += f"  Web Search:  {'Available' if self.web_search else 'N/A'}\n"
         info += "═" * 45 + "\n"
         return info
 
     def show_history(self):
+        """Show conversation history"""
         if not self.conversation_history:
             return "[INFO] No conversation history"
         lines = []
@@ -503,12 +394,6 @@ class AgentRuntime:
             content = entry["content"][:100]
             lines.append(f"  {role} [{time_str}] {content}")
         return "📜 Conversation History\n" + "─" * 45 + "\n" + "\n".join(lines)
-
-    def clear_history(self):
-        self.conversation_history = []
-        if self.ai_chat:
-            self.ai_chat.clear_history()
-        return "[OK] Conversation history cleared"
 
 
 # ════════════════════════════════════════════════════════
@@ -520,49 +405,39 @@ class AgentBuilder:
 
     TEMPLATES = {
         "assistant": {
-            "name": "My Assistant", "version": "2.0.0",
-            "description": "General purpose AI assistant with live search and chat",
+            "name": "My Assistant",
+            "version": "1.0.0",
+            "description": "General purpose AI assistant",
             "author": "Myanos User",
-            "personality": "You are a helpful AI assistant named {name}. Always respond in Myanmar language. Be friendly and informative.",
+            "personality": "You are a helpful AI assistant. Always respond in Myanmar language.",
             "language": "myanmar",
-            "greeting": "မင်္ဂလာပါ! ကျွန်တော်နောက်လိုက်နေပါတယ်။ ဘာကူညီပေးရမလဲ? (AI Chat + Web Search enabled)",
+            "greeting": "မင်္ဂလာပါ! ကျွန်တော်နောက်လိုက်နေပါတယ်။ ဘာကူညီပေးရမလဲ?",
             "farewell": "ကျေးဇူးပါ! နောက်ထပ် တိုင်းဆက်ပေးပါ။",
-            "tools": ["web_search", "ai_chat", "shell_command", "file_read", "file_write", "python_exec", "calculator"],
+            "tools": ["web_search", "shell_command", "file_read", "file_write", "python_exec"],
             "workflows": [],
             "memory": {"enabled": True, "max_turns": 100},
             "safety": {"max_retries": 3, "timeout": 30},
         },
         "coder": {
-            "name": "Code Agent", "version": "2.0.0",
-            "description": "Programming assistant with code execution and AI",
+            "name": "Code Agent",
+            "version": "1.0.0",
+            "description": "Programming assistant that writes and executes code",
             "author": "Myanos User",
-            "personality": "You are a coding expert. Write clean code. Explain in Myanmar.",
+            "personality": "You are a coding expert. Write clean, efficient code. Explain in Myanmar.",
             "language": "myanmar",
             "greeting": "🧑‍💻 Code Agent စတင်ပါပြီ! ဘာ code ရေးပေးရမလဲ?",
             "farewell": "Goodbye! Happy coding! 🚀",
-            "tools": ["python_exec", "shell_command", "file_write", "file_read", "ai_chat", "web_search"],
+            "tools": ["python_exec", "shell_command", "file_write", "file_read"],
             "workflows": [],
             "memory": {"enabled": True, "max_turns": 50},
             "safety": {"max_retries": 3, "timeout": 60},
         },
-        "researcher": {
-            "name": "Research Agent", "version": "2.0.0",
-            "description": "Web research agent with live search and summarization",
-            "author": "Myanos User",
-            "personality": "You are a research assistant. Find and summarize information in Myanmar.",
-            "language": "myanmar",
-            "greeting": "🔍 Research Agent ပြီး! ဘာအကြောင်းရှာစေးချင်ပါသလဲ?",
-            "farewell": "ကျေးဇူးပါ!",
-            "tools": ["web_search", "ai_chat", "http_request", "file_write", "translate"],
-            "workflows": [],
-            "memory": {"enabled": True, "max_turns": 100},
-            "safety": {"max_retries": 3, "timeout": 30},
-        },
         "monitor": {
-            "name": "System Monitor Agent", "version": "1.0.0",
+            "name": "System Monitor Agent",
+            "version": "1.0.0",
             "description": "Monitors system health and alerts on issues",
             "author": "Myanos User",
-            "personality": "You are a system monitoring agent. Report concisely.",
+            "personality": "You are a system monitoring agent. Report system status concisely.",
             "language": "english",
             "greeting": "📊 System Monitor Active. Type 'status' for report.",
             "farewell": "Monitor stopped.",
@@ -573,15 +448,16 @@ class AgentBuilder:
             "memory": {"enabled": False, "max_turns": 200},
             "safety": {"max_retries": 1, "timeout": 10},
         },
-        "myanmar_teacher": {
-            "name": "Myanmar Teacher", "version": "2.0.0",
-            "description": "Myanmar language teacher and translator",
+        "researcher": {
+            "name": "Research Agent",
+            "version": "1.0.0",
+            "description": "Web research agent that searches and summarizes information",
             "author": "Myanos User",
-            "personality": "You are a Myanmar language teacher. Teach Myanmar language, explain grammar, and translate between Myanmar and English.",
+            "personality": "You are a research assistant. Find information and provide summaries in Myanmar.",
             "language": "myanmar",
-            "greeting": "📚 မြန်မာစကားဆရာ မင်္ဂလာပါ! ဘာသာစကားရေးသားတာ ကူညီပေးပါမယ်။",
-            "farewell": "ကျေးဇူးပါ! လောကကြီးပါ!",
-            "tools": ["web_search", "ai_chat", "translate"],
+            "greeting": "🔍 Research Agent ပြီး! ဘာအကြောင်းရှာစေးချင်ပါသလဲ?",
+            "farewell": "ကျေးဇူးပါ!",
+            "tools": ["web_search", "http_request", "file_write"],
             "workflows": [],
             "memory": {"enabled": True, "max_turns": 100},
             "safety": {"max_retries": 3, "timeout": 30},
@@ -589,40 +465,51 @@ class AgentBuilder:
     }
 
     def create(self, name: str, template: str = "assistant", **kwargs) -> AgentDefinition:
+        """Create agent from template"""
         if template not in self.TEMPLATES:
             raise ValueError(f"Unknown template: {template}. Available: {list(self.TEMPLATES.keys())}")
+
         config = dict(self.TEMPLATES[template])
         config["name"] = name
         config.update(kwargs)
         return AgentDefinition(config)
 
     def create_custom(self, name: str, personality: str, tools: list = None, **kwargs) -> AgentDefinition:
+        """Create fully custom agent"""
         config = {
-            "name": name, "version": kwargs.get("version", "2.0.0"),
+            "name": name,
+            "version": kwargs.get("version", "1.0.0"),
             "description": kwargs.get("description", f"Custom agent: {name}"),
             "author": kwargs.get("author", "Myanos User"),
-            "personality": personality, "language": kwargs.get("language", "myanmar"),
+            "personality": personality,
+            "language": kwargs.get("language", "myanmar"),
             "greeting": kwargs.get("greeting", f"မင်္ဂလာပါ! ကျွန်တော် {name} ဖြစ်ပါတယ်။"),
             "farewell": kwargs.get("farewell", "ကျေးဇူးပါ!"),
-            "tools": tools or ["web_search", "ai_chat", "shell_command"],
-            "workflows": [], "memory": {"enabled": True, "max_turns": 50},
+            "tools": tools or ["web_search", "shell_command"],
+            "workflows": [],
+            "memory": {"enabled": True, "max_turns": 50},
             "safety": {"max_retries": 3, "timeout": 30},
         }
         return AgentDefinition(config)
 
     def save(self, agent: AgentDefinition, path: str = None):
+        """Save agent config to file"""
         if path is None:
             AGENTS_DIR.mkdir(exist_ok=True)
             path = str(AGENTS_DIR / f"{agent.name.lower().replace(' ', '-')}.json")
+
         with open(path, 'w') as f:
             json.dump(agent.config, f, indent=2, ensure_ascii=False)
         return path
 
     def load(self, path: str) -> AgentDefinition:
+        """Load agent config from file"""
         with open(path) as f:
-            return AgentDefinition(json.load(f))
+            config = json.load(f)
+        return AgentDefinition(config)
 
     def list_agents(self):
+        """List saved agents"""
         if not AGENTS_DIR.exists():
             return []
         agents = []
@@ -630,12 +517,18 @@ class AgentBuilder:
             try:
                 with open(f) as fp:
                     cfg = json.load(fp)
-                agents.append({"name": cfg.get("name", f.stem), "version": cfg.get("version", "?"),
-                    "description": cfg.get("description", ""), "file": str(f)})
-            except: pass
+                agents.append({
+                    "name": cfg.get("name", f.stem),
+                    "version": cfg.get("version", "?"),
+                    "description": cfg.get("description", ""),
+                    "file": str(f),
+                })
+            except:
+                pass
         return agents
 
     def list_templates(self):
+        """List available templates"""
         return {name: {"description": t["description"], "tools": t["tools"]} for name, t in self.TEMPLATES.items()}
 
 
@@ -644,11 +537,13 @@ class AgentBuilder:
 # ════════════════════════════════════════════════════════
 
 def run_interactive(agent: AgentDefinition):
+    """Run agent in interactive mode"""
     runtime = AgentRuntime(agent)
     print(f"\n🤖 {agent.name} v{agent.version}")
     print(f"   {agent.config.get('description', '')}")
     print(f"   Type 'help' for commands, 'exit' to quit\n")
 
+    # Show greeting
     greeting = agent.config.get("greeting", "")
     if greeting:
         print(f"🤖 {greeting}\n")
@@ -658,8 +553,10 @@ def run_interactive(agent: AgentDefinition):
             user_input = input("You > ").strip()
             if not user_input:
                 continue
+
             if user_input.lower() in ("exit", "quit"):
-                print(f"🤖 {agent.config.get('farewell', 'Goodbye!')}")
+                farewell = agent.config.get("farewell", "Goodbye!")
+                print(f"🤖 {farewell}")
                 break
             elif user_input == "help":
                 print(runtime._generate_help())
@@ -669,13 +566,10 @@ def run_interactive(agent: AgentDefinition):
                 print(runtime.show_info())
             elif user_input == "history":
                 print(runtime.show_history())
-            elif user_input == "clear":
-                print(runtime.clear_history())
-            elif user_input == "status":
-                print(runtime._generate_api_status())
             else:
                 response = runtime.process_message(user_input)
                 print(f"\n🤖 {response}\n")
+
         except KeyboardInterrupt:
             print("\n\n👋 Goodbye!")
             break
@@ -683,144 +577,53 @@ def run_interactive(agent: AgentDefinition):
             break
 
 
-# ════════════════════════════════════════════════════════
-# REST API Server (for Desktop integration)
-# ════════════════════════════════════════════════════════
-
-class MyanAiHandler(BaseHTTPRequestHandler):
-    """HTTP handler for MyanAi REST API"""
-
-    runtime: AgentRuntime = None
-
-    def _send_json(self, data, status=200):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode())
-
-    def _read_body(self):
-        length = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(length)) if length else {}
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-    def do_GET(self):
-        from urllib.parse import urlparse, parse_qs
-        parsed = urlparse(self.path)
-        params = parse_qs(parsed.query)
-
-        if parsed.path == "/api/status":
-            ai_ok = self.runtime.ai_chat and self.runtime.ai_chat.is_configured()
-            self._send_json({
-                "agent": self.runtime.agent.name,
-                "version": VERSION,
-                "ai_configured": ai_ok,
-                "web_search": self.runtime.web_search is not None,
-                "turns": self.runtime.turn_count,
-            })
-        elif parsed.path == "/api/tools":
-            tools = []
-            for name, info in BUILTIN_TOOLS.items():
-                tools.append({"name": name, "description": info["description"], "live": info.get("live", False)})
-            self._send_json({"tools": tools})
-        else:
-            self._send_json({"error": "Not found"}, 404)
-
-    def do_POST(self):
-        from urllib.parse import urlparse
-        body = self._read_body()
-
-        if urlparse(self.path).path == "/api/chat":
-            message = body.get("message", "")
-            if not message:
-                self._send_json({"error": "Message required"}, 400)
-                return
-            response = self.runtime.process_message(message)
-            self._send_json({"response": response})
-        elif urlparse(self.path).path == "/api/search":
-            query = body.get("query", "")
-            if not query:
-                self._send_json({"error": "Query required"}, 400)
-                return
-            if self.runtime.web_search:
-                result = self.runtime.web_search.search(query)
-                self._send_json({"results": result})
-            else:
-                self._send_json({"error": "Web search not available"}, 503)
-        elif urlparse(self.path).path == "/api/configure":
-            provider = body.get("provider", "")
-            api_key = body.get("api_key", "")
-            api_url = body.get("api_url", "")
-            model = body.get("model", "")
-            if self.runtime.ai_chat:
-                self.runtime.ai_chat.configure(provider, api_key, api_url, model)
-                self._send_json({"status": "ok", "config": self.runtime.ai_chat.get_config_status()})
-            else:
-                self._send_json({"error": "API client not available"}, 503)
-        else:
-            self._send_json({"error": "Not found"}, 404)
-
-    def log_message(self, format, *args):
-        pass  # Suppress default logging
-
-
-# ════════════════════════════════════════════════════════
-# Main
-# ════════════════════════════════════════════════════════
-
 def main():
-    parser = argparse.ArgumentParser(description="MyanAi — AI Agent Builder v2.0.0")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="MyanAi — AI Agent Builder v1.0.0")
     sub = parser.add_subparsers(dest="command")
 
     # Create
     create_p = sub.add_parser("create", help="Create a new agent")
-    create_p.add_argument("--name", required=True)
-    create_p.add_argument("--template", default="assistant")
-    create_p.add_argument("--personality", help="Custom personality")
-    create_p.add_argument("--tools", nargs="+")
-    create_p.add_argument("--language", default="myanmar")
-    create_p.add_argument("--save", action="store_true")
+    create_p.add_argument("--name", required=True, help="Agent name")
+    create_p.add_argument("--template", default="assistant", help="Template name")
+    create_p.add_argument("--personality", help="Custom personality prompt")
+    create_p.add_argument("--tools", nargs="+", help="Tools to include")
+    create_p.add_argument("--language", default="myanmar", help="Response language")
+    create_p.add_argument("--save", action="store_true", help="Save to file")
 
     # Run
     run_p = sub.add_parser("run", help="Run an agent")
     run_p.add_argument("--file", help="Agent config file")
-    run_p.add_argument("--template", default="assistant")
-    run_p.add_argument("--name", help="Agent name")
-    run_p.add_argument("--server", action="store_true", help="Start REST API server")
-    run_p.add_argument("--port", type=int, default=8081)
+    run_p.add_argument("--template", default="assistant", help="Template to run")
+    run_p.add_argument("--name", help="Agent name (for saved agents)")
 
     # List
     sub.add_parser("list", help="List saved agents")
-    sub.add_parser("templates", help="List templates")
-    sub.add_parser("info", help="Show info")
-
-    # Configure
-    conf_p = sub.add_parser("configure", help="Configure API")
-    conf_p.add_argument("--provider", choices=["openai", "ollama", "custom"])
-    conf_p.add_argument("--key", default="")
-    conf_p.add_argument("--url", default="")
-    conf_p.add_argument("--model", default="")
-
-    # Search
-    search_p = sub.add_parser("search", help="Web search")
-    search_p.add_argument("query")
+    sub.add_parser("templates", help="List available templates")
+    sub.add_parser("info", help="Show MyanAi info")
 
     args = parser.parse_args()
     builder = AgentBuilder()
 
     if args.command == "create":
         if args.personality:
-            agent = builder.create_custom(args.name, args.personality, args.tools, language=args.language)
+            agent = builder.create_custom(
+                name=args.name,
+                personality=args.personality,
+                tools=args.tools,
+                language=args.language,
+            )
         else:
-            agent = builder.create(args.name, args.template, language=args.language)
-        print(f"[OK] Agent created: {agent.name} v{agent.version}")
+            agent = builder.create(
+                name=args.name,
+                template=args.template,
+                language=args.language,
+            )
+        print(f"[OK] Agent created: {agent.name}")
+        print(f"     Version: {agent.version}")
         print(f"     Tools: {len(agent.tools)}")
+        print(f"     Language: {agent.config.get('language')}")
         if args.save:
             path = builder.save(agent)
             print(f"     Saved: {path}")
@@ -834,24 +637,11 @@ def main():
             if found:
                 agent = builder.load(found[0]["file"])
             else:
-                print(f"[ERR] Agent not found: {args.name}"); return
+                print(f"[ERR] Agent not found: {args.name}")
+                return
         else:
             agent = builder.create(name="Quick Agent", template=args.template)
-
-        if args.server:
-            # Start REST API server
-            runtime = AgentRuntime(agent)
-            MyanAiHandler.runtime = runtime
-            server = HTTPServer(("0.0.0.0", args.port), MyanAiHandler)
-            print(f"🤖 MyanAi Server running on http://localhost:{args.port}")
-            print(f"   Agent: {agent.name}")
-            print(f"   Endpoints: POST /api/chat, POST /api/search, GET /api/status")
-            try:
-                server.serve_forever()
-            except KeyboardInterrupt:
-                print("\nServer stopped")
-        else:
-            run_interactive(agent)
+        run_interactive(agent)
 
     elif args.command == "list":
         agents = builder.list_agents()
@@ -860,48 +650,33 @@ def main():
         else:
             print(f"🤖 Saved Agents ({len(agents)}):\n")
             for a in agents:
-                print(f"  • {a['name']} v{a['version']}\n    {a['description']}\n")
+                print(f"  • {a['name']} v{a['version']}")
+                print(f"    {a['description']}")
+                print(f"    File: {a['file']}\n")
 
     elif args.command == "templates":
         templates = builder.list_templates()
         print(f"📋 Templates ({len(templates)}):\n")
         for name, info in templates.items():
-            print(f"  [{name}]\n    {info['description']}\n    Tools: {', '.join(info['tools'])}\n")
-
-    elif args.command == "configure":
-        if HAS_API:
-            config = APIConfig()
-            cache = Cache(config)
-            ai = AIChat(config, cache)
-            ai.configure(args.provider, args.key, args.url, args.model)
-            print("[OK] API configured:")
-            print(ai.get_config_status())
-        else:
-            print("[ERR] api_client.py not found")
+            print(f"  [{name}]")
+            print(f"    {info['description']}")
+            print(f"    Tools: {', '.join(info['tools'])}\n")
 
     elif args.command == "info":
         print(f"\n🤖 MyanAi v{VERSION}")
         print("═" * 45)
         print(f"  Low-Code AI Agent Builder for Myanos OS")
-        print(f"  Built-in Tools: {len(BUILTIN_TOOLS)} (web_search, ai_chat, calculator...)")
+        print(f"  Built-in Tools: {len(BUILTIN_TOOLS)}")
         print(f"  Templates: {len(builder.TEMPLATES)}")
-        print(f"  API Client: {'Installed' if HAS_API else 'Not found'}")
+        print(f"  Agents Dir: {AGENTS_DIR}")
         print("═" * 45)
         print("\nCommands:")
-        print("  myanai create --name 'Agent'")
+        print("  myanai create --name 'Agent' --template assistant")
+        print("  myanai create --name 'Agent' --personality '...'")
         print("  myanai run --template coder")
-        print("  myanai run --server --port 8081")
-        print("  myanai configure --provider ollama")
-        print("  myanai search 'Myanmar history'")
-
-    elif args.command == "search":
-        if HAS_API:
-            config = APIConfig()
-            cache = Cache(config)
-            search = WebSearch(config, cache)
-            print(search.search(args.query))
-        else:
-            print("[ERR] api_client.py not found")
+        print("  myanai run --file agent.json")
+        print("  myanai list")
+        print("  myanai templates")
 
     else:
         parser.print_help()
