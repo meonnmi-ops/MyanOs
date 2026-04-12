@@ -526,7 +526,7 @@ class MyanosDesktop {
             'toolbox': () => this.renderToolbox(body),
             'android': () => this.renderAndroid(body),
             'ps2': () => this.renderPS2(body),
-            'myanai': () => this.renderMyanAi(body),
+            'myanai': () => this.renderMyanAi(body, id),
             'browser': () => this.renderBrowser(body),
             'appstore': () => this.renderAppStore(body),
             'notepad': () => this.renderNotepad(body),
@@ -1244,16 +1244,63 @@ class MyanosDesktop {
         </div>`;
     }
 
-    renderMyanAi(body) {
-        body.innerHTML = `<div style="padding:20px;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">🤖 MyanAi — AI Agent Builder</h3>
-            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:20px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🤖</div><h4 style="color:#bb9af7;margin-bottom:8px;">Low-Code AI Agent Builder</h4>
-                <p style="color:#a9b1d6;font-size:13px;margin-bottom:16px;">Build custom AI agents with minimal code.</p>
-                <code style="color:#bb9af7;font-size:12px;background:rgba(187,154,247,0.1);border:1px solid rgba(187,154,247,0.2);border-radius:8px;padding:12px 20px;display:inline-block;">python3 myanai.py create --name "My Agent"</code>
+    renderMyanAi(body, winId) {
+        this.myanaiWinId = winId;
+        body.innerHTML = `<div class="myanai-chat" id="myanai-${winId}">
+            <div class="myanai-header">
+                <div class="myanai-header-left">
+                    <span style="font-size:24px;">🤖</span>
+                    <div><div style="font-size:14px;color:#c0caf5;font-weight:600;">MyanAi v2.0</div>
+                    <div class="myanai-status" id="myanai-status-${winId}">Checking API...</div></div>
+                </div>
+                <div class="myanai-header-right">
+                    <button class="fm-btn" onclick="myanos.myanaiClear(${winId})">🗑️</button>
+                    <button class="fm-btn" onclick="myanos.myanaiConfig(${winId})">⚙️</button>
+                </div>
+            </div>
+            <div class="myanai-messages" id="myanai-msgs-${winId}">
+                <div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">မင်္ဂလာပါ! 🇲🇲 MyanAi v2.0 — AI Chat + Web Search<br><br>💡 မေးခွန်းမေးပါ, သတင်းရှာစေးပါ:<br>• AI Chat — ဘာမဆိုတာမေးပါ<br>• Web Search — "search..." / "ရှာ..."<br>• Calculator — calculator: expr='2+3*4'<br>• Python — python_exec: code='print(2+2)'</div></div></div>
+            </div>
+            <div class="myanai-input-area">
+                <input type="text" class="myanai-input" id="myanai-input-${winId}" placeholder="Type a message..." />
+                <button class="myanai-send" onclick="myanos.myanaiSend(${winId})">➤</button>
             </div>
         </div>`;
+        const input = document.getElementById(`myanai-input-${winId}`);
+        if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.myanaiSend(winId); });
+        this.myanaiCheckStatus(winId);
     }
+
+    myanaiCheckStatus(winId) {
+        const el = document.getElementById(`myanai-status-${winId}`);
+        if (!el) return;
+        fetch('http://localhost:8081/api/status').then(r => r.json()).then(d => {
+            el.textContent = d.ai_configured ? '🟢 AI Connected' : '🟡 Fallback Mode';
+            el.style.color = d.ai_configured ? '#9ece6a' : '#e0af68';
+        }).catch(() => { el.textContent = '⚪ Offline (myanai run --server)'; el.style.color = '#565f89'; });
+    }
+
+    myanaiSend(winId) {
+        const input = document.getElementById(`myanai-input-${winId}`);
+        const msgs = document.getElementById(`myanai-msgs-${winId}`);
+        if (!input || !msgs) return;
+        const msg = input.value.trim(); if (!msg) return; input.value = '';
+        msgs.innerHTML += `<div class="myanai-msg user"><div class="msg-avatar">👤</div><div class="msg-bubble"><div class="msg-text">${this._esc(msg)}</div></div></div>`;
+        const tid = 't' + Date.now();
+        msgs.innerHTML += `<div class="myanai-msg bot" id="${tid}"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text typing"><span></span><span></span><span></span></div></div></div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+        fetch('http://localhost:8081/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: msg}) })
+        .then(r => r.json()).then(d => { document.getElementById(tid)?.remove(); msgs.innerHTML += `<div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">${this._esc(d.response || d.error || 'No response')}</div></div></div>`; msgs.scrollTop = msgs.scrollHeight; })
+        .catch(() => { document.getElementById(tid)?.remove(); msgs.innerHTML += `<div class="myanai-msg bot"><div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="msg-text">💬 ${this._esc(msg)} - နားလည်ပါတယ်။<br><span style="color:#565f89;">💡 python3 myanai.py configure --provider ollama</span></div></div></div>`; msgs.scrollTop = msgs.scrollHeight; });
+    }
+
+    myanaiClear(winId) { const m = document.getElementById(`myanai-msgs-${winId}`); if (m) m.innerHTML = ''; }
+    myanaiConfig(winId) {
+        const p = prompt('Provider (openai/ollama/custom):', 'ollama');
+        const u = p ? prompt('API URL:', p === 'ollama' ? 'http://localhost:11434/api/chat' : '') : null;
+        if (p && u) fetch('http://localhost:8081/api/configure', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({provider: p, api_url: u}) }).then(() => this.myanaiCheckStatus(winId)).catch(() => this.showNotification('Server not running'));
+    }
+    _esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
     renderBrowser(body) {
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">

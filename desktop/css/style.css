@@ -369,7 +369,35 @@ body.no-animations * {
 .fill-disk { background: linear-gradient(90deg, #ff9e64, #f7768e); }
 .monitor-stats { display: flex; justify-content: space-between; font-size: 11px; color: #565f89; margin-top: 4px; }
 
-/* ── Scrollbar ── */
+/* ── MyanAi Chat ── */
+.myanai-chat { display: flex; flex-direction: column; height: 100%; background: #1a1b26; }
+.myanai-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.myanai-header-left { display: flex; align-items: center; gap: 10px; }
+.myanai-status { font-size: 11px; color: #565f89; }
+.myanai-header-right { display: flex; gap: 6px; }
+.myanai-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.myanai-msg { display: flex; gap: 10px; max-width: 85%; }
+.myanai-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.myanai-msg.bot { align-self: flex-start; }
+.msg-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.msg-bubble { padding: 10px 14px; border-radius: 12px; }
+.myanai-msg.bot .msg-bubble { background: rgba(30, 32, 50, 0.8); border: 1px solid rgba(255,255,255,0.06); border-top-left-radius: 4px; }
+.myanai-msg.user .msg-bubble { background: rgba(122,162,247,0.15); border: 1px solid rgba(122,162,247,0.2); border-top-right-radius: 4px; }
+.msg-text { font-size: 13px; line-height: 1.6; color: #c0caf5; word-wrap: break-word; }
+.msg-text b { color: #7aa2f7; }
+.myanai-input-area { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+.myanai-input { flex: 1; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; color: #c0caf5; font-size: 13px; outline: none; }
+.myanai-input:focus { border-color: #bb9af7; }
+.myanai-input::placeholder { color: #565f89; }
+.myanai-send { width: 40px; height: 40px; border-radius: 50%; background: rgba(187,154,247,0.2); border: 1px solid rgba(187,154,247,0.3); color: #bb9af7; font-size: 16px; cursor: pointer; transition: background 0.15s; }
+.myanai-send:hover { background: rgba(187,154,247,0.35); }
+
+/* Typing indicator */
+.typing { display: flex; gap: 4px; padding: 4px 0; }
+.typing span { width: 6px; height: 6px; border-radius: 50%; background: #565f89; animation: typingBounce 1.4s infinite; }
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
