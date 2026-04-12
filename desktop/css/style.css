@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════
-   Myanos Desktop Environment v1.0.0
+   Myanos Desktop Environment v2.1.0
    Myanmar's First Web OS Desktop
+   Boot Screen + VFS + Context Menu + Code Editor + Notepad
    ═══════════════════════════════════════════════════════ */
 
 /* ── Reset & Base ── */
@@ -11,11 +12,126 @@ body {
     height: 100vh;
     width: 100vw;
     user-select: none;
-    background: #1a1b2e;
+    background: #000;
     color: #c0caf5;
 }
 
-/* ── Desktop Area ── */
+/* ══════════════════════════════════════════════════════════
+   BOOT SCREEN
+   ══════════════════════════════════════════════════════════ */
+#boot-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #000;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.boot-phase {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+}
+.boot-phase.active { display: flex; flex-direction: column; justify-content: center; }
+
+/* BIOS Phase */
+#boot-bios {
+    padding: 40px;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 13px;
+    color: #aaa;
+    background: #000;
+    overflow: hidden;
+}
+#boot-bios .bios-output {
+    white-space: pre-wrap;
+    line-height: 1.4;
+    color: #bbb;
+}
+
+/* GRUB Phase */
+#boot-grub {
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+}
+.grub-box {
+    width: 600px;
+    background: #0d0d1a;
+    border: 1px solid #444;
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+.grub-header {
+    padding: 8px 16px;
+    background: #333;
+    color: #fff;
+    font-size: 13px;
+    border-bottom: 1px solid #555;
+}
+.grub-menu { padding: 12px 0; }
+.grub-item {
+    padding: 6px 24px;
+    color: #ccc;
+    cursor: pointer;
+}
+.grub-item.selected {
+    background: #fff;
+    color: #000;
+}
+.grub-footer {
+    padding: 10px 24px;
+    color: #888;
+    font-size: 11px;
+    border-top: 1px solid #333;
+    line-height: 1.5;
+}
+
+/* Loading Phase */
+#boot-loading {
+    align-items: center;
+    justify-content: center;
+    background: #0d0d1a;
+}
+.loading-box { text-align: center; }
+.loading-logo {
+    font-family: 'Courier New', monospace;
+    color: #7aa2f7;
+    font-size: 14px;
+    line-height: 1.3;
+    margin-bottom: 24px;
+}
+.loading-bar-track {
+    width: 400px;
+    height: 6px;
+    background: #24283b;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+.loading-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #7aa2f7, #bb9af7, #9ece6a);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+.loading-status {
+    margin-top: 16px;
+    color: #565f89;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DESKTOP
+   ══════════════════════════════════════════════════════════ */
 #desktop {
     width: 100vw;
     height: calc(100vh - 48px);
@@ -24,12 +140,11 @@ body {
     overflow: hidden;
 }
 
-/* ── Wallpaper ── */
 .wallpaper {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: 
+    background:
         radial-gradient(ellipse at 20% 50%, rgba(122, 162, 247, 0.08) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(187, 154, 247, 0.06) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(158, 206, 106, 0.04) 0%, transparent 50%);
@@ -83,7 +198,17 @@ body {
     white-space: nowrap;
 }
 
-/* ── Taskbar ── */
+/* VFS File Icon */
+.vfs-icon { position: relative; }
+.vfs-icon .icon img {
+    width: 40px; height: 40px;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TASKBAR
+   ══════════════════════════════════════════════════════════ */
 #taskbar {
     position: fixed;
     bottom: 0; left: 0;
@@ -152,7 +277,9 @@ body {
 #system-tray .tray-icon:hover { color: #c0caf5; }
 #clock { font-variant-numeric: tabular-nums; cursor: pointer; }
 
-/* ── Start Menu ── */
+/* ══════════════════════════════════════════════════════════
+   START MENU
+   ══════════════════════════════════════════════════════════ */
 #start-menu {
     position: fixed;
     bottom: 56px; left: 8px;
@@ -223,7 +350,9 @@ body {
 .start-footer span { cursor: pointer; padding: 4px 8px; border-radius: 4px; }
 .start-footer span:hover { background: rgba(255,255,255,0.06); color: #a9b1d6; }
 
-/* ── Window System ── */
+/* ══════════════════════════════════════════════════════════
+   WINDOW SYSTEM
+   ══════════════════════════════════════════════════════════ */
 .myanos-window {
     position: absolute;
     min-width: 320px;
@@ -269,10 +398,7 @@ body {
 .window-title .win-icon { font-size: 14px; }
 .window-title .win-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.window-controls {
-    display: flex;
-    gap: 6px;
-}
+.window-controls { display: flex; gap: 6px; }
 .win-ctrl {
     width: 14px; height: 14px;
     border-radius: 50%;
@@ -300,7 +426,9 @@ body {
     cursor: nwse-resize;
 }
 
-/* ── Context Menu ── */
+/* ══════════════════════════════════════════════════════════
+   CONTEXT MENUS
+   ══════════════════════════════════════════════════════════ */
 .context-menu {
     position: fixed;
     background: rgba(24, 26, 41, 0.97);
@@ -310,7 +438,7 @@ body {
     padding: 6px;
     z-index: 99999;
     display: none;
-    min-width: 180px;
+    min-width: 200px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 .context-menu.open { display: block; }
@@ -323,10 +451,67 @@ body {
     color: #a9b1d6;
 }
 .ctx-item:hover { background: rgba(122, 162, 247, 0.15); color: #c0caf5; }
+.ctx-item.danger:hover { background: rgba(247, 118, 142, 0.15); color: #f7768e; }
 .ctx-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 8px; }
 
-/* ── App-specific Styles ── */
-/* Terminal */
+/* ══════════════════════════════════════════════════════════
+   INPUT DIALOG
+   ══════════════════════════════════════════════════════════ */
+.input-dialog {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 100000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.input-dialog.open { display: flex; }
+.input-dialog-box {
+    background: rgba(24, 26, 41, 0.98);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 24px;
+    width: 360px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+}
+.input-dialog-title {
+    font-size: 16px;
+    color: #c0caf5;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+.input-dialog-field {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: #c0caf5;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 16px;
+}
+.input-dialog-field:focus { border-color: #7aa2f7; }
+.input-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.input-dialog-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+.input-dialog-btn.cancel { background: rgba(255,255,255,0.06); color: #a9b1d6; }
+.input-dialog-btn.cancel:hover { background: rgba(255,255,255,0.1); }
+.input-dialog-btn.ok { background: #7aa2f7; color: #1a1b2e; }
+.input-dialog-btn.ok:hover { background: #89b4fa; }
+
+/* ══════════════════════════════════════════════════════════
+   TERMINAL
+   ══════════════════════════════════════════════════════════ */
 .app-terminal {
     background: #1a1b26;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -336,7 +521,7 @@ body {
     overflow-y: auto;
     line-height: 1.5;
 }
-.app-terminal .term-line { color: #a9b1d6; }
+.app-terminal .term-line { color: #a9b1d6; white-space: pre-wrap; }
 .app-terminal .term-prompt { color: #9ece6a; }
 .app-terminal .term-path { color: #7aa2f7; }
 .app-terminal .term-input-line { display: flex; align-items: center; }
@@ -351,11 +536,154 @@ body {
     caret-color: #c0caf5;
 }
 
-/* File Manager */
-.app-filemanager {
+/* ══════════════════════════════════════════════════════════
+   CODE EDITOR
+   ══════════════════════════════════════════════════════════ */
+.code-editor {
     display: flex;
+    flex-direction: column;
     height: 100%;
+    background: #1a1b26;
 }
+
+.code-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(36, 40, 59, 0.8);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.code-editor-toolbar .ce-btn {
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    color: #a9b1d6;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.code-editor-toolbar .ce-btn:hover { background: rgba(122, 162, 247, 0.15); color: #c0caf5; }
+.code-editor-toolbar .ce-filename {
+    flex: 1;
+    text-align: center;
+    color: #7aa2f7;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.code-editor-toolbar .ce-run {
+    background: rgba(158, 206, 106, 0.15);
+    border-color: rgba(158, 206, 106, 0.3);
+    color: #9ece6a;
+}
+
+.code-editor-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.code-line-numbers {
+    width: 48px;
+    background: rgba(22, 24, 38, 0.8);
+    padding: 12px 8px 12px 4px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #565f89;
+    overflow: hidden;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.code-textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #c0caf5;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+}
+
+/* ══════════════════════════════════════════════════════════
+   NOTEPAD
+   ══════════════════════════════════════════════════════════ */
+.notepad {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1a1b26;
+}
+
+.notepad-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(36, 40, 59, 0.8);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.notepad-toolbar .np-btn {
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    color: #a9b1d6;
+    font-size: 11px;
+    cursor: pointer;
+}
+.notepad-toolbar .np-btn:hover { background: rgba(122, 162, 247, 0.15); color: #c0caf5; }
+.notepad-toolbar .np-filename {
+    flex: 1;
+    text-align: center;
+    color: #565f89;
+    font-size: 12px;
+}
+
+.notepad-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+.notepad-textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #c0caf5;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    overflow: auto;
+}
+.notepad-statusbar {
+    padding: 4px 12px;
+    background: rgba(36, 40, 59, 0.5);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 11px;
+    color: #565f89;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILE MANAGER
+   ══════════════════════════════════════════════════════════ */
+.app-filemanager { display: flex; height: 100%; }
 .fm-sidebar {
     width: 180px;
     background: rgba(30, 32, 50, 0.5);
@@ -364,161 +692,124 @@ body {
     overflow-y: auto;
 }
 .fm-sidebar-item {
-    padding: 6px 10px;
-    font-size: 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-    color: #a9b1d6;
+    padding: 6px 10px; font-size: 12px; border-radius: 4px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px; color: #a9b1d6;
 }
 .fm-sidebar-item:hover { background: rgba(255,255,255,0.06); }
 .fm-sidebar-item.active { background: rgba(122, 162, 247, 0.15); color: #7aa2f7; }
-.fm-content {
-    flex: 1;
-    padding: 12px;
-    overflow-y: auto;
-}
+.fm-content { flex: 1; padding: 12px; overflow-y: auto; }
 .fm-toolbar {
     padding: 8px 12px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px;
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
 }
 .fm-path {
-    flex: 1;
-    padding: 6px 10px;
+    flex: 1; padding: 6px 10px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 4px;
-    color: #a9b1d6;
-    font-size: 12px;
+    border-radius: 4px; color: #a9b1d6; font-size: 12px;
 }
-.fm-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 90px);
-    gap: 8px;
-    padding: 8px;
-}
+.fm-grid { display: grid; grid-template-columns: repeat(auto-fill, 90px); gap: 8px; padding: 8px; }
 .fm-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.12s;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px; border-radius: 6px; cursor: pointer; transition: background 0.12s;
 }
 .fm-item:hover { background: rgba(255,255,255,0.06); }
 .fm-item .fm-icon { font-size: 32px; margin-bottom: 4px; }
 .fm-item .fm-name { font-size: 11px; text-align: center; color: #a9b1d6; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Settings */
-.app-settings {
-    display: flex; height: 100%;
-}
+/* ══════════════════════════════════════════════════════════
+   SETTINGS
+   ══════════════════════════════════════════════════════════ */
+.app-settings { display: flex; height: 100%; }
 .settings-sidebar {
-    width: 200px;
-    background: rgba(30, 32, 50, 0.5);
-    border-right: 1px solid rgba(255,255,255,0.06);
-    padding: 12px 8px;
+    width: 200px; background: rgba(30, 32, 50, 0.5);
+    border-right: 1px solid rgba(255,255,255,0.06); padding: 12px 8px;
 }
 .settings-item {
-    padding: 10px 12px;
-    font-size: 13px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #a9b1d6;
-    margin-bottom: 2px;
+    padding: 10px 12px; font-size: 13px; border-radius: 6px;
+    cursor: pointer; color: #a9b1d6; margin-bottom: 2px;
 }
 .settings-item:hover { background: rgba(255,255,255,0.06); }
 .settings-item.active { background: rgba(122, 162, 247, 0.15); color: #7aa2f7; }
-.settings-content {
-    flex: 1; padding: 24px; overflow-y: auto;
-}
+.settings-content { flex: 1; padding: 24px; overflow-y: auto; }
 .settings-section h3 { font-size: 16px; color: #c0caf5; margin-bottom: 16px; }
 .settings-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .settings-row label { font-size: 13px; color: #a9b1d6; }
 .settings-row .value { font-size: 13px; color: #565f89; }
 
-/* Toggle Switch */
 .toggle {
-    width: 40px; height: 22px;
-    background: #414868;
-    border-radius: 11px;
-    cursor: pointer;
-    position: relative;
-    transition: background 0.2s;
+    width: 40px; height: 22px; background: #414868; border-radius: 11px;
+    cursor: pointer; position: relative; transition: background 0.2s;
 }
 .toggle.on { background: #7aa2f7; }
 .toggle::after {
-    content: '';
-    position: absolute;
-    top: 3px; left: 3px;
-    width: 16px; height: 16px;
-    background: #c0caf5;
-    border-radius: 50%;
-    transition: transform 0.2s;
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; background: #c0caf5; border-radius: 50%; transition: transform 0.2s;
 }
 .toggle.on::after { transform: translateX(18px); }
 
-/* Neofetch / About */
-.app-neofetch {
-    padding: 20px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-}
+/* ══════════════════════════════════════════════════════════
+   NEOFETCH / ABOUT
+   ══════════════════════════════════════════════════════════ */
+.app-neofetch { padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; }
 .app-neofetch .logo { color: #bb9af7; }
 .app-neofetch .title { color: #7aa2f7; font-weight: bold; }
 .app-neofetch .info { color: #a9b1d6; }
 .app-neofetch .label { color: #9ece6a; }
 .app-neofetch .highlight { color: #ff9e64; }
 
-/* System Monitor */
-.app-monitor {
-    padding: 16px;
-    height: 100%;
-    overflow-y: auto;
-}
+/* ══════════════════════════════════════════════════════════
+   SYSTEM MONITOR
+   ══════════════════════════════════════════════════════════ */
+.app-monitor { padding: 16px; height: 100%; overflow-y: auto; }
 .monitor-card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px; padding: 16px; margin-bottom: 12px;
 }
 .monitor-card h4 { font-size: 13px; color: #7aa2f7; margin-bottom: 12px; }
-.monitor-bar {
-    height: 8px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 6px 0;
-}
-.monitor-bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.5s ease;
-}
+.monitor-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin: 6px 0; }
+.monitor-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 .fill-cpu { background: linear-gradient(90deg, #7aa2f7, #bb9af7); }
 .fill-mem { background: linear-gradient(90deg, #9ece6a, #73daca); }
 .fill-disk { background: linear-gradient(90deg, #ff9e64, #f7768e); }
-.monitor-stats {
-    display: flex; justify-content: space-between;
-    font-size: 11px; color: #565f89; margin-top: 4px;
-}
+.monitor-stats { display: flex; justify-content: space-between; font-size: 11px; color: #565f89; margin-top: 4px; }
 
-/* Scrollbar */
+/* ══════════════════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-/* Animations */
+/* ══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════ */
 @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 .myanos-window { animation: fadeIn 0.15s ease; }
 #start-menu { animation: fadeIn 0.12s ease; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.blink { animation: blink 1s step-end infinite; }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .desktop-icons {
+        grid-template-columns: repeat(auto-fill, 80px);
+        grid-template-rows: repeat(auto-fill, 85px);
+        padding: 10px;
+        gap: 2px;
+    }
+    .desktop-icon { width: 80px; height: 80px; }
+    .desktop-icon .icon { width: 36px; height: 36px; font-size: 24px; }
+    .desktop-icon .label { font-size: 10px; max-width: 75px; }
+    .myanos-window { width: 100vw !important; left: 0 !important; top: 0 !important; border-radius: 0; }
+    .grub-box { width: 90vw; }
+    .loading-bar-track { width: 80vw; }
+    #start-menu { width: 90vw; }
+}
