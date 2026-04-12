@@ -9,6 +9,9 @@
 </head>
 <body>
 
+    <!-- ═══ Notification Area ═══ -->
+    <div id="notification-area" class="notification-container"></div>
+
     <!-- ═══ Boot Screen ═══ -->
     <div id="boot-screen">
         <!-- Phase 1: BIOS POST -->
@@ -44,7 +47,7 @@
         <div id="desktop-icons" class="desktop-icons"></div>
     </div>
 
-    <!-- ═══ Context Menu (Desktop) ═══ -->
+    <!-- ═══ Context Menu (Desktop Right-Click) ═══ -->
     <div id="context-menu" class="context-menu">
         <div class="ctx-item" data-action="new-file">📄 New File</div>
         <div class="ctx-item" data-action="new-folder">📁 New Folder</div>
@@ -58,21 +61,31 @@
         <div class="ctx-item" data-action="install-package">📦 Install Package (.myan)</div>
         <div class="ctx-item" data-action="download-file">📥 Download File</div>
         <div class="ctx-sep"></div>
+        <div class="ctx-item ctx-submenu-trigger">🎨 Change Wallpaper</div>
+        <div class="ctx-submenu" id="wallpaper-submenu">
+            <div class="ctx-item" data-action="wallpaper-tokyo">🌙 Tokyo Night</div>
+            <div class="ctx-item" data-action="wallpaper-ocean">🌊 Ocean Blue</div>
+            <div class="ctx-item" data-action="wallpaper-forest">🌲 Forest Green</div>
+            <div class="ctx-item" data-action="wallpaper-sunset">🌅 Sunset Orange</div>
+            <div class="ctx-item" data-action="wallpaper-purple">💎 Royal Purple</div>
+            <div class="ctx-item" data-action="wallpaper-dark">⬛ Pure Dark</div>
+        </div>
+        <div class="ctx-sep"></div>
         <div class="ctx-item" data-action="refresh">⟳ Refresh Desktop</div>
         <div class="ctx-item" data-action="open-settings">⚙️ Settings</div>
         <div class="ctx-item" data-action="about">ℹ️ About Myanos</div>
     </div>
 
-    <!-- ═══ Context Menu (File/Folder) ═══ -->
+    <!-- ═══ Context Menu (File/Folder Right-Click) ═══ -->
     <div id="file-context-menu" class="context-menu">
         <div class="ctx-item" data-action="open-file">📂 Open</div>
-        <div class="ctx-item" data-action="edit-file">✏️ Edit</div>
+        <div class="ctx-item" data-action="edit-file">✏️ Edit in Code Editor</div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" data-action="copy-file">📋 Copy</div>
         <div class="ctx-item" data-action="cut-file">✂️ Cut</div>
         <div class="ctx-item" data-action="rename-file">✏️ Rename</div>
         <div class="ctx-sep"></div>
-        <div class="ctx-item" data-action="delete-file">🗑️ Delete</div>
+        <div class="ctx-item ctx-danger" data-action="delete-file">🗑️ Delete</div>
         <div class="ctx-sep"></div>
         <div class="ctx-item" data-action="file-properties">ℹ️ Properties</div>
     </div>
@@ -87,7 +100,7 @@
         <div class="start-footer">
             <span onclick="window.myanos.openApp('files')">📁 Files</span>
             <span onclick="window.myanos.openApp('settings')">⚙️ Settings</span>
-            <span onclick="document.getElementById('desktop').style.display='none';document.getElementById('boot-screen').style.display='block';">⏻ Reboot</span>
+            <span onclick="document.getElementById('desktop').style.display='none';document.getElementById('taskbar').style.display='none';document.getElementById('boot-screen').style.display='flex';document.getElementById('boot-bios').classList.add('active');document.getElementById('boot-grub').classList.remove('active');document.getElementById('boot-loading').classList.remove('active');document.getElementById('boot-bios').querySelector('.bios-output').textContent='';">⏻ Reboot</span>
         </div>
     </div>
 
@@ -98,14 +111,29 @@
         <div id="system-tray"></div>
     </div>
 
-    <!-- ═══ Input Dialog (for new file/folder name) ═══ -->
+    <!-- ═══ Input Dialog (for new file/folder name, rename) ═══ -->
     <div id="input-dialog" class="input-dialog">
         <div class="input-dialog-box">
             <div class="input-dialog-title" id="input-dialog-title">New File</div>
             <input type="text" id="input-dialog-input" placeholder="Enter name..." class="input-dialog-field">
             <div class="input-dialog-buttons">
                 <button class="input-dialog-btn cancel" id="input-dialog-cancel">Cancel</button>
-                <button class="input-dialog-btn ok" id="input-dialog-ok">Create</button>
+                <button class="input-dialog-btn ok" id="input-dialog-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Confirmation Dialog (for delete, etc.) ═══ -->
+    <div id="confirm-dialog" class="confirm-dialog">
+        <div class="confirm-dialog-box">
+            <div style="text-align:center;margin-bottom:16px;">
+                <div style="font-size:40px;">⚠️</div>
+                <div class="confirm-title" id="confirm-title">Delete File</div>
+            </div>
+            <div class="confirm-message" id="confirm-message">Are you sure?</div>
+            <div class="input-dialog-buttons" style="justify-content:center;margin-top:20px;">
+                <button class="input-dialog-btn ok" id="confirm-ok" style="background:#f7768e;">Delete</button>
+                <button class="input-dialog-btn cancel" id="confirm-cancel">Cancel</button>
             </div>
         </div>
     </div>
