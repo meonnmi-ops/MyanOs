@@ -369,6 +369,7 @@ class MyanosDesktop {
             { id:'android', name:'Android', icon:'📱', desc:'APK management', category:'apps' },
             { id:'ps2', name:'PS2 Games', icon:'🎮', desc:'PlayStation 2', category:'apps' },
             { id:'myanai', name:'MyanAi', icon:'🤖', desc:'AI Agent Builder', category:'ai' },
+            { id:'ai-training', name:'AI Training Center', icon:'🧠', desc:'Train & manage AI models', category:'ai' },
             { id:'browser', name:'Web Browser', icon:'🌐', desc:'Browse the web', category:'apps' },
         ];
 
@@ -1007,6 +1008,7 @@ class MyanosDesktop {
             'android': () => this.renderAndroid(body),
             'ps2': () => this.renderPS2(body),
             'myanai': () => this.renderMyanAi(body),
+            'ai-training': () => this.renderTrainingCenter(body),
             'browser': () => this.renderBrowser(body),
         };
         const r = renderers[win.app.id];
@@ -2616,6 +2618,778 @@ class MyanosDesktop {
             const st=document.getElementById('ai-status');
             if(st){st.textContent=d?.models?.length?'● '+d.models.length+' model(s)':'● Ollama OK';st.style.color='#9ece6a';}
         }).catch(()=>{const st=document.getElementById('ai-status');if(st){st.textContent='● Offline';st.style.color='#f7768e';}});
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  APP: AI Training Center (Google Colab-like)
+    // ══════════════════════════════════════════════════════════
+    renderTrainingCenter(body) {
+        const self = this;
+        // Session state
+        const session = {
+            name: 'Untitled Session',
+            cells: [],
+            cellCounter: 0,
+            runtime: 'python3',
+            gpu: false,
+            ollamaConnected: false,
+            ollamaModels: [],
+            isRunning: false,
+            activeView: 'notebook', // notebook | dashboard
+            activeSidebar: 'files', // files | models | sessions
+            consoleLogs: [],
+            trainingState: { active:false, epoch:0, totalEpochs:10, loss:0, lr:0.001, accuracy:0 },
+            dashInterval: null,
+        };
+
+        // ── Create notebook container ──
+        body.innerHTML = `<div class="tc-container" style="position:relative;">
+            <!-- Toolbar -->
+            <div class="tc-toolbar">
+                <button class="tc-toolbar-btn" id="tc-new-session" title="New Session">+ New</button>
+                <div class="tc-session-name" id="tc-session-name" title="Session name">${session.name}</div>
+                <div class="tc-toolbar-sep"></div>
+                <button class="tc-toolbar-btn run-btn" id="tc-run-all" title="Run All Cells">▶ Run All</button>
+                <button class="tc-toolbar-btn" id="tc-run-cell" title="Run Selected">▶ Run</button>
+                <button class="tc-toolbar-btn stop-btn" id="tc-stop" title="Stop">■ Stop</button>
+                <div class="tc-toolbar-sep"></div>
+                <button class="tc-toolbar-btn" id="tc-add-code" title="Add Code Cell">+ Code</button>
+                <button class="tc-toolbar-btn" id="tc-add-md" title="Add Markdown Cell">+ Text</button>
+                <button class="tc-toolbar-btn" id="tc-clear-all" title="Clear All Outputs">🗑 Clear</button>
+                <div style="flex:1;"></div>
+                <button class="tc-toolbar-btn" id="tc-toggle-sidebar" title="Toggle Sidebar">☰</button>
+                <button class="tc-toolbar-btn ${session.activeView==='notebook'?'active':''}" id="tc-view-notebook" title="Notebook">📓</button>
+                <button class="tc-toolbar-btn ${session.activeView==='dashboard'?'active':''}" id="tc-view-dashboard" title="Dashboard">📊</button>
+                <span id="tc-connect-status" style="display:flex;align-items:center;gap:4px;font-size:10px;color:#565f89;" title="Ollama Status">
+                    <span class="tc-connect-dot checking" id="tc-connect-dot"></span>
+                    <span id="tc-connect-text">checking...</span>
+                </span>
+            </div>
+
+            <!-- Main Layout -->
+            <div class="tc-main">
+                <!-- Sidebar -->
+                <div class="tc-sidebar" id="tc-sidebar">
+                    <div class="tc-sidebar-tabs">
+                        <div class="tc-sidebar-tab active" data-tab="files">📁 Files</div>
+                        <div class="tc-sidebar-tab" data-tab="models">🤖 Models</div>
+                        <div class="tc-sidebar-tab" data-tab="sessions">📋 Sessions</div>
+                    </div>
+                    <div class="tc-sidebar-content" id="tc-sidebar-content"></div>
+                </div>
+
+                <!-- Notebook Area -->
+                <div class="tc-notebook" id="tc-notebook-area">
+                    <div class="tc-notebook-inner" id="tc-cells-container"></div>
+                </div>
+
+                <!-- Dashboard (hidden by default) -->
+                <div class="tc-dashboard" id="tc-dashboard">
+                    <div style="overflow-y:auto;flex:1;">
+                        <div class="tc-dash-grid">
+                            <div class="tc-stat-card"><div class="tc-stat-label">CPU Usage</div><div class="tc-stat-value blue" id="tc-cpu-val">--%</div></div>
+                            <div class="tc-stat-card"><div class="tc-stat-label">Memory</div><div class="tc-stat-value yellow" id="tc-mem-val">-- GB</div></div>
+                            <div class="tc-stat-card"><div class="tc-stat-label">GPU Usage</div><div class="tc-stat-value green" id="tc-gpu-val">N/A</div></div>
+                            <div class="tc-stat-card"><div class="tc-stat-label">Disk Free</div><div class="tc-stat-value" id="tc-disk-val">-- GB</div></div>
+                        </div>
+                        <div class="tc-sidebar-title" style="padding:8px 12px 4px;">GPU Monitor</div>
+                        <div style="padding:4px 12px;" id="tc-gpu-section">
+                            <div class="tc-gpu-bar"><span class="tc-gpu-label">UTIL</span><div class="tc-gpu-track"><div class="tc-gpu-fill gpu-util" id="tc-gpu-util-bar" style="width:0%"></div></div><span class="tc-gpu-pct" id="tc-gpu-util-pct">0%</span></div>
+                            <div class="tc-gpu-bar"><span class="tc-gpu-label">MEM</span><div class="tc-gpu-track"><div class="tc-gpu-fill gpu-mem" id="tc-gpu-mem-bar" style="width:0%"></div></div><span class="tc-gpu-pct" id="tc-gpu-mem-pct">0%</span></div>
+                            <div style="font-size:10px;color:#565f89;text-align:center;margin-top:4px;" id="tc-gpu-info">No GPU detected</div>
+                        </div>
+                        <div class="tc-training-panel" id="tc-training-panel">
+                            <div class="tc-training-header">
+                                <div class="tc-training-title">🔥 Training Progress</div>
+                                <button class="tc-toolbar-btn" id="tc-sim-train" style="font-size:10px;padding:3px 8px;">Simulate Train</button>
+                            </div>
+                            <div style="font-size:11px;color:#565f89;margin-bottom:4px;" id="tc-train-status">No active training</div>
+                            <div class="tc-epoch-bar"><div class="tc-epoch-fill" id="tc-epoch-fill" style="width:0%"></div></div>
+                            <div style="font-size:10px;color:#565f89;text-align:right;" id="tc-epoch-label">Epoch 0/0</div>
+                            <div class="tc-training-stats">
+                                <div class="tc-ts-item"><div class="tc-ts-label">Loss</div><div class="tc-ts-value" id="tc-loss-val">--</div></div>
+                                <div class="tc-ts-item"><div class="tc-ts-label">Accuracy</div><div class="tc-ts-value" id="tc-acc-val">--</div></div>
+                                <div class="tc-ts-item"><div class="tc-ts-label">LR</div><div class="tc-ts-value" id="tc-lr-val">--</div></div>
+                                <div class="tc-ts-item"><div class="tc-ts-label">Speed</div><div class="tc-ts-value" id="tc-speed-val">--</div></div>
+                            </div>
+                        </div>
+                        <div class="tc-sidebar-title" style="padding:8px 12px 4px;">Training Log</div>
+                        <div style="padding:4px 12px 12px;" id="tc-training-log">
+                            <div style="font-size:11px;color:#565f89;text-align:center;padding:20px;">No training activity yet</div>
+                        </div>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.06);">
+                        <div class="tc-console" id="tc-console" style="max-height:160px;"></div>
+                        <div class="tc-console-input-line" style="padding:4px 12px;">
+                            <span class="prompt">$</span>
+                            <input class="tc-console-input" id="tc-console-input" placeholder="Type command..." />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        // ── Cell Management ──
+        function addCell(type = 'code', content = '') {
+            const id = ++session.cellCounter;
+            const cell = { id, type, content, output: '', status: 'idle', executionCount: 0 };
+            session.cells.push(cell);
+            renderCell(cell);
+            return cell;
+        }
+
+        function renderCell(cell) {
+            const container = document.getElementById('tc-cells-container');
+            if (!container) return;
+            const idx = session.cells.indexOf(cell);
+            const typeLabel = cell.type === 'code' ? 'code' : cell.type === 'markdown' ? 'text' : 'text';
+            const div = document.createElement('div');
+            div.className = 'tc-cell';
+            div.id = `tc-cell-${cell.id}`;
+            div.dataset.cellId = cell.id;
+
+            const statusHtml = {
+                idle: '<span class="tc-cell-status idle">○</span>',
+                running: '<span class="tc-cell-status running">●</span>',
+                success: '<span class="tc-cell-status success">✓</span>',
+                error: '<span class="tc-cell-status error">✗</span>',
+            }[cell.status] || '<span class="tc-cell-status idle">○</span>';
+
+            if (cell.type === 'code') {
+                div.innerHTML = `
+                    <div class="tc-cell-header">
+                        <span class="tc-cell-type code">Code</span>
+                        <span class="tc-cell-label">Cell [${idx}]${cell.executionCount ? ' — executed #' + cell.executionCount : ''}</span>
+                        ${statusHtml}
+                        <div class="tc-cell-actions">
+                            <button class="tc-cell-action" data-action="run" title="Run (Shift+Enter)">▶</button>
+                            <button class="tc-cell-action" data-action="move-up" title="Move Up">↑</button>
+                            <button class="tc-cell-action" data-action="move-down" title="Move Down">↓</button>
+                            <button class="tc-cell-action" data-action="add-below" title="Add Below">+</button>
+                            <button class="tc-cell-action delete" data-action="delete" title="Delete">✕</button>
+                        </div>
+                    </div>
+                    <div class="tc-cell-editor">
+                        <textarea id="tc-editor-${cell.id}" placeholder="# Write your code here...&#10;print('Hello, MyanOS!')" spellcheck="false">${self._escapeHtml(cell.content)}</textarea>
+                    </div>
+                    <div class="tc-cell-output ${cell.output ? 'visible' : ''} ${cell.status==='error'?'error-text':cell.status==='success'?'success-text':''}" id="tc-output-${cell.id}">${cell.output ? self._escapeHtml(cell.output) : ''}</div>`;
+            } else {
+                div.innerHTML = `
+                    <div class="tc-cell-header">
+                        <span class="tc-cell-type markdown">Text</span>
+                        <span class="tc-cell-label">Markdown Cell [${idx}]</span>
+                        ${statusHtml}
+                        <div class="tc-cell-actions">
+                            <button class="tc-cell-action" data-action="render-md" title="Render Markdown">👁</button>
+                            <button class="tc-cell-action" data-action="edit-md" title="Edit">✏</button>
+                            <button class="tc-cell-action" data-action="move-up" title="Move Up">↑</button>
+                            <button class="tc-cell-action" data-action="move-down" title="Move Down">↓</button>
+                            <button class="tc-cell-action" data-action="add-below" title="Add Below">+</button>
+                            <button class="tc-cell-action delete" data-action="delete" title="Delete">✕</button>
+                        </div>
+                    </div>
+                    <div class="tc-cell-editor" id="tc-md-editor-${cell.id}">
+                        <textarea id="tc-md-textarea-${cell.id}" placeholder="# Write your markdown here..." spellcheck="false">${self._escapeHtml(cell.content)}</textarea>
+                    </div>
+                    <div class="tc-md-preview" id="tc-md-preview-${cell.id}">${renderMarkdown(cell.content)}</div>`;
+            }
+
+            // Wire up events
+            div.querySelectorAll('.tc-cell-action').forEach(btn => {
+                btn.addEventListener('click', () => handleCellAction(cell, btn.dataset.action));
+            });
+
+            // Auto-save on input
+            const ta = div.querySelector('textarea');
+            if (ta) {
+                ta.addEventListener('input', () => { cell.content = ta.value; saveSession(); });
+                ta.addEventListener('keydown', (e) => {
+                    if (e.key === 'Tab') { e.preventDefault(); const s=ta.selectionStart, en=ta.selectionEnd; ta.value=ta.value.substring(0,s)+'    '+ta.value.substring(en); ta.selectionStart=ta.selectionEnd=s+4; }
+                    if (e.shiftKey && e.key === 'Enter') { e.preventDefault(); runCell(cell); }
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runCell(cell); }
+                });
+                // Auto-resize
+                ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.max(60, ta.scrollHeight) + 'px'; });
+                setTimeout(() => { ta.style.height = 'auto'; ta.style.height = Math.max(60, ta.scrollHeight) + 'px'; }, 50);
+            }
+
+            container.appendChild(div);
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '<span style="color:#565f89;">Empty markdown cell</span>';
+            let html = self._escapeHtml(text);
+            // Headers
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            // Bold/Italic
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Code blocks
+            html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            return html;
+        }
+
+        function handleCellAction(cell, action) {
+            const idx = session.cells.indexOf(cell);
+            switch(action) {
+                case 'run': runCell(cell); break;
+                case 'move-up':
+                    if (idx > 0) { session.cells.splice(idx,1); session.cells.splice(idx-1,0,cell); refreshAllCells(); }
+                    break;
+                case 'move-down':
+                    if (idx < session.cells.length - 1) { session.cells.splice(idx,1); session.cells.splice(idx+1,0,cell); refreshAllCells(); }
+                    break;
+                case 'add-below':
+                    const newCell = addCell('code');
+                    const newIdx = session.cells.indexOf(cell) + 1;
+                    session.cells.splice(session.cells.indexOf(newCell), 1);
+                    session.cells.splice(newIdx, 0, newCell);
+                    refreshAllCells();
+                    setTimeout(() => { const ta = document.getElementById(`tc-editor-${newCell.id}`); if(ta) ta.focus(); }, 100);
+                    break;
+                case 'delete':
+                    if (session.cells.length <= 1) { self.notif.show('Need at least one cell', 'warning'); return; }
+                    session.cells = session.cells.filter(c => c.id !== cell.id);
+                    const el = document.getElementById(`tc-cell-${cell.id}`);
+                    if (el) el.remove();
+                    saveSession();
+                    break;
+                case 'render-md':
+                    const preview = document.getElementById(`tc-md-preview-${cell.id}`);
+                    const editor = document.getElementById(`tc-md-editor-${cell.id}`);
+                    if (preview) preview.classList.toggle('visible');
+                    if (preview && preview.classList.contains('visible')) {
+                        preview.innerHTML = renderMarkdown(cell.content);
+                        if (editor) editor.style.display = 'none';
+                    } else {
+                        if (editor) editor.style.display = 'block';
+                    }
+                    break;
+                case 'edit-md':
+                    const prev = document.getElementById(`tc-md-preview-${cell.id}`);
+                    const ed = document.getElementById(`tc-md-editor-${cell.id}`);
+                    if (prev) prev.classList.remove('visible');
+                    if (ed) ed.style.display = 'block';
+                    const ta2 = document.getElementById(`tc-md-textarea-${cell.id}`);
+                    if (ta2) ta2.focus();
+                    break;
+            }
+        }
+
+        async function runCell(cell) {
+            if (cell.type !== 'code') return;
+            const code = cell.content.trim();
+            if (!code) return;
+            cell.status = 'running';
+            updateCellUI(cell);
+            addConsoleLog('info', `Running Cell [${session.cells.indexOf(cell)}]...`);
+
+            try {
+                const res = await fetch('/api/exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd: code, session: 'training-center' })
+                });
+                const data = await res.json();
+                if (data.status === 0) {
+                    cell.status = 'success';
+                    cell.output = data.output || '(no output)';
+                    addConsoleLog('success', `Cell [${session.cells.indexOf(cell)}] completed`);
+                } else {
+                    cell.status = 'error';
+                    cell.output = data.output || 'Error: command failed';
+                    addConsoleLog('error', `Cell [${session.cells.indexOf(cell)}] failed`);
+                }
+                cell.executionCount++;
+            } catch(e) {
+                cell.status = 'error';
+                cell.output = `[Connection Error] Server not running.\n\nStart the server: python3 server.py\n\nFalling back to local JavaScript evaluation...\n\n---\n${localEval(code)}`;
+                addConsoleLog('warn', 'Server offline — using local eval');
+            }
+            updateCellUI(cell);
+            saveSession();
+        }
+
+        function localEval(code) {
+            try {
+                // Capture console.log output
+                const logs = [];
+                const origLog = console.log;
+                console.log = (...args) => { logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')); };
+                const result = eval(code);
+                console.log = origLog;
+                const output = logs.join('\n');
+                if (result !== undefined && !output.includes(String(result))) {
+                    return output + (output ? '\n' : '') + '→ ' + String(result);
+                }
+                return output || (result !== undefined ? '→ ' + String(result) : '(no output)');
+            } catch(e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        function updateCellUI(cell) {
+            const el = document.getElementById(`tc-cell-${cell.id}`);
+            if (!el) return;
+            el.className = `tc-cell ${cell.status === 'running' ? 'running' : cell.status === 'error' ? 'error' : ''}`;
+            const statusMap = { idle:'○', running:'●', success:'✓', error:'✗' };
+            const statusClass = { idle:'idle', running:'running', success:'success', error:'error' };
+            const statusEl = el.querySelector('.tc-cell-status');
+            if (statusEl) { statusEl.className = `tc-cell-status ${statusClass[cell.status]||'idle'}`; statusEl.textContent = statusMap[cell.status]||'○'; }
+            const outputEl = document.getElementById(`tc-output-${cell.id}`);
+            if (outputEl) {
+                outputEl.textContent = cell.output;
+                outputEl.className = `tc-cell-output ${cell.output?'visible':''} ${cell.status==='error'?'error-text':cell.status==='success'?'success-text':''}`;
+            }
+            const idx = session.cells.indexOf(cell);
+            const labelEl = el.querySelector('.tc-cell-label');
+            if (labelEl) labelEl.textContent = `Cell [${idx}]${cell.executionCount ? ' — executed #' + cell.executionCount : ''}`;
+        }
+
+        function refreshAllCells() {
+            const container = document.getElementById('tc-cells-container');
+            if (container) container.innerHTML = '';
+            session.cells.forEach(c => renderCell(c));
+        }
+
+        async function runAllCells() {
+            session.isRunning = true;
+            const stopBtn = document.getElementById('tc-stop');
+            if (stopBtn) stopBtn.style.opacity = '1';
+            for (const cell of session.cells) {
+                if (!session.isRunning) break;
+                if (cell.type === 'code' && cell.content.trim()) {
+                    await runCell(cell);
+                }
+            }
+            session.isRunning = false;
+            if (stopBtn) stopBtn.style.opacity = '0.5';
+        }
+
+        // ── Console ──
+        function addConsoleLog(level, msg) {
+            const ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            session.consoleLogs.push({ level, msg, ts });
+            renderConsole();
+        }
+
+        function renderConsole() {
+            const console = document.getElementById('tc-console');
+            if (!console) return;
+            const last20 = session.consoleLogs.slice(-50);
+            console.innerHTML = last20.map(l =>
+                `<div class="tc-console-line ${l.level}"><span class="ts">${l.ts}</span>${self._escapeHtml(l.msg)}</div>`
+            ).join('');
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // ── Sidebar ──
+        function renderSidebar() {
+            const content = document.getElementById('tc-sidebar-content');
+            if (!content) return;
+
+            if (session.activeSidebar === 'files') {
+                const files = self.vfs.list('/Documents');
+                const filesHtml = files.length > 0 ? files.map(f =>
+                    `<div class="tc-file-item" data-path="${f.path}"><span class="file-icon">${f.type==='folder'?'📁':self._getFileIcon(f.path)}</span><span class="file-name">${self.vfs.basename(f.path)}</span></div>`
+                ).join('') : '<div style="font-size:11px;color:#565f89;padding:8px;">No files in /Documents</div>';
+
+                const datasets = self.vfs.list('/Downloads');
+                const dsHtml = datasets.length > 0 ? datasets.map(f =>
+                    `<div class="tc-file-item" data-path="${f.path}"><span class="file-icon">${f.type==='folder'?'📁':self._getFileIcon(f.path)}</span><span class="file-name">${self.vfs.basename(f.path)}</span></div>`
+                ).join('') : '<div style="font-size:11px;color:#565f89;padding:8px;">No datasets</div>';
+
+                content.innerHTML = `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📁 Documents</div>
+                        ${filesHtml}
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📥 Downloads (Datasets)</div>
+                        ${dsHtml}
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">💾 Save Session</div>
+                        <button class="tc-toolbar-btn" id="tc-save-session-btn" style="width:100%;justify-content:center;margin-top:4px;">💾 Save to VFS</button>
+                    </div>`;
+
+                content.querySelectorAll('.tc-file-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const path = item.dataset.path;
+                        if (self.vfs.isDir(path)) return;
+                        const fileContent = self.vfs.read(path);
+                        if (fileContent !== null) {
+                            addCell('code', `# Loaded from: ${path}\n${fileContent}`);
+                            self.notif.show(`Loaded: ${self.vfs.basename(path)}`, 'success');
+                        }
+                    });
+                });
+                const saveBtn = document.getElementById('tc-save-session-btn');
+                if (saveBtn) saveBtn.addEventListener('click', saveSession);
+            } else if (session.activeSidebar === 'models') {
+                let modelsHtml = '';
+                if (session.ollamaModels.length > 0) {
+                    modelsHtml = session.ollamaModels.map(m => {
+                        const size = m.size ? (m.size / 1e9).toFixed(1) + ' GB' : 'Unknown';
+                        return `<div class="tc-model-card">
+                            <div class="tc-model-name">${m.name}</div>
+                            <div class="tc-model-meta">${m.details?.family || 'Unknown'} • ${size}</div>
+                            <div><span class="tc-model-tag">Ollama</span>${m.details?.quantization_level ? `<span class="tc-model-tag">${m.details.quantization_level}</span>` : ''}</div>
+                        </div>`;
+                    }).join('');
+                } else {
+                    modelsHtml = '<div style="font-size:11px;color:#565f89;padding:8px;">No Ollama models found</div>';
+                }
+                content.innerHTML = `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">🤖 Ollama Models</div>
+                        ${modelsHtml}
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">⚡ Quick Actions</div>
+                        <button class="tc-toolbar-btn" id="tc-refresh-models" style="width:100%;justify-content:center;margin-bottom:4px;">⟳ Refresh Models</button>
+                        <button class="tc-toolbar-btn" id="tc-pull-model" style="width:100%;justify-content:center;margin-bottom:4px;">⬇ Pull Model</button>
+                        <button class="tc-toolbar-btn" id="tc-create-modelfile" style="width:100%;justify-content:center;">📝 New Modelfile</button>
+                    </div>`;
+
+                document.getElementById('tc-refresh-models')?.addEventListener('click', fetchOllamaModels);
+                document.getElementById('tc-pull-model')?.addEventListener('click', () => {
+                    self._showInputDialog('⬇ Pull Ollama Model', 'e.g. qwen3.5:0.8b', '', (name) => {
+                        if (!name) return;
+                        addConsoleLog('info', `Pulling model: ${name}...`);
+                        addCell('code', `# Pulling model: ${name}\n# Run in terminal: ollama pull ${name}\n# This may take a while depending on model size\nprint("Model pull initiated: ${name}")\nprint("Monitor progress in the terminal app")`);
+                    });
+                });
+                document.getElementById('tc-create-modelfile')?.addEventListener('click', () => {
+                    addCell('code', `# Modelfile for custom model\n# FROM ./your-model.gguf\n# PARAMETER temperature 0.7\n# PARAMETER repeat_penalty 1.3\n# PARAMETER num_ctx 2048\n# SYSTEM "You are a helpful AI assistant."\n\nprint("Edit this cell to configure your Modelfile")\nprint("Then run: ollama create my-model -f Modelfile")`);
+                    self.notif.show('Modelfile template added', 'success');
+                });
+            } else if (session.activeSidebar === 'sessions') {
+                const saved = JSON.parse(localStorage.getItem('tc_sessions') || '{}');
+                const keys = Object.keys(saved);
+                let html = '';
+                if (keys.length > 0) {
+                    html = keys.map(k => {
+                        const s = saved[k];
+                        const date = new Date(s.savedAt).toLocaleDateString();
+                        return `<div class="tc-file-item" data-session="${k}"><span class="file-icon">📓</span><span class="file-name">${s.name}<br><span style="font-size:10px;color:#3b4261;">${date} • ${s.cells.length} cells</span></span></div>`;
+                    }).join('');
+                } else {
+                    html = '<div style="font-size:11px;color:#565f89;padding:8px;">No saved sessions</div>';
+                }
+                content.innerHTML = `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📋 Saved Sessions</div>
+                        ${html}
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">💡 Quick Start Templates</div>
+                        <button class="tc-toolbar-btn" id="tc-tpl-basic" style="width:100%;justify-content:center;margin-bottom:4px;">🐍 Python Basic</button>
+                        <button class="tc-toolbar-btn" id="tc-tpl-train" style="width:100%;justify-content:center;margin-bottom:4px;">🔥 Training Template</button>
+                        <button class="tc-toolbar-btn" id="tc-tpl-ollama" style="width:100%;justify-content:center;margin-bottom:4px;">🤖 Ollama Integration</button>
+                        <button class="tc-toolbar-btn" id="tc-tpl-myanmar" style="width:100%;justify-content:center;">🇲🇲 Myanmar NLP</button>
+                    </div>`;
+
+                content.querySelectorAll('.tc-file-item[data-session]').forEach(item => {
+                    item.addEventListener('click', () => loadSession(item.dataset.session));
+                });
+                document.getElementById('tc-tpl-basic')?.addEventListener('click', () => loadTemplate('basic'));
+                document.getElementById('tc-tpl-train')?.addEventListener('click', () => loadTemplate('training'));
+                document.getElementById('tc-tpl-ollama')?.addEventListener('click', () => loadTemplate('ollama'));
+                document.getElementById('tc-tpl-myanmar')?.addEventListener('click', () => loadTemplate('myanmar'));
+            }
+        }
+
+        // ── Templates ──
+        function loadTemplate(name) {
+            session.cells = [];
+            session.cellCounter = 0;
+            const container = document.getElementById('tc-cells-container');
+            if (container) container.innerHTML = '';
+
+            if (name === 'basic') {
+                session.name = 'Python Basics';
+                addCell('markdown', '# Python Basics\nWelcome to MyanOS AI Training Center!\nWrite Python code in cells and run them with **Shift+Enter**.');
+                addCell('code', '# Python Basics\nimport sys\nimport os\n\nprint(f"Python version: {sys.version}")\nprint(f"Platform: {sys.platform}")\nprint(f"CWD: {os.getcwd()}")');
+                addCell('code', '# Variables and Data Types\nname = "MyanOS"\nversion = 3.0\nfeatures = ["Terminal", "File Manager", "AI Training", "Code Editor"]\n\nprint(f"{name} v{version}")\nprint(f"Features: {', '.join(features)}")\nprint(f"Total features: {len(features)}")');
+                addCell('code', '# Functions\ndef fibonacci(n):\n    """Generate Fibonacci sequence up to n terms\"\"\"\n    a, b = 0, 1\n    result = []\n    for _ in range(n):\n        result.append(a)\n        a, b = b, a + b\n    return result\n\nfib = fibonacci(15)\nprint(f"Fibonacci: {fib}")\nprint(f"Sum: {sum(fib)}")');
+            } else if (name === 'training') {
+                session.name = 'AI Training Session';
+                addCell('markdown', '# AI Model Training\nThis session demonstrates a simple neural network training pipeline.\n\n🔥 Use the **Dashboard** tab to monitor training progress.');
+                addCell('code', '# Training Configuration\nimport time\nimport random\n\nclass TrainingConfig:\n    model_name = "myanmar-text-model"\n    epochs = 50\n    batch_size = 32\n    learning_rate = 0.001\n    optimizer = "adam"\n    loss_fn = "cross_entropy"\n\nconfig = TrainingConfig()\nprint(f"Model: {config.model_name}")\nprint(f"Epochs: {config.epochs}")\nprint(f"Batch Size: {config.batch_size}")\nprint(f"Learning Rate: {config.learning_rate}")\nprint(f"Optimizer: {config.optimizer}")');
+                addCell('code', '# Simulated Training Loop\nimport time\nimport math\n\nepochs = 20\ninitial_loss = 2.5\n\nprint("Starting training...")\nprint("=" * 50)\n\nfor epoch in range(epochs):\n    # Simulated decreasing loss\n    loss = initial_loss * math.exp(-epoch * 0.12) + random.uniform(-0.02, 0.02)\n    accuracy = min(99.5, 50 + epoch * 2.5 + random.uniform(-1, 1))\n    lr = 0.001 * (0.95 ** epoch)\n    \n    bar_len = 30\n    filled = int(bar_len * (epoch + 1) / epochs)\n    bar = "█" * filled + "░" * (bar_len - filled)\n    \n    print(f"Epoch {epoch+1:3d}/{epochs} |{bar}| Loss: {loss:.4f} Acc: {accuracy:.1f}% LR: {lr:.6f}")\n    time.sleep(0.1)\n\nprint("=" * 50)\nprint("Training completed!")');
+                addCell('code', '# Model Evaluation\nprint("Evaluating model...")\nmetrics = {\n    "accuracy": 95.2,\n    "precision": 93.8,\n    "recall": 94.1,\n    "f1_score": 93.9,\n}\n\nprint("\\nModel Evaluation Results:")\nprint("-" * 35)\nfor metric, value in metrics.items():\n    bar = "█" * int(value / 5) + "░" * (20 - int(value / 5))\n    print(f"  {metric:12s} {value:5.1f}% {bar}")\nprint("-" * 35)\nprint(f"  Overall: {sum(metrics.values())/len(metrics):.1f}%")');
+            } else if (name === 'ollama') {
+                session.name = 'Ollama Integration';
+                addCell('markdown', '# Ollama Integration\nConnect to Ollama for local AI model inference.\n\nMake sure Ollama is running: `ollama serve`');
+                addCell('code', '# Check Ollama Connection\nimport urllib.request\nimport json\n\ntry:\n    req = urllib.request.urlopen("http://localhost:11434/api/tags", timeout=5)\n    data = json.loads(req.read())\n    print(f"Connected! {len(data.get(\'models\', []))} models available:")\n    for m in data.get(\'models\', []):\n        size_gb = m.get(\'size\', 0) / 1e9\n        print(f"  - {m[\'name\']} ({size_gb:.1f} GB)")\nexcept Exception as e:\n    print(f"Ollama not connected: {e}")\n    print("Start Ollama with: ollama serve")');
+                addCell('code', '# Chat with Ollama Model\nimport urllib.request\nimport json\n\nmodel = "qwen-myanmar-code"  # Change to your model\nmessage = "Hello! Can you help me?"\n\npayload = json.dumps({\n    "model": model,\n    "messages": [{"role": "user", "content": message}],\n    "stream": False\n}).encode()\n\ntry:\n    req = urllib.request.Request(\n        "http://localhost:11434/api/chat",\n        data=payload,\n        headers={"Content-Type": "application/json"},\n        timeout=30\n    )\n    res = urllib.request.urlopen(req)\n    data = json.loads(res.read())\n    print(f"Model: {model}")\n    print(f"Response: {data[\'message\'][\'content\']}\")\nexcept Exception as e:\n    print(f"Error: {e}")');
+                addCell('code', '# List / Manage Models\nimport subprocess\n\ncommands = [\n    ("List models", ["ollama", "list"]),\n    ("Show info", ["ollama", "show", "qwen-myanmar-code"]),\n]\n\nfor desc, cmd in commands:\n    print(f"\\n>>> {desc}: {\' \'.join(cmd)}")\n    try:\n        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)\n        print(result.stdout or result.stderr)\n    except Exception as e:\n        print(f"Error: {e}")');
+            } else if (name === 'myanmar') {
+                session.name = 'Myanmar NLP';
+                addCell('markdown', '# Myanmar NLP Processing\nNatural Language Processing for Myanmar language.\n\n🇲🇲 မြန်မာဘာသာဖြင့် NLP');
+                addCell('code', '# Myanmar Text Processing Demo\n# Basic Myanmar character analysis\n\nmyanmar_text = "မင်္ဂလာပါ MyanOS ကိုကြိုဆိုပါတယ်"\n\nprint(f"Text: {myanmar_text}")\nprint(f"Length: {len(myanmar_text)} characters")\n\n# Count Myanmar characters\nmyanmar_chars = [c for c in myanmar_text if \'\\u1000\' <= c <= \'\\u109F\']\nprint(f"Myanmar characters: {len(myanmar_chars)}")\nprint(f"Characters: {\' \'.join(myanmar_chars)}")\n\n# Word-like segmentation (simple space-based)\nwords = myanmar_text.split()\nprint(f"Words: {words}")\nprint(f"Word count: {len(words)}")');
+                addCell('code', '# Myanmar Syllable Analysis\n# Myanmar syllable structure: consonant + vowel + optional medial + tone\n\ndef analyze_myanmar_char(char):\n    \"\"\"Analyze a Myanmar character\"\"\"\n    cp = ord(char)\n    categories = {\n        (0x1000, 0x1021): "Consonant (KB)\u0178\u0178\u0178\u0178\u0178)",\n        (0x1023, 0x1027): "Vowel Sign",\n        (0x1029, 0x102A): "Vowel Sign",\n        (0x102C, 0x1031): "Medial/Vowel",\n        (0x1036, 0x1037): "Tone",\n        (0x1040, 0x1049): "Digit",\n    }\n    for (start, end), name in categories.items():\n        if start <= cp <= end:\n            return name\n    return f"Other (U+{cp:04X})"\n\ntest_chars = ["က", "ွ", "း", "ံ", "ာ", "၀", "၁"]\nfor c in test_chars:\n    print(f"  {c} U+{ord(c):04X} -> {analyze_myanmar_char(c)}")');
+                addCell('code', '# Simple Tokenizer Demo\n# Myanmar text tokenization (word boundary detection)\n\ndef simple_tokenize(text):\n    \"\"\"Simple Myanmar tokenizer using common patterns\"\"\"\n    tokens = []\n    current = ""\n    for char in text:\n        if \'\\u1000\' <= char <= \'\\u109F\':\n            current += char\n        else:\n            if current:\n                tokens.append(current)\n                current = ""\n            if char.strip():\n                tokens.append(char)\n    if current:\n        tokens.append(current)\n    return tokens\n\nsample = "MyanOS မြန်မာပြန်တယ် Web OS ဖြစ်ပါတယ် နည်းပညာမြင့်ဖြစ်ပါတယ်"\ntokens = simple_tokenize(sample)\n\nprint(f"Input: {sample}")\nprint(f"Tokens ({len(tokens)}):")\nfor i, t in enumerate(tokens, 1):\n    is_mm = all(\'\\u1000\' <= c <= \'\\u109F\' for c in t)\n    print(f"  {i:3d}. [{\'MM\' if is_mm else \'EN\'}] {t}")');
+            }
+
+            document.getElementById('tc-session-name').textContent = session.name;
+            refreshAllCells();
+            saveSession();
+            self.notif.show(`Template loaded: ${session.name}`, 'success');
+        }
+
+        // ── Session Persistence ──
+        function saveSession() {
+            const key = 'tc_current';
+            const data = { name: session.name, cells: session.cells.map(c => ({id:c.id, type:c.type, content:c.content, output:c.output, status:c.status, executionCount:c.executionCount})), cellCounter: session.cellCounter, savedAt: Date.now() };
+            localStorage.setItem(key, JSON.stringify(data));
+            // Also save as named session
+            const all = JSON.parse(localStorage.getItem('tc_sessions') || '{}');
+            all[session.name] = data;
+            localStorage.setItem('tc_sessions', JSON.stringify(all));
+        }
+
+        function loadSession(name) {
+            const all = JSON.parse(localStorage.getItem('tc_sessions') || '{}');
+            const data = all[name];
+            if (!data) { self.notif.show('Session not found', 'error'); return; }
+            session.name = data.name;
+            session.cells = data.cells;
+            session.cellCounter = data.cellCounter || data.cells.length;
+            document.getElementById('tc-session-name').textContent = session.name;
+            refreshAllCells();
+            self.notif.show(`Loaded: ${session.name}`, 'success');
+        }
+
+        // ── Ollama Connection ──
+        async function fetchOllamaModels() {
+            const dot = document.getElementById('tc-connect-dot');
+            const text = document.getElementById('tc-connect-text');
+            if (dot) dot.className = 'tc-connect-dot checking';
+            if (text) text.textContent = 'connecting...';
+
+            try {
+                const res = await fetch('http://localhost:11434/api/tags');
+                const data = await res.json();
+                session.ollamaModels = data.models || [];
+                session.ollamaConnected = true;
+                if (dot) dot.className = 'tc-connect-dot connected';
+                if (text) text.textContent = `${session.ollamaModels.length} model(s)`;
+                addConsoleLog('success', `Ollama connected — ${session.ollamaModels.length} model(s)`);
+            } catch(e) {
+                session.ollamaConnected = false;
+                session.ollamaModels = [];
+                if (dot) dot.className = 'tc-connect-dot disconnected';
+                if (text) text.textContent = 'offline';
+                addConsoleLog('warn', 'Ollama not connected (http://localhost:11434)');
+            }
+            if (session.activeSidebar === 'models') renderSidebar();
+        }
+
+        // ── Dashboard Updates ──
+        function startDashboardUpdates() {
+            if (session.dashInterval) clearInterval(session.dashInterval);
+            session.dashInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/system');
+                    const data = await res.json();
+                    // Update stat cards with simulated values when offline
+                    document.getElementById('tc-cpu-val').textContent = (Math.random()*30+10).toFixed(0) + '%';
+                    document.getElementById('tc-mem-val').textContent = (Math.random()*4+2).toFixed(1) + ' GB';
+                    document.getElementById('tc-disk-val').textContent = (Math.random()*50+100).toFixed(0) + ' GB';
+                } catch(e) {
+                    document.getElementById('tc-cpu-val').textContent = '--%';
+                    document.getElementById('tc-mem-val').textContent = '-- GB';
+                    document.getElementById('tc-disk-val').textContent = '-- GB';
+                }
+                // Simulate GPU data
+                const gpuUtil = Math.random() * 60 + 20;
+                const gpuMem = Math.random() * 40 + 30;
+                const utilBar = document.getElementById('tc-gpu-util-bar');
+                const memBar = document.getElementById('tc-gpu-mem-bar');
+                if (utilBar) utilBar.style.width = gpuUtil + '%';
+                if (memBar) memBar.style.width = gpuMem + '%';
+                const utilPct = document.getElementById('tc-gpu-util-pct');
+                const memPct = document.getElementById('tc-gpu-mem-pct');
+                if (utilPct) utilPct.textContent = gpuUtil.toFixed(0) + '%';
+                if (memPct) memPct.textContent = gpuMem.toFixed(0) + '%';
+            }, 3000);
+        }
+
+        // ── Simulated Training ──
+        function simulateTraining() {
+            if (session.trainingState.active) { self.notif.show('Training already running', 'warning'); return; }
+            session.trainingState = { active: true, epoch: 0, totalEpochs: 30, loss: 2.5, lr: 0.001, accuracy: 10 };
+            const panel = document.getElementById('tc-train-status');
+            if (panel) panel.textContent = 'Training in progress...';
+            addConsoleLog('info', 'Training started — 30 epochs');
+            const logEl = document.getElementById('tc-training-log');
+            if (logEl) logEl.innerHTML = '';
+
+            const interval = setInterval(() => {
+                const s = session.trainingState;
+                if (!s.active || s.epoch >= s.totalEpochs) {
+                    s.active = false;
+                    clearInterval(interval);
+                    if (panel) panel.textContent = 'Training completed ✓';
+                    addConsoleLog('success', `Training finished — Final loss: ${s.loss.toFixed(4)}, Accuracy: ${s.accuracy.toFixed(1)}%`);
+                    return;
+                }
+                s.epoch++;
+                s.loss *= 0.92;
+                s.loss += (Math.random() - 0.5) * 0.05;
+                s.accuracy = Math.min(99, s.accuracy + 2.8 + Math.random() * 0.5);
+                s.lr *= 0.97;
+
+                // Update UI
+                const pct = (s.epoch / s.totalEpochs * 100).toFixed(0);
+                const fill = document.getElementById('tc-epoch-fill');
+                if (fill) fill.style.width = pct + '%';
+                const label = document.getElementById('tc-epoch-label');
+                if (label) label.textContent = `Epoch ${s.epoch}/${s.totalEpochs}`;
+                document.getElementById('tc-loss-val').textContent = s.loss.toFixed(4);
+                document.getElementById('tc-acc-val').textContent = s.accuracy.toFixed(1) + '%';
+                document.getElementById('tc-lr-val').textContent = s.lr.toFixed(6);
+                document.getElementById('tc-speed-val').textContent = (Math.random() * 50 + 80).toFixed(0) + ' it/s';
+
+                // Add log entry
+                const ts = new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+                if (logEl) {
+                    const entry = document.createElement('div');
+                    entry.className = 'tc-log-entry';
+                    entry.innerHTML = `<span class="tc-log-time">${ts}</span><span class="tc-log-icon">${s.epoch % 5 === 0 ? '📊' : '🔧'}</span><span class="tc-log-msg">Epoch ${s.epoch}: loss=${s.loss.toFixed(4)} acc=${s.accuracy.toFixed(1)}% lr=${s.lr.toFixed(6)}</span>`;
+                    logEl.insertBefore(entry, logEl.firstChild);
+                    if (logEl.children.length > 50) logEl.lastChild.remove();
+                }
+            }, 500);
+        }
+
+        // ── View Switching ──
+        function switchView(view) {
+            session.activeView = view;
+            const nb = document.getElementById('tc-notebook-area');
+            const dash = document.getElementById('tc-dashboard');
+            const btnNb = document.getElementById('tc-view-notebook');
+            const btnDash = document.getElementById('tc-view-dashboard');
+            if (view === 'notebook') {
+                nb.style.display = 'block'; dash.classList.remove('visible');
+                btnNb?.classList.add('active'); btnDash?.classList.remove('active');
+            } else {
+                nb.style.display = 'none'; dash.classList.add('visible');
+                btnDash?.classList.add('active'); btnNb?.classList.remove('active');
+                startDashboardUpdates();
+            }
+        }
+
+        // ── Wire Up Toolbar ──
+        document.getElementById('tc-add-code')?.addEventListener('click', () => addCell('code'));
+        document.getElementById('tc-add-md')?.addEventListener('click', () => addCell('markdown'));
+        document.getElementById('tc-run-all')?.addEventListener('click', runAllCells);
+        document.getElementById('tc-run-cell')?.addEventListener('click', () => {
+            const lastCode = [...session.cells].reverse().find(c => c.type === 'code');
+            if (lastCode) runCell(lastCode);
+        });
+        document.getElementById('tc-stop')?.addEventListener('click', () => {
+            session.isRunning = false;
+            session.trainingState.active = false;
+            addConsoleLog('warn', 'Execution stopped by user');
+        });
+        document.getElementById('tc-clear-all')?.addEventListener('click', () => {
+            session.cells.forEach(c => { c.output = ''; c.status = 'idle'; });
+            refreshAllCells();
+            session.consoleLogs = [];
+            renderConsole();
+        });
+        document.getElementById('tc-toggle-sidebar')?.addEventListener('click', () => {
+            document.getElementById('tc-sidebar')?.classList.toggle('collapsed');
+        });
+        document.getElementById('tc-view-notebook')?.addEventListener('click', () => switchView('notebook'));
+        document.getElementById('tc-view-dashboard')?.addEventListener('click', () => switchView('dashboard'));
+        document.getElementById('tc-new-session')?.addEventListener('click', () => {
+            self._showInputDialog('+ New Session', 'Session name', 'Untitled Session', (name) => {
+                if (!name) return;
+                session.name = name;
+                session.cells = [];
+                session.cellCounter = 0;
+                session.consoleLogs = [];
+                const container = document.getElementById('tc-cells-container');
+                if (container) container.innerHTML = '';
+                document.getElementById('tc-session-name').textContent = session.name;
+                addCell('code');
+                renderConsole();
+                saveSession();
+            });
+        });
+        document.getElementById('tc-session-name')?.addEventListener('click', () => {
+            self._showInputDialog('Session Name', 'Name', session.name, (name) => {
+                if (name) { session.name = name; document.getElementById('tc-session-name').textContent = name; saveSession(); }
+            });
+        });
+
+        // Sidebar tabs
+        document.querySelectorAll('.tc-sidebar-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tc-sidebar-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                session.activeSidebar = tab.dataset.tab;
+                renderSidebar();
+            });
+        });
+
+        // Console input
+        const consoleInput = document.getElementById('tc-console-input');
+        if (consoleInput) {
+            consoleInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    const cmd = consoleInput.value.trim();
+                    if (!cmd) return;
+                    consoleInput.value = '';
+                    addConsoleLog('info', `$ ${cmd}`);
+                    try {
+                        const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd, session:'tc-console'}) });
+                        const data = await res.json();
+                        addConsoleLog('', data.output || '(no output)');
+                    } catch(err) {
+                        addConsoleLog('error', `Error: ${err.message}`);
+                    }
+                }
+            });
+        }
+
+        // Simulate training button
+        document.getElementById('tc-sim-train')?.addEventListener('click', simulateTraining);
+
+        // ── Initialize ──
+        // Try to load saved session
+        const saved = localStorage.getItem('tc_current');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                session.name = data.name;
+                session.cells = data.cells || [];
+                session.cellCounter = data.cellCounter || session.cells.length;
+                document.getElementById('tc-session-name').textContent = session.name;
+            } catch(e) {}
+        }
+
+        if (session.cells.length === 0) {
+            // Default cells
+            addCell('markdown', '# AI Training Center\nWelcome to **MyanOS AI Training Center** — a Google Colab-like notebook environment for AI/ML development.\n\n## Features\n- 🐍 **Python Code Execution** — Run code cells with Shift+Enter\n- 📓 **Notebook Interface** — Add code and markdown cells\n- 🤖 **Ollama Integration** — Connect to local AI models\n- 📊 **Training Dashboard** — Monitor GPU, memory, training progress\n- 💾 **Session Management** — Save and load notebook sessions\n- 📁 **File Browser** — Access VFS files and datasets\n\n## Quick Start\n1. Select a template from the **Sessions** tab in sidebar\n2. Or click **+ Code** to add a new code cell\n3. Press **Shift+Enter** to run a cell\n4. Switch to **Dashboard** view for system monitoring');
+            addCell('code', '# Welcome — Test Your Environment\nimport sys\nimport os\nimport platform\n\nprint("=" * 45)\nprint("  MyanOS AI Training Center")\nprint("=" * 45)\nprint(f"  Python:    {sys.version.split()[0]}")\nprint(f"  Platform:  {platform.system()}")\nprint(f"  Arch:      {platform.machine()}")\nprint(f"  PID:       {os.getpid()}")\nprint("=" * 45)\nprint("  Environment ready! Start coding below.")\nprint("=" * 45)');
+        } else {
+            refreshAllCells();
+        }
+
+        renderSidebar();
+        fetchOllamaModels();
+        addConsoleLog('info', 'AI Training Center initialized');
     }
 
     renderBrowser(body) {

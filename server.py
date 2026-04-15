@@ -50,6 +50,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             self.handle_myan(data)
         elif self.path == '/api/system':
             self.handle_system(data)
+        elif self.path == '/api/training':
+            self.handle_training(data)
         else:
             self.send_json({'error': 'Unknown endpoint'}, 404)
 
@@ -59,6 +61,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             self.handle_system({})
         elif self.path == '/api/packages':
             self.handle_packages()
+        elif self.path == '/api/training':
+            self.handle_training_status()
         else:
             super().do_GET()
 
@@ -188,6 +192,88 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                 })
 
         self.send_json({'packages': packages})
+
+    # ─── API: AI Training Center ───────────────────────────────────────
+    def handle_training(self, data):
+        """Handle AI Training Center requests"""
+        action = data.get('action', '')
+        
+        if action == 'execute_cell':
+            code = data.get('code', '').strip()
+            if not code:
+                self.send_json({'output': '', 'status': 0})
+                return
+            try:
+                import subprocess
+                result = subprocess.run(
+                    [sys.executable, '-c', code],
+                    capture_output=True, text=True, timeout=60,
+                    cwd=str(BASE_DIR)
+                )
+                output = result.stdout
+                if result.stderr:
+                    output += ('\n' if output else '') + result.stderr
+                self.send_json({'output': output, 'status': result.returncode})
+            except subprocess.TimeoutExpired:
+                self.send_json({'output': '[TIMEOUT] Cell execution exceeded 60s limit', 'status': 1})
+            except Exception as e:
+                self.send_json({'output': f'[ERR] {e}', 'status': 1})
+        
+        elif action == 'check_ollama':
+            try:
+                import urllib.request
+                req = urllib.request.urlopen('http://localhost:11434/api/tags', timeout=3)
+                import json
+                data = json.loads(req.read())
+                self.send_json({'connected': True, 'models': data.get('models', [])})
+            except:
+                self.send_json({'connected': False, 'models': []})
+        
+        elif action == 'system_stats':
+            import platform
+            stats = {
+                'cpu_percent': 0,
+                'memory_used': 'N/A',
+                'memory_total': 'N/A',
+                'gpu_available': False,
+                'gpu_util': 0,
+                'gpu_mem_used': 0,
+                'gpu_mem_total': 0,
+                'platform': platform.platform(),
+                'python': platform.python_version(),
+            }
+            try:
+                import psutil
+                stats['cpu_percent'] = psutil.cpu_percent(interval=0.5)
+                mem = psutil.virtual_memory()
+                stats['memory_used'] = f'{mem.used / 1e9:.1f} GB'
+                stats['memory_total'] = f'{mem.total / 1e9:.1f} GB'
+            except ImportError:
+                pass
+            try:
+                import subprocess
+                r = subprocess.run(['nvidia-smi', '--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], capture_output=True, text=True, timeout=5)
+                if r.returncode == 0:
+                    parts = r.stdout.strip().split(', ')
+                    stats['gpu_available'] = True
+                    stats['gpu_util'] = float(parts[0]) if len(parts) > 0 else 0
+                    stats['gpu_mem_used'] = float(parts[1]) if len(parts) > 1 else 0
+                    stats['gpu_mem_total'] = float(parts[2]) if len(parts) > 2 else 0
+            except:
+                pass
+            self.send_json(stats)
+        
+        else:
+            self.send_json({'error': 'Unknown training action'}, 400)
+
+    def handle_training_status(self):
+        """GET training center status"""
+        import platform
+        self.send_json({
+            'status': 'ok',
+            'python': platform.python_version(),
+            'platform': platform.platform(),
+        })
 
     # ─── Helpers ───────────────────────────────────────────────────────────
     def send_json(self, data, code=200):
