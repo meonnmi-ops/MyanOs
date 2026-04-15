@@ -350,10 +350,6 @@ class MyanosDesktop {
         this.clipboard = null;
         this._termApiMode = false;
         this._fmCurrentPath = '/Desktop';
-        this._termHistory = [];
-        this._termHistoryIdx = -1;
-        this._settings = JSON.parse(localStorage.getItem('myanos_settings') || '{}');
-        this._isLocked = false;
 
         this.apps = [
             { id:'terminal', name:'Terminal', icon:'⬛', desc:'MMR Shell', category:'system' },
@@ -384,15 +380,7 @@ class MyanosDesktop {
         this.setupEventListeners();
         this.setupKeyboardShortcuts();
         this.startClock();
-        this.applySettings();
         this.notif.show('Myanos v3.0.0 — Desktop ready', 'success', 3000);
-    }
-
-    applySettings() {
-        const s = this._settings;
-        if (s.fontSize) document.body.style.fontSize = s.fontSize + 'px';
-        if (s.accentColor) document.documentElement.style.setProperty('--accent', s.accentColor);
-        if (s.wallpaper) this.applyWallpaper(s.wallpaper);
     }
 
     // ── Wallpaper ──
@@ -980,10 +968,6 @@ class MyanosDesktop {
                 this.renderDesktopIcons();
                 this.notif.show('Desktop refreshed', 'info', 1500);
             }
-            // ESC - unlock
-            if (e.key === 'Escape' && this._isLocked) {
-                this.unlockScreen();
-            }
         });
     }
 
@@ -1046,34 +1030,9 @@ class MyanosDesktop {
         input.focus();
         term.scrollTop = term.scrollHeight;
         input.addEventListener('keydown', async (e) => {
-            if (e.key==='Enter') {
-                const cmd=input.value.trim();
-                input.disabled=true;
-                if(cmd) {
-                    this._termHistory.push(cmd);
-                    this._termHistoryIdx = this._termHistory.length;
-                    await this._execTermCmd(term,cmd,winId);
-                } else { this._addTermInput(term,winId); }
-            }
+            if (e.key==='Enter') { const cmd=input.value.trim(); input.disabled=true; if(cmd) await this._execTermCmd(term,cmd,winId); else this._addTermInput(term,winId); }
             if (e.key==='Tab') { e.preventDefault(); this._tabComplete(input); }
-            if (e.key==='ArrowUp') {
-                e.preventDefault();
-                if (this._termHistoryIdx > 0) {
-                    this._termHistoryIdx--;
-                    input.value = this._termHistory[this._termHistoryIdx];
-                }
-            }
-            if (e.key==='ArrowDown') {
-                e.preventDefault();
-                if (this._termHistoryIdx < this._termHistory.length - 1) {
-                    this._termHistoryIdx++;
-                    input.value = this._termHistory[this._termHistoryIdx];
-                } else {
-                    this._termHistoryIdx = this._termHistory.length;
-                    input.value = '';
-                }
-            }
-            if (e.key==='l' && e.ctrlKey) { e.preventDefault(); term.innerHTML=''; this._addTermInput(term,winId); }
+            if (e.key==='ArrowUp') { /* History would go here */ }
         });
         term.addEventListener('click', () => input.focus());
     }
@@ -1142,7 +1101,6 @@ class MyanosDesktop {
                     return content;
                 },
                 'echo': () => cmd.substring(5),
-            'history': () => this._termHistory.length === 0 ? '(empty)' : this._termHistory.map((h,i) => `  ${String(i+1).padStart(4)}  ${h}`).join('\n'),
             };
 
             const parts = cmd.split(/\s+/);
@@ -1685,69 +1643,6 @@ class MyanosDesktop {
     }
 
     renderSettings(body) {
-        const s = this._settings;
-        const self = this;
-        const wpList = Object.entries(WALLPAPERS);
-        const accentColors = [
-            {n:'Blue',c:'#7aa2f7'},{n:'Green',c:'#9ece6a'},{n:'Purple',c:'#bb9af7'},
-            {n:'Orange',c:'#ff9e64'},{n:'Red',c:'#f7768e'},{n:'Cyan',c:'#7dcfff'}
-        ];
-        const saveSetting = (key, val) => { self._settings[key]=val; localStorage.setItem('myanos_settings', JSON.stringify(self._settings)); };
-        const renderTab = (tab) => {
-            const content = document.getElementById('settings-content');
-            if (!content) return;
-            if (tab === 'display') {
-                content.innerHTML = `<div class="settings-section">
-                    <h3>🖥️ Display Settings</h3>
-                    <div class="settings-row"><label>Wallpaper</label>
-                        <div style="display:flex;gap:6px;">${wpList.map(([id,wp]) => `<div onclick="window.myanos._changeWallpaper('${id}');document.querySelectorAll('.settings-wp-thumb').forEach(e=>e.style.outline='none');this.style.outline='2px solid #7aa2f7';" class="settings-wp-thumb" style="width:40px;height:28px;border-radius:4px;cursor:pointer;background:${wp.css};${self.vfs.getWallpaper()===id?'outline:2px solid #7aa2f7;':''}" title="${wp.name}"></div>`).join('')}</div>
-                    </div>
-                    <div class="settings-row"><label>Font Size</label>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <input type="range" min="12" max="20" value="${s.fontSize||14}" oninput="this.nextElementSibling.textContent=this.value+'px';window.myanos._settings.fontSize=+this.value;localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));document.body.style.fontSize=this.value+'px';" style="width:120px;accent-color:#7aa2f7;">
-                            <span class="value">${s.fontSize||14}px</span>
-                        </div>
-                    </div>
-                    <div class="settings-row"><label>Dark Mode</label>
-                        <div class="toggle ${s.darkMode!==false?'on':''}" onclick="this.classList.toggle('on');const v=this.classList.contains('on');window.myanos._settings.darkMode=v;localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));"></div></div>
-                    <div class="settings-row"><label>Blur Effects</label>
-                        <div class="toggle ${s.blur!==false?'on':''}" onclick="this.classList.toggle('on');const v=this.classList.contains('on');window.myanos._settings.blur=v;localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));document.querySelectorAll('.myanos-window').forEach(w=>w.style.backdropFilter=v?'blur(20px)':'none');"></div></div>
-                    <div class="settings-row"><label>Animations</label>
-                        <div class="toggle ${s.animations!==false?'on':''}" onclick="this.classList.toggle('on');const v=this.classList.contains('on');window.myanos._settings.animations=v;localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));document.body.style.setProperty('--anim-speed',v?'':'0s');"></div></div>
-                </div>`;
-            } else if (tab === 'appearance') {
-                content.innerHTML = `<div class="settings-section">
-                    <h3>🎨 Appearance</h3>
-                    <div class="settings-row"><label>Accent Color</label>
-                        <div style="display:flex;gap:8px;">${accentColors.map(ac => `<div onclick="document.querySelectorAll('.accent-dot').forEach(e=>e.style.outline='none');this.style.outline='2px solid #fff';document.documentElement.style.setProperty('--accent','${ac.c}');window.myanos._settings.accentColor='${ac.c}';localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));" class="accent-dot" style="width:24px;height:24px;border-radius:50%;cursor:pointer;background:${ac.c};${(s.accentColor||'#7aa2f7')===ac.c?'outline:2px solid #fff;':''}" title="${ac.n}"></div>`).join('')}</div>
-                    </div>
-                    <div class="settings-row"><label>Show Seconds in Clock</label>
-                        <div class="toggle ${s.showSeconds?'on':''}" onclick="this.classList.toggle('on');window.myanos._settings.showSeconds=this.classList.contains('on');localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));"></div></div>
-                    <div class="settings-row"><label>Lock Screen on Boot</label>
-                        <div class="toggle ${s.lockOnBoot?'on':''}" onclick="this.classList.toggle('on');window.myanos._settings.lockOnBoot=this.classList.contains('on');localStorage.setItem('myanos_settings',JSON.stringify(window.myanos._settings));"></div></div>
-                </div>`;
-            } else if (tab === 'about') {
-                content.innerHTML = `<div class="settings-section">
-                    <h3>ℹ️ About Myanos</h3>
-                    <div style="text-align:center;padding:20px 0;">
-                        <div style="font-size:64px;margin-bottom:12px;">🇲🇲</div>
-                        <div style="font-size:20px;color:#c0caf5;font-weight:600;">Myanos Web OS</div>
-                        <div style="font-size:13px;color:#565f89;margin-top:4px;">Version 3.1.0</div>
-                    </div>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <tr class="settings-row"><td style="color:#565f89;">Developer</td><td style="color:#a9b1d6;text-align:right;">Meonnmi-ops (Boss)</td></tr>
-                        <tr class="settings-row"><td style="color:#565f89;">Shell</td><td style="color:#a9b1d6;text-align:right;">MMR Shell v1.0.0</td></tr>
-                        <tr class="settings-row"><td style="color:#565f89;">Package Manager</td><td style="color:#a9b1d6;text-align:right;">MyanPM (.myan)</td></tr>
-                        <tr class="settings-row"><td style="color:#565f89;">Language</td><td style="color:#a9b1d6;text-align:right;">Myanmar Code</td></tr>
-                        <tr class="settings-row"><td style="color:#565f89;">License</td><td style="color:#a9b1d6;text-align:right;">MIT</td></tr>
-                        <tr class="settings-row"><td style="color:#565f89;">GitHub</td><td style="color:#7aa2f7;text-align:right;cursor:pointer;" onclick="window.myanos.openApp('browser')">meonnmi-ops/Myanos</td></tr>
-                    </table>
-                </div>`;
-            } else {
-                const tabNames = {sound:'🔊 Sound',network:'📶 Network',security:'🔒 Security',language:'🌐 Language',packages:'📦 Packages'};
-                content.innerHTML = `<div class="settings-section"><h3>${tabNames[tab]||tab}</h3><div style="padding:40px;text-align:center;color:#565f89;"><div style="font-size:36px;margin-bottom:12px;">🚧</div><p>Coming in next update</p></div></div>`;
-            }
-        };
         body.innerHTML = `<div class="app-settings">
             <div class="settings-sidebar">
                 <div class="settings-item active" data-tab="display">🖥️ Display</div>
@@ -1759,16 +1654,16 @@ class MyanosDesktop {
                 <div class="settings-item" data-tab="packages">📦 Packages</div>
                 <div class="settings-item" data-tab="about">ℹ️ About</div>
             </div>
-            <div class="settings-content" id="settings-content"></div>
+            <div class="settings-content" id="settings-content">
+                <div class="settings-section"><h3>🖥️ Display Settings</h3>
+                    <div class="settings-row"><label>Dark Mode</label><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                    <div class="settings-row"><label>Blur Effects</label><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                    <div class="settings-row"><label>Animations</label><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                    <div class="settings-row"><label>Taskbar Position</label><span class="value">Bottom</span></div>
+                    <div class="settings-row"><label>Font Size</label><span class="value">14px</span></div>
+                </div>
+            </div>
         </div>`;
-        renderTab('display');
-        body.querySelectorAll('.settings-item').forEach(item => {
-            item.addEventListener('click', () => {
-                body.querySelectorAll('.settings-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-                renderTab(item.dataset.tab);
-            });
-        });
     }
 
     renderNeofetch(body) {
@@ -1818,199 +1713,26 @@ class MyanosDesktop {
     }
 
     renderToolbox(body) {
-        const self = this;
-        body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
-            <div style="display:flex;gap:4px;padding:8px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
-                <button class="tb-tab active" data-tool="calc" style="padding:6px 14px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:6px;color:#7aa2f7;font-size:12px;cursor:pointer;">🧮 Calculator</button>
-                <button class="tb-tab" data-tool="stopwatch" style="padding:6px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#a9b1d6;font-size:12px;cursor:pointer;">⏱️ Stopwatch</button>
-                <button class="tb-tab" data-tool="timer" style="padding:6px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#a9b1d6;font-size:12px;cursor:pointer;">⏲️ Timer</button>
-                <button class="tb-tab" data-tool="color" style="padding:6px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#a9b1d6;font-size:12px;cursor:pointer;">🎨 Color Picker</button>
-            </div>
-            <div id="toolbox-content" style="flex:1;overflow-y:auto;"></div>
-        </div>`;
-        const renderTool = (tool) => {
-            const c = document.getElementById('toolbox-content');
-            body.querySelectorAll('.tb-tab').forEach(t => { t.style.background='rgba(255,255,255,0.06)'; t.style.borderColor='rgba(255,255,255,0.08)'; t.style.color='#a9b1d6'; });
-            body.querySelector(`.tb-tab[data-tool="${tool}"]`).style.cssText='padding:6px 14px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:6px;color:#7aa2f7;font-size:12px;cursor:pointer;';
-            if (tool === 'calc') {
-                c.innerHTML = `<div style="padding:12px;">
-                    <input id="calc-display" readonly value="0" style="width:100%;padding:14px;font-size:24px;text-align:right;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;color:#c0caf5;font-family:'JetBrains Mono',monospace;margin-bottom:10px;outline:none;">
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
-                        ${['C','±','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','⌫','='].map(b =>
-                            `<button onclick="window.myanos._calcBtn('${b}')" style="padding:16px;font-size:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#c0caf5;cursor:pointer;transition:background 0.1s;" onmouseenter="this.style.background='rgba(122,162,247,0.15)'" onmouseleave="this.style.background='rgba(255,255,255,0.06)'">${b}</button>`
-                        ).join('')}
-                    </div>
-                </div>`;
-            } else if (tool === 'stopwatch') {
-                c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:30px;height:100%;">
-                    <div id="sw-display" style="font-size:48px;font-family:'JetBrains Mono',monospace;color:#c0caf5;margin-bottom:24px;">00:00.000</div>
-                    <div style="display:flex;gap:10px;margin-bottom:20px;">
-                        <button id="sw-start" onclick="window.myanos._swToggle()" style="padding:10px 24px;background:rgba(158,206,106,0.15);border:1px solid rgba(158,206,106,0.3);border-radius:8px;color:#9ece6a;font-size:14px;cursor:pointer;">▶ Start</button>
-                        <button onclick="window.myanos._swLap()" style="padding:10px 24px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#a9b1d6;font-size:14px;cursor:pointer;">🏁 Lap</button>
-                        <button onclick="window.myanos._swReset()" style="padding:10px 24px;background:rgba(247,118,142,0.15);border:1px solid rgba(247,118,142,0.3);border-radius:8px;color:#f7768e;font-size:14px;cursor:pointer;">↺ Reset</button>
-                    </div>
-                    <div id="sw-laps" style="width:100%;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:13px;color:#a9b1d6;"></div>
-                </div>`;
-            } else if (tool === 'timer') {
-                c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:30px;height:100%;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
-                        <input id="timer-min" type="number" value="5" min="0" max="99" style="width:60px;padding:10px;text-align:center;font-size:24px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;color:#c0caf5;font-family:'JetBrains Mono',monospace;outline:none;">
-                        <span style="font-size:24px;color:#565f89;">:</span>
-                        <input id="timer-sec" type="number" value="0" min="0" max="59" style="width:60px;padding:10px;text-align:center;font-size:24px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;color:#c0caf5;font-family:'JetBrains Mono',monospace;outline:none;">
-                    </div>
-                    <div id="timer-display" style="font-size:48px;font-family:'JetBrains Mono',monospace;color:#c0caf5;margin-bottom:20px;">05:00</div>
-                    <div style="display:flex;gap:10px;">
-                        <button id="timer-start" onclick="window.myanos._timerToggle()" style="padding:10px 24px;background:rgba(158,206,106,0.15);border:1px solid rgba(158,206,106,0.3);border-radius:8px;color:#9ece6a;font-size:14px;cursor:pointer;">▶ Start</button>
-                        <button onclick="window.myanos._timerReset()" style="padding:10px 24px;background:rgba(247,118,142,0.15);border:1px solid rgba(247,118,142,0.3);border-radius:8px;color:#f7768e;font-size:14px;cursor:pointer;">↺ Reset</button>
-                    </div>
-                </div>`;
-            } else if (tool === 'color') {
-                c.innerHTML = `<div style="padding:20px;">
-                    <div style="display:flex;gap:20px;">
-                        <div>
-                            <canvas id="color-canvas" width="200" height="200" style="border-radius:8px;cursor:crosshair;border:1px solid rgba(255,255,255,0.06);"></canvas>
-                            <div style="margin-top:8px;height:20px;border-radius:4px;" id="color-preview"></div>
-                        </div>
-                        <div style="flex:1;">
-                            <div style="margin-bottom:10px;"><label style="color:#565f89;font-size:12px;">HEX</label><input id="color-hex" readonly style="width:100%;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;color:#c0caf5;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;"></div>
-                            <div style="margin-bottom:10px;"><label style="color:#565f89;font-size:12px;">RGB</label><input id="color-rgb" readonly style="width:100%;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;color:#c0caf5;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;"></div>
-                            <button onclick="navigator.clipboard.writeText(document.getElementById('color-hex').value);window.myanos.notif.show('Color copied!','success',1500)" style="padding:8px 16px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:6px;color:#7aa2f7;font-size:12px;cursor:pointer;width:100%;">📋 Copy HEX</button>
-                        </div>
-                    </div>
-                </div>`;
-                setTimeout(() => self._initColorPicker(), 50);
-            }
-        };
-        renderTool('calc');
-        body.querySelectorAll('.tb-tab').forEach(t => t.addEventListener('click', () => renderTool(t.dataset.tool)));
-    }
-
-    // ── Calculator Logic ──
-    _calcVal = '0'; _calcOp = ''; _calcPrev = 0; _calcReset = false;
-    _calcBtn(b) {
-        const d = document.getElementById('calc-display');
-        if (!d) return;
-        if (b === 'C') { this._calcVal='0'; this._calcOp=''; this._calcPrev=0; this._calcReset=false; d.value='0'; return; }
-        if (b === '⌫') { this._calcVal = this._calcVal.length>1 ? this._calcVal.slice(0,-1) : '0'; d.value=this._calcVal; return; }
-        if (b === '±') { this._calcVal = String(-parseFloat(this._calcVal)); d.value=this._calcVal; return; }
-        if (b === '%') { this._calcVal = String(parseFloat(this._calcVal)/100); d.value=this._calcVal; return; }
-        if ('0123456789.'.includes(b)) {
-            if (this._calcReset) { this._calcVal=''; this._calcReset=false; }
-            if (b==='.' && this._calcVal.includes('.')) return;
-            this._calcVal += b; d.value = this._calcVal;
-            return;
-        }
-        if ('+-×÷'.includes(b)) {
-            this._calcPrev = parseFloat(this._calcVal);
-            this._calcOp = b; this._calcReset = true;
-            return;
-        }
-        if (b === '=') {
-            const cur = parseFloat(this._calcVal);
-            let r = 0;
-            if (this._calcOp === '+') r = this._calcPrev + cur;
-            else if (this._calcOp === '−') r = this._calcPrev - cur;
-            else if (this._calcOp === '×') r = this._calcPrev * cur;
-            else if (this._calcOp === '÷') r = cur !== 0 ? this._calcPrev / cur : 'Error';
-            this._calcVal = String(r); this._calcOp = ''; this._calcReset = true;
-            d.value = this._calcVal;
-        }
-    }
-
-    // ── Stopwatch Logic ──
-    _swRunning = false; _swStart = 0; _swElapsed = 0; _swInterval = null; _swLaps = [];
-    _swToggle() {
-        const btn = document.getElementById('sw-start');
-        if (this._swRunning) {
-            clearInterval(this._swInterval); this._swElapsed += Date.now()-this._swStart; this._swRunning=false;
-            if (btn) { btn.textContent='▶ Start'; btn.style.color='#9ece6a'; }
-        } else {
-            this._swStart=Date.now(); this._swRunning=true;
-            this._swInterval = setInterval(() => {
-                const t = this._swElapsed + (Date.now()-this._swStart);
-                const ms = t%1000, s = Math.floor(t/1000)%60, m = Math.floor(t/60000)%60, h = Math.floor(t/3600000);
-                const el = document.getElementById('sw-display');
-                if (el) el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
-            }, 10);
-            if (btn) { btn.textContent='⏸ Pause'; btn.style.color='#e0af68'; }
-        }
-    }
-    _swLap() {
-        if (!this._swRunning) return;
-        const t = this._swElapsed+(Date.now()-this._swStart);
-        const ms=t%1000,s=Math.floor(t/1000)%60,m=Math.floor(t/60000)%60;
-        this._swLaps.push(`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`);
-        const el = document.getElementById('sw-laps');
-        if (el) el.innerHTML = this._swLaps.map((l,i) => `<div style="padding:4px 8px;border-bottom:1px solid rgba(255,255,255,0.04);">Lap ${i+1}: ${l}</div>`).reverse().join('');
-    }
-    _swReset() {
-        clearInterval(this._swInterval); this._swRunning=false; this._swElapsed=0; this._swLaps=[];
-        const d=document.getElementById('sw-display'),b=document.getElementById('sw-start'),l=document.getElementById('sw-laps');
-        if(d)d.textContent='00:00.000'; if(b){b.textContent='▶ Start';b.style.color='#9ece6a';} if(l)l.innerHTML='';
-    }
-
-    // ── Timer Logic ──
-    _tmRunning=false; _tmInterval=null; _tmRemaining=0;
-    _timerToggle() {
-        const btn = document.getElementById('timer-start');
-        if (this._tmRunning) {
-            clearInterval(this._tmInterval); this._tmRunning=false;
-            if(btn){btn.textContent='▶ Start';btn.style.color='#9ece6a';}
-        } else {
-            if (this._tmRemaining<=0) {
-                const m=parseInt(document.getElementById('timer-min')?.value||5)*60;
-                const s=parseInt(document.getElementById('timer-sec')?.value||0);
-                this._tmRemaining=(m+s)*1000;
-            }
-            this._tmRunning=true;
-            if(btn){btn.textContent='⏸ Pause';btn.style.color='#e0af68';}
-            this._tmInterval = setInterval(() => {
-                this._tmRemaining -= 100;
-                if (this._tmRemaining<=0) {
-                    clearInterval(this._tmInterval); this._tmRunning=false; this._tmRemaining=0;
-                    if(btn){btn.textContent='▶ Start';btn.style.color='#9ece6a';}
-                    this.notif.show('⏰ Timer done!','warning',5000);
-                }
-                const t=Math.max(0,this._tmRemaining),m=Math.floor(t/60000),s=Math.floor((t%60000)/1000);
-                const el=document.getElementById('timer-display');
-                if(el)el.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }, 100);
-        }
-    }
-    _timerReset() {
-        clearInterval(this._tmInterval); this._tmRunning=false; this._tmRemaining=0;
-        const d=document.getElementById('timer-display'),b=document.getElementById('timer-start');
-        const m=parseInt(document.getElementById('timer-min')?.value||5);
-        const s=parseInt(document.getElementById('timer-sec')?.value||0);
-        if(d)d.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-        if(b){b.textContent='▶ Start';b.style.color='#9ece6a';}
-    }
-
-    // ── Color Picker ──
-    _initColorPicker() {
-        const canvas = document.getElementById('color-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        for (let x=0; x<200; x++) { for (let y=0; y<200; y++) {
-            const h=x/200*360, s=100, l=100-y/200*100;
-            ctx.fillStyle=`hsl(${h},${s}%,${l}%)`; ctx.fillRect(x,y,1,1);
-        }}
-        const pick = (e) => {
-            const r=canvas.getBoundingClientRect(), x=Math.round(e.clientX-r.left), y=Math.round(e.clientY-r.top);
-            if(x<0||x>200||y<0||y>200)return;
-            const px=ctx.getImageData(x,y,1,1).data;
-            const hex='#'+[px[0],px[1],px[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
-            document.getElementById('color-hex').value=hex;
-            document.getElementById('color-rgb').value=`rgb(${px[0]}, ${px[1]}, ${px[2]})`;
-            document.getElementById('color-preview').style.background=hex;
-        };
-        canvas.addEventListener('click', pick);
-        canvas.addEventListener('mousemove', pick);
-        const px=ctx.getImageData(100,100,1,1).data;
-        const ih='#'+[px[0],px[1],px[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
-        document.getElementById('color-hex').value=ih;
-        document.getElementById('color-rgb').value=`rgb(${px[0]}, ${px[1]}, ${px[2]})`;
-        document.getElementById('color-preview').style.background=ih;
+        const tools = [
+            { ic:'💾', name:'Storage', desc:'Manage disk space' },
+            { ic:'🌐', name:'Network', desc:'Network tools' },
+            { ic:'📊', name:'Monitor', desc:'System monitor' },
+            { ic:'📱', name:'Flash', desc:'Firmware tools' },
+            { ic:'🔐', name:'Security', desc:'Security settings' },
+            { ic:'📜', name:'Logs', desc:'System logs' },
+            { ic:'⚙️', name:'System', desc:'System config' },
+            { ic:'📥', name:'Download', desc:'Download manager' },
+            { ic:'🔍', name:'Search', desc:'File search' },
+        ];
+        body.innerHTML = `<div style="padding:20px;">
+            <h3 style="color:#c0caf5;margin-bottom:16px;">🔧 Myanos Professional Toolbox</h3>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                ${tools.map(t => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:background 0.12s;" onmouseenter="this.style.background='rgba(122,162,247,0.1)'" onmouseleave="this.style.background='rgba(255,255,255,0.03)'">
+                    <div style="font-size:28px;margin-bottom:6px;">${t.ic}</div>
+                    <div style="font-size:13px;color:#c0caf5;">${t.name}</div>
+                    <div style="font-size:11px;color:#565f89;margin-top:2px;">${t.desc}</div>
+                </div>`).join('')}
+            </div></div>`;
     }
 
     renderAndroid(body) {
@@ -2028,137 +1750,28 @@ class MyanosDesktop {
         </div>`;
     }
     renderMyanAi(body) {
-        const self = this;
-        body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
-            <div style="padding:10px 14px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;">
-                <span style="font-size:20px;">🤖</span>
-                <div>
-                    <div style="font-size:14px;color:#c0caf5;font-weight:600;">MyanAi — Myanmar AI Assistant</div>
-                    <div style="font-size:11px;color:#565f89;">Powered by Qwen Myanmar Code (GGUF via Ollama)</div>
-                </div>
-                <div id="ai-status" style="margin-left:auto;padding:3px 10px;background:rgba(122,162,247,0.1);border-radius:10px;font-size:11px;color:#7aa2f7;">● Connected</div>
-            </div>
-            <div id="ai-chat" style="flex:1;overflow-y:auto;padding:14px;font-size:13px;line-height:1.6;"></div>
-            <div style="padding:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;">
-                <input id="ai-input" placeholder="Type a message... (Myanmar or English)" style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#c0caf5;font-size:13px;outline:none;" />
-                <button id="ai-send" style="padding:10px 18px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:8px;color:#7aa2f7;font-size:13px;cursor:pointer;">Send</button>
-            </div>
+        body.innerHTML = `<div style="padding:20px;text-align:center;">
+            <div style="font-size:48px;">🤖</div>
+            <h3 style="color:#c0caf5;margin:12px 0;">MyanAi — AI Agent Builder</h3>
+            <p style="color:#a9b1d6;">Low-Code AI Agent Builder</p>
+            <code style="background:rgba(255,255,255,0.06);padding:8px 12px;border-radius:6px;color:#bb9af7;font-size:12px;">python3 myanai.py create --name "My Agent"</code>
         </div>`;
-        const chat = document.getElementById('ai-chat');
-        const input = document.getElementById('ai-input');
-        const sendBtn = document.getElementById('ai-send');
-        let conversationHistory = [{role:'system',content:'You are MyanAi, a helpful Myanmar AI assistant. You can speak both Myanmar and English. Help users with coding, questions, and general assistance. Be friendly and concise.'}];
-
-        const addMsg = (role, text) => {
-            const div = document.createElement('div');
-            div.style.cssText = `display:flex;gap:10px;margin-bottom:14px;${role==='user'?'flex-direction:row-reverse':''}`;
-            const bubble = document.createElement('div');
-            bubble.style.cssText = `max-width:75%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6;${role==='user'?'background:rgba(122,162,247,0.15);color:#c0caf5;border-bottom-right-radius:4px;':'background:rgba(255,255,255,0.05);color:#a9b1d6;border-bottom-left-radius:4px;'}`;
-            bubble.textContent = text;
-            const avatar = document.createElement('div');
-            avatar.style.cssText = 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;';
-            avatar.style.background = role==='user'?'rgba(122,162,247,0.2)':'rgba(187,154,247,0.2)';
-            avatar.textContent = role==='user'?'👤':'🤖';
-            div.appendChild(avatar); div.appendChild(bubble); chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-        };
-
-        addMsg('ai', 'မင်္ဂလာပါ! 🇲🇲\nမင်္ဂလာပါ Boss! MyanAi ကocom တင်ပါတယ်။ မြန်မာဘာသာနှင့် English နှစ်မျိုးလုံး ပြောနိုင်ပါတယ်။\n\nWhat can I help you with?');
-
-        const sendMessage = async () => {
-            const msg = input.value.trim();
-            if (!msg) return;
-            input.value = '';
-            addMsg('user', msg);
-            conversationHistory.push({role:'user',content:msg});
-            const statusEl = document.getElementById('ai-status');
-            if (statusEl) { statusEl.textContent='● Thinking...'; statusEl.style.color='#e0af68'; }
-
-            try {
-                const res = await fetch('http://localhost:11434/api/chat', {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({model:'qwen-myanmar-code',messages:conversationHistory,stream:false})
-                });
-                const data = await res.json();
-                const reply = data?.message?.content || data?.response || 'Sorry, I could not generate a response.';
-                addMsg('ai', reply);
-                conversationHistory.push({role:'assistant',content:reply});
-                if (statusEl) { statusEl.textContent='● Connected'; statusEl.style.color='#9ece6a'; }
-            } catch(e) {
-                addMsg('ai', '⚠️ Ollama server not running.\n\nTo set up:\n1. Install Ollama: curl -fsSL https://ollama.com/install.sh | sh\n2. Create model: ollama create myanmar -f Modelfile\n3. Start: ollama serve\n\nOr use the built-in response system below.\n\nHello! I am MyanAi. I can help with Myanmar programming and general questions. Please start Ollama for full AI capabilities.');
-                if (statusEl) { statusEl.textContent='● Offline'; statusEl.style.color='#f7768e'; }
-            }
-        };
-
-        sendBtn.addEventListener('click', sendMessage);
-        input.addEventListener('keydown', (e) => { if (e.key==='Enter') sendMessage(); });
-        input.focus();
-        // Check Ollama status
-        fetch('http://localhost:11434/api/tags').then(r=>r.json()).then(d=>{
-            const st=document.getElementById('ai-status');
-            if(st){st.textContent=d?.models?.length?'● '+d.models.length+' model(s)':'● Ollama OK';st.style.color='#9ece6a';}
-        }).catch(()=>{const st=document.getElementById('ai-status');if(st){st.textContent='● Offline';st.style.color='#f7768e';}});
     }
-
     renderBrowser(body) {
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
             <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
-                <button id="br-back" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">←</button>
-                <button id="br-fwd" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">→</button>
-                <button id="br-reload" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">⟳</button>
-                <button id="br-home" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">🏠</button>
-                <input id="br-url" type="text" value="https://github.com/meonnmi-ops/Myanos" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
+                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">←</button>
+                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">→</button>
+                <button style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">⟳</button>
+                <input type="text" value="https://github.com/meonnmi-ops/Myanos" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
             </div>
-            <div id="br-bookmarks" style="display:flex;gap:4px;padding:4px 12px;background:rgba(30,32,50,0.3);border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;">
-                <span class="br-bm" data-url="https://github.com/meonnmi-ops/Myanos" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">GitHub</span>
-                <span class="br-bm" data-url="https://www.google.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">Google</span>
-                <span class="br-bm" data-url="https://my.wikipedia.org" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">Wikipedia MM</span>
-            </div>
-            <div id="br-frame-container" style="flex:1;position:relative;">
-                <iframe id="br-iframe" src="https://github.com/meonnmi-ops/Myanos" style="width:100%;height:100%;border:none;background:#fff;" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
-                <div id="br-error" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(26,27,46,0.95);color:#565f89;">
-                    <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-                    <p style="font-size:14px;color:#f7768e;">This site can't be embedded</p>
-                    <p style="font-size:12px;margin-top:4px;">X-Frame-Options prevents embedding</p>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#565f89;">
+                <div style="text-align:center;">
+                    <div style="font-size:48px;">🌐</div>
+                    <p style="margin-top:8px;">Web Browser Frame</p>
+                    <p style="font-size:12px;margin-top:4px;">Embed via iframe in production mode</p>
                 </div>
-            </div>
-        </div>`;
-        const iframe = document.getElementById('br-iframe');
-        const urlInput = document.getElementById('br-url');
-        const errorEl = document.getElementById('br-error');
-        const navigate = (url) => { if(!url.startsWith('http')) url='https://'+url; urlInput.value=url; iframe.src=url; errorEl.style.display='none'; };
-        iframe.addEventListener('load', ()=>{ errorEl.style.display='none'; });
-        iframe.addEventListener('error', ()=>{ errorEl.style.display='flex'; });
-        document.getElementById('br-reload').onclick = ()=>{ iframe.src=iframe.src; };
-        document.getElementById('br-home').onclick = ()=>{ navigate('https://github.com/meonnmi-ops/Myanos'); };
-        urlInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') navigate(urlInput.value); });
-        document.querySelectorAll('.br-bm').forEach(bm => bm.addEventListener('click', ()=>navigate(bm.dataset.url)));
-    }
-
-    // ── Lock Screen ──
-    showLockScreen() {
-        this._isLocked = true;
-        const ls = document.getElementById('lock-screen');
-        if (!ls) return;
-        ls.style.display = 'flex';
-        const updateTime = () => {
-            const now = new Date();
-            const timeEl = document.getElementById('lock-time');
-            const dateEl = document.getElementById('lock-date');
-            if (timeEl) timeEl.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-            if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-        };
-        updateTime();
-        this._lockInterval = setInterval(updateTime, 1000);
-        const input = document.getElementById('lock-input');
-        if (input) setTimeout(() => input.focus(), 200);
-    }
-    unlockScreen() {
-        this._isLocked = false;
-        const ls = document.getElementById('lock-screen');
-        if (ls) ls.style.display = 'none';
-        clearInterval(this._lockInterval);
+            </div></div>`;
     }
 
     _escapeHtml(text) {

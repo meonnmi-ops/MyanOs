@@ -100,7 +100,6 @@
         <div class="start-footer">
             <span onclick="window.myanos.openApp('files')">📁 Files</span>
             <span onclick="window.myanos.openApp('settings')">⚙️ Settings</span>
-            <span onclick="window.myanos.showLockScreen()">🔒 Lock</span>
             <span onclick="document.getElementById('desktop').style.display='none';document.getElementById('taskbar').style.display='none';document.getElementById('boot-screen').style.display='flex';document.getElementById('boot-bios').classList.add('active');document.getElementById('boot-grub').classList.remove('active');document.getElementById('boot-loading').classList.remove('active');document.getElementById('boot-bios').querySelector('.bios-output').textContent='';">⏻ Reboot</span>
         </div>
     </div>
@@ -121,19 +120,6 @@
                 <button class="input-dialog-btn cancel" id="input-dialog-cancel">Cancel</button>
                 <button class="input-dialog-btn ok" id="input-dialog-ok">OK</button>
             </div>
-        </div>
-    </div>
-
-    <!-- ═══ Lock Screen ═══ -->
-    <div id="lock-screen" class="lock-screen" style="display:none;">
-        <div class="lock-bg"></div>
-        <div class="lock-content">
-            <div id="lock-time" style="font-size:64px;font-family:'JetBrains Mono',monospace;color:#c0caf5;font-weight:200;">00:00</div>
-            <div id="lock-date" style="font-size:16px;color:#565f89;margin-top:4px;"></div>
-            <div style="font-size:48px;margin:20px 0;">👤</div>
-            <div style="font-size:14px;color:#a9b1d6;margin-bottom:16px;">meonnmi</div>
-            <input type="password" id="lock-input" placeholder="Enter password (or press ESC)" onkeydown="if(event.key==='Enter')window.myanos.unlockScreen()" style="width:220px;padding:10px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:24px;color:#c0caf5;font-size:14px;text-align:center;outline:none;" />
-            <div style="font-size:11px;color:#565f89;margin-top:10px;">Press ESC or Enter to unlock</div>
         </div>
     </div>
 
