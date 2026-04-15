@@ -999,8 +999,8 @@ class MyanosDesktop {
             'monitor': () => this.renderMonitor(body),
             'settings': () => this.renderSettings(body),
             'neofetch': () => this.renderNeofetch(body),
-            'myanmar-code': () => this.renderMyanmarCode(body),
-            'pkg-manager': () => this.renderPackageManager(body),
+            'myanmar-code': () => this.renderMyanmarCode(body, id),
+            'pkg-manager': () => this.renderPackageManager(body, id),
             'code-editor': () => this.renderCodeEditor(body, id, win.arg),
             'notepad': () => this.renderNotepad(body, id, win.arg),
             'toolbox': () => this.renderToolbox(body),
@@ -1559,6 +1559,8 @@ class MyanosDesktop {
     renderFileManager(body, winId, startPath) {
         let currentPath = startPath || '/Desktop';
         const self = this;
+        let selectedFiles = new Set();
+        let dragSourcePath = null;
 
         const render = () => {
             const files = this.vfs.list(currentPath);
@@ -1570,12 +1572,13 @@ class MyanosDesktop {
                 }).join('');
 
             const gridHtml = files.length === 0
-                ? '<div style="padding:60px;text-align:center;color:#565f89;font-size:14px;">📁 Empty folder<br><span style="font-size:12px;margin-top:8px;display:block;">Right-click to create files and folders</span></div>'
+                ? '<div style="padding:60px;text-align:center;color:#565f89;font-size:14px;">📁 Empty folder<br><span style="font-size:12px;margin-top:8px;display:block;">Use toolbar to create files and folders, or drag items here</span></div>'
                 : files.map(f => {
                     const icon = f.type === 'folder' ? '📁' : this._getFileIcon(f.path);
                     const name = this.vfs.basename(f.path);
                     const size = f.type === 'file' ? this.vfs.formatSize(new Blob([f.content || '']).size) : `${(f.children || []).length} items`;
-                    return `<div class="fm-item" data-path="${f.path}" data-type="${f.type}">
+                    const isSelected = selectedFiles.has(f.path);
+                    return `<div class="fm-item${isSelected ? ' fm-selected' : ''}" data-path="${f.path}" data-type="${f.type}" draggable="true" style="${isSelected ? 'background:rgba(122,162,247,0.12);border:1px solid rgba(122,162,247,0.3);border-radius:8px;' : ''}">
                         <div class="fm-icon">${icon}</div>
                         <div class="fm-name" title="${name}">${name}</div>
                         <div class="fm-size">${size}</div>
@@ -1592,21 +1595,39 @@ class MyanosDesktop {
                     <div class="fm-sidebar-item${currentPath === '/' ? ' active' : ''}" data-path="/">📂 Root</div>
                 </div>
                 <div style="flex:1;display:flex;flex-direction:column;">
-                    <div class="fm-toolbar">
+                    <div class="fm-toolbar" style="display:flex;align-items:center;gap:4px;padding:6px 8px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
                         <button class="fm-nav-btn" id="fm-back-${winId}" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">←</button>
                         <button class="fm-nav-btn" id="fm-up-${winId}" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">↑</button>
-                        <div class="fm-path" id="fm-path-${winId}">${breadcrumb}</div>
+                        <div class="fm-path" id="fm-path-${winId}" style="flex:1;padding:0 6px;font-size:12px;color:#a9b1d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${breadcrumb}</div>
+                        <button class="fm-nav-btn" id="fm-newfile-${winId}" style="padding:4px 8px;background:rgba(158,206,106,0.12);border:1px solid rgba(158,206,106,0.25);color:#9ece6a;border-radius:4px;cursor:pointer;font-size:11px;">+📄</button>
+                        <button class="fm-nav-btn" id="fm-newfolder-${winId}" style="padding:4px 8px;background:rgba(158,206,106,0.12);border:1px solid rgba(158,206,106,0.25);color:#9ece6a;border-radius:4px;cursor:pointer;font-size:11px;">+📁</button>
                         <button class="fm-nav-btn" id="fm-refresh-${winId}" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">⟳</button>
                     </div>
-                    <div class="fm-grid" id="fm-grid-${winId}">${gridHtml}</div>
-                    <div class="fm-statusbar" id="fm-status-${winId}">${files.length} items | ${currentPath}</div>
+                    <div class="fm-grid" id="fm-grid-${winId}" style="flex:1;overflow-y:auto;padding:8px;">${gridHtml}</div>
+                    <div class="fm-statusbar" id="fm-status-${winId}">${files.length} items | ${currentPath}${selectedFiles.size > 0 ? ' | ' + selectedFiles.size + ' selected' : ''}</div>
                 </div>
             </div>`;
+
+            // Add drag-drop CSS dynamically
+            if (!document.getElementById('fm-dragdrop-style')) {
+                const style = document.createElement('style');
+                style.id = 'fm-dragdrop-style';
+                style.textContent = `
+                    .fm-item { transition: background 0.12s, border 0.12s; cursor: default; }
+                    .fm-item:hover { background: rgba(255,255,255,0.04); }
+                    .fm-item.fm-selected { background: rgba(122,162,247,0.12) !important; border: 1px solid rgba(122,162,247,0.3); border-radius: 8px; }
+                    .fm-item.fm-drop-target { background: rgba(122,162,247,0.2) !important; border: 2px dashed #7aa2f7 !important; border-radius: 8px; }
+                    .fm-item[draggable="true"] { cursor: grab; }
+                    .fm-item[draggable="true"]:active { cursor: grabbing; }
+                `;
+                document.head.appendChild(style);
+            }
 
             // Sidebar navigation
             body.querySelectorAll('.fm-sidebar-item').forEach(item => {
                 item.addEventListener('click', () => {
                     currentPath = item.dataset.path;
+                    selectedFiles.clear();
                     render();
                 });
             });
@@ -1615,6 +1636,7 @@ class MyanosDesktop {
             body.querySelectorAll('#fm-path-' + winId + ' span[data-path]').forEach(span => {
                 span.addEventListener('click', () => {
                     currentPath = span.dataset.path;
+                    selectedFiles.clear();
                     render();
                 });
             });
@@ -1623,30 +1645,187 @@ class MyanosDesktop {
             document.getElementById(`fm-up-${winId}`).onclick = () => {
                 if (currentPath !== '/') {
                     currentPath = this.vfs.parent(currentPath);
+                    selectedFiles.clear();
                     render();
                 }
             };
             document.getElementById(`fm-back-${winId}`).onclick = () => {
                 currentPath = '/Desktop';
+                selectedFiles.clear();
                 render();
             };
-            document.getElementById(`fm-refresh-${winId}`).onclick = () => render();
+            document.getElementById(`fm-refresh-${winId}`).onclick = () => { selectedFiles.clear(); render(); };
 
-            // File/Folder items - double click to open, right click for context
+            // New File button
+            document.getElementById(`fm-newfile-${winId}`).onclick = () => {
+                self._showInputDialog('📄 New File', 'untitled.txt', 'untitled.txt', (name) => {
+                    if (!name) return;
+                    const path = currentPath === '/' ? '/' + name : currentPath + '/' + name;
+                    if (self.vfs.exists(path)) {
+                        self.notif.show('File already exists: ' + name, 'error', 2000);
+                        return;
+                    }
+                    self.vfs.createFile(path, '');
+                    self.notif.show('Created: ' + name, 'success', 1500);
+                    self.renderDesktopIcons();
+                    render();
+                });
+            };
+
+            // New Folder button
+            document.getElementById(`fm-newfolder-${winId}`).onclick = () => {
+                self._showInputDialog('📁 New Folder', 'New Folder', 'New Folder', (name) => {
+                    if (!name) return;
+                    const path = currentPath === '/' ? '/' + name : currentPath + '/' + name;
+                    if (self.vfs.exists(path)) {
+                        self.notif.show('Folder already exists: ' + name, 'error', 2000);
+                        return;
+                    }
+                    self.vfs.createFolder(path);
+                    self.notif.show('Created folder: ' + name, 'success', 1500);
+                    self.renderDesktopIcons();
+                    render();
+                });
+            };
+
+            // File/Folder items - double click, right click, click select, drag-drop
             body.querySelectorAll('.fm-item').forEach(item => {
+                // Ctrl+Click for multi-select
+                item.addEventListener('click', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        const p = item.dataset.path;
+                        if (selectedFiles.has(p)) {
+                            selectedFiles.delete(p);
+                        } else {
+                            selectedFiles.add(p);
+                        }
+                        // Update visual without full re-render
+                        body.querySelectorAll('.fm-item').forEach(el => {
+                            const ep = el.dataset.path;
+                            if (selectedFiles.has(ep)) {
+                                el.classList.add('fm-selected');
+                                el.style.background = 'rgba(122,162,247,0.12)';
+                                el.style.border = '1px solid rgba(122,162,247,0.3)';
+                                el.style.borderRadius = '8px';
+                            } else {
+                                el.classList.remove('fm-selected');
+                                el.style.background = '';
+                                el.style.border = '';
+                                el.style.borderRadius = '';
+                            }
+                        });
+                        // Update status bar
+                        const statusEl = document.getElementById(`fm-status-${winId}`);
+                        if (statusEl) {
+                            statusEl.textContent = files.length + ' items | ' + currentPath + (selectedFiles.size > 0 ? ' | ' + selectedFiles.size + ' selected' : '');
+                        }
+                    } else if (!e.ctrlKey && !e.metaKey) {
+                        // Single click without ctrl deselects all
+                        if (selectedFiles.size > 0) {
+                            selectedFiles.clear();
+                            body.querySelectorAll('.fm-item').forEach(el => {
+                                el.classList.remove('fm-selected');
+                                el.style.background = '';
+                                el.style.border = '';
+                                el.style.borderRadius = '';
+                            });
+                            const statusEl = document.getElementById(`fm-status-${winId}`);
+                            if (statusEl) statusEl.textContent = files.length + ' items | ' + currentPath;
+                        }
+                    }
+                });
+
                 item.addEventListener('dblclick', () => {
                     const p = item.dataset.path;
                     const type = item.dataset.type;
-                    if (type === 'folder') { currentPath = p; render(); }
+                    if (type === 'folder') { currentPath = p; selectedFiles.clear(); render(); }
                     else { this._openVfsFile(p); }
                 });
+
                 item.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     this.selectedVfsFile = item.dataset.path;
                     this._showFileContextMenu(e.clientX, e.clientY);
                 });
+
+                // Drag start
+                item.addEventListener('dragstart', (e) => {
+                    dragSourcePath = item.dataset.path;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', dragSourcePath);
+                    item.style.opacity = '0.5';
+                    setTimeout(() => { item.style.opacity = ''; }, 200);
+                });
+
+                item.addEventListener('dragend', (e) => {
+                    item.style.opacity = '';
+                    // Remove all drop target highlights
+                    body.querySelectorAll('.fm-drop-target').forEach(el => el.classList.remove('fm-drop-target'));
+                });
+
+                // Drag over - highlight folders
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (item.dataset.type === 'folder' && item.dataset.path !== dragSourcePath) {
+                        item.classList.add('fm-drop-target');
+                    }
+                });
+
+                item.addEventListener('dragleave', (e) => {
+                    item.classList.remove('fm-drop-target');
+                });
+
+                // Drop on folder
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    item.classList.remove('fm-drop-target');
+
+                    const srcPath = e.dataTransfer.getData('text/plain');
+                    const destFolder = item.dataset.path;
+
+                    if (!srcPath || srcPath === destFolder) return;
+                    if (item.dataset.type !== 'folder') return;
+
+                    // Prevent dropping a folder into itself or its descendant
+                    if (destFolder.startsWith(srcPath + '/')) {
+                        self.notif.show('Cannot move folder into itself', 'error', 2000);
+                        return;
+                    }
+
+                    const srcName = self.vfs.basename(srcPath);
+                    const destPath = destFolder === '/' ? '/' + srcName : destFolder + '/' + srcName;
+
+                    if (self.vfs.exists(destPath)) {
+                        self.notif.show('An item with that name already exists', 'error', 2000);
+                        return;
+                    }
+
+                    if (self.vfs.move(srcPath, destPath)) {
+                        self.notif.show(`Moved: ${srcName} → ${self.vfs.basename(destFolder)}/`, 'success', 2000);
+                        selectedFiles.clear();
+                        self.renderDesktopIcons();
+                        render();
+                    } else {
+                        self.notif.show('Failed to move: ' + srcName, 'error', 2000);
+                    }
+                });
             });
+
+            // Drop on grid (empty space) - do nothing
+            const grid = document.getElementById(`fm-grid-${winId}`);
+            if (grid) {
+                grid.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'none';
+                });
+                grid.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    body.querySelectorAll('.fm-drop-target').forEach(el => el.classList.remove('fm-drop-target'));
+                });
+            }
         };
         render();
     }
@@ -1781,40 +1960,378 @@ class MyanosDesktop {
        └──────────────┘</pre><div class="title">meonnmi@myanos</div><div style="color:#565f89;">──────────────────────────────────</div><div><span class="label">  OS:        </span><span class="info">Myanos Web OS v3.0.0</span></div><div><span class="label">  Shell:     </span><span class="info">MMR Shell v1.0.0</span></div><div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment</span></div><div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div><div><span class="label">  Packages:  </span><span class="info">.myan (MyanPM)</span></div><div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div><div><span class="label">  Wallpaper: </span><span class="info">${(WALLPAPERS[this.vfs.getWallpaper()] || WALLPAPERS.default).name}</span></div><div style="color:#565f89;">──────────────────────────────────</div><div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div></div>`;
     }
 
-    renderMyanmarCode(body) {
-        body.innerHTML = `<div style="padding:20px;"><div style="text-align:center;margin-bottom:20px;"><div style="font-size:40px;">🇲🇲</div><h2 style="color:#c0caf5;">Myanmar Code v2.0.1</h2><p style="color:#565f89;font-size:13px;">မြန်မာဘာသာစကားဖြင့် ရေးသားနိုင်သော ပရိုဂရမ်းမင်းဘာသာစကား</p></div><div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;"><h4 style="color:#7aa2f7;">Keywords: 127</h4><div style="font-size:12px;color:#a9b1d6;line-height:2;"><span style="color:#9ece6a;">ပုံနှိပ်</span> (print), <span style="color:#e0af68;">တိုက်</span> (if), <span style="color:#f7768e;">တိုက်ရွေး</span> (else), <span style="color:#bb9af7;">ပျက်</span> (break), <span style="color:#7dcfff;">ဆက်လုပ်</span> (continue), <span style="color:#ff9e64;">ခန့်</span> (return), <span style="color:#73daca;">လုပ်</span> (function)...</div></div><div style="margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;"><h4 style="color:#9ece6a;">Example Code:</h4><pre style="color:#a9b1d6;font-size:12px;margin-top:8px;font-family:'JetBrains Mono',monospace;line-height:1.6;"><span style="color:#ff9e64;">လုပ်</span> <span style="color:#bb9af7;">အမျိုးအားဖြင့်</span>(အမှတ်):
-    <span style="color:#e0af68;">တိုက်</span> အမှတ် < 10:
-        <span style="color:#9ece6a;">ပုံနှိပ်</span>(<span style="color:#7dcfff;">"Number is small"</span>)
-    <span style="color:#f7768e;">တိုက်ရွေး</span>:
-        <span style="color:#9ece6a;">ပုံနှိပ်</span>(<span style="color:#7dcfff;">"Number is big"</span>)
+    renderMyanmarCode(body, winId) {
+        const self = this;
+        const MYAN_KEYWORDS = [
+            { myan: 'ပုံနှိပ်', en: 'print', color: '#9ece6a', cat: 'I/O' },
+            { myan: 'ဖြည့်သွင်း', en: 'input', color: '#9ece6a', cat: 'I/O' },
+            { myan: 'တိုက်', en: 'if', color: '#e0af68', cat: 'Control' },
+            { myan: 'တိုက်ရွေး', en: 'else', color: '#f7768e', cat: 'Control' },
+            { myan: 'တိုက်ရွေးသည်', en: 'elif', color: '#f7768e', cat: 'Control' },
+            { myan: 'ကြာအောင်', en: 'while', color: '#e0af68', cat: 'Control' },
+            { myan: 'အတိုင်း', en: 'for', color: '#e0af68', cat: 'Control' },
+            { myan: 'ပျက်', en: 'break', color: '#bb9af7', cat: 'Control' },
+            { myan: 'ဆက်လုပ်', en: 'continue', color: '#7dcfff', cat: 'Control' },
+            { myan: 'ပြန်လည်', en: 'loop', color: '#e0af68', cat: 'Control' },
+            { myan: 'လုပ်', en: 'function', color: '#ff9e64', cat: 'Function' },
+            { myan: 'ဖြင့်', en: 'def', color: '#ff9e64', cat: 'Function' },
+            { myan: 'ခန့်', en: 'return', color: '#ff9e64', cat: 'Function' },
+            { myan: 'အုပ်စု', en: 'class', color: '#bb9af7', cat: 'OOP' },
+            { myan: 'ချိုး', en: 'self', color: '#c0caf5', cat: 'OOP' },
+            { myan: 'ညွှန်ပါ', en: 'init', color: '#bb9af7', cat: 'OOP' },
+            { myan: 'ခေါ်ယူ', en: 'import', color: '#7dcfff', cat: 'Module' },
+            { myan: 'မှ', en: 'from', color: '#7dcfff', cat: 'Module' },
+            { myan: 'ထုတ်ယူ', en: 'export', color: '#7dcfff', cat: 'Module' },
+            { myan: 'တွက်ချက်', en: 'try', color: '#e0af68', cat: 'Error' },
+            { myan: 'မှားယွင်း', en: 'except', color: '#f7768e', cat: 'Error' },
+            { myan: 'အုတ်မွေး', en: 'finally', color: '#f7768e', cat: 'Error' },
+            { myan: 'အပြုအမူ', en: 'raise', color: '#f7768e', cat: 'Error' },
+            { myan: 'သတ်မှတ်', en: 'let', color: '#bb9af7', cat: 'Variable' },
+            { myan: 'ခံနှံ', en: 'const', color: '#bb9af7', cat: 'Variable' },
+            { myan: 'မဟုတ်', en: 'not', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'နှင့်', en: 'and', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'သည်နှင့်', en: 'or', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'နေပါ', en: 'in', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'တိုင်း', en: 'is', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'ညီမျှ', en: 'as', color: '#c0caf5', cat: 'Operator' },
+            { myan: 'မျက်မှန်', en: 'True', color: '#ff9e64', cat: 'Literal' },
+            { myan: 'မမျက်နှာ', en: 'False', color: '#ff9e64', cat: 'Literal' },
+            { myan: 'ဘောက်', en: 'None', color: '#ff9e64', cat: 'Literal' },
+        ];
 
-<span style="color:#9ece6a;">ပုံနှိပ်</span>(<span style="color:#bb9af7;">အမျိုးအားဖြင့်</span>(5))</pre></div></div>`;
+        let content = '';
+        let filename = 'untitled.myan';
+        let currentPath = null;
+        let isModified = false;
+        let keywordPanelOpen = true;
+
+        const defaultCode = '# \U0001f1f2\U0001f1f2 Myanmar Code Example\n# မြန်မာဘာသာစကားဖြင့် ရေးသားပါ\n\nလုပ် အမျိုးအားဖြင့်(အမှတ်):\n    တိုက် အမှတ် < 10:\n        ပုံနှိပ်("Number is small")\n    တိုက်ရွေး:\n        ပုံနှိပ်("Number is big")\n\nပုံနှိပ်(အမျိုးအားဖြင့်(5))';
+        content = defaultCode;
+
+        const render = () => {
+            const kwPanelWidth = keywordPanelOpen ? '220px' : '0px';
+            const categories = [...new Set(MYAN_KEYWORDS.map(k => k.cat))];
+            const kwPanelHtml = categories.map(cat => {
+                const items = MYAN_KEYWORDS.filter(k => k.cat === cat);
+                return '<div style="margin-bottom:10px;"><div style="font-size:10px;color:#565f89;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">' + cat + '</div>' + items.map(k => '<div class="myan-kw-item" data-kw="' + k.myan + '" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;transition:background 0.1s;" onmouseenter="this.style.background=\'rgba(122,162,247,0.1)\'" onmouseleave="this.style.background=\'transparent\'"><span style="color:' + k.color + ';font-weight:600;min-width:70px;">' + k.myan + '</span><span style="color:#565f89;font-size:10px;">' + k.en + '</span></div>').join('') + '</div>';
+            }).join('');
+
+            body.innerHTML = `
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <div style="display:flex;align-items:center;gap:4px;padding:6px 10px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <button class="myan-btn" id="myan-new-${winId}" style="padding:4px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#a9b1d6;font-size:12px;cursor:pointer;">\U0001f4c4 New</button>
+                    <button class="myan-btn" id="myan-open-${winId}" style="padding:4px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#a9b1d6;font-size:12px;cursor:pointer;">\U0001f4c2 Open</button>
+                    <button class="myan-btn" id="myan-save-${winId}" style="padding:4px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#a9b1d6;font-size:12px;cursor:pointer;">\U0001f4be Save</button>
+                    <button class="myan-btn" id="myan-run-${winId}" style="padding:4px 10px;background:rgba(158,206,106,0.15);border:1px solid rgba(158,206,106,0.3);border-radius:4px;color:#9ece6a;font-size:12px;cursor:pointer;">\u25b6 Run</button>
+                    <div style="flex:1;"></div>
+                    <button class="myan-btn" id="myan-kw-toggle-${winId}" style="padding:4px 10px;background:${keywordPanelOpen?'rgba(122,162,247,0.15)':'rgba(255,255,255,0.06)'};border:1px solid ${keywordPanelOpen?'rgba(122,162,247,0.3)':'rgba(255,255,255,0.08)'};border-radius:4px;color:${keywordPanelOpen?'#7aa2f7':'#a9b1d6'};font-size:12px;cursor:pointer;">\U0001f4cb Keywords</button>
+                    <div id="myan-filename-${winId}" style="font-size:12px;color:#a9b1d6;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${currentPath || 'New file'}">${isModified ? '\u25cf ' : ''}${filename}</div>
+                </div>
+                <div style="display:flex;flex:1;overflow:hidden;">
+                    <div id="myan-kw-panel-${winId}" style="width:${kwPanelWidth};min-width:${kwPanelWidth};background:rgba(20,21,37,0.8);border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;padding:10px;transition:width 0.2s;${keywordPanelOpen?'':'overflow:hidden;'}">
+                        <div style="font-size:11px;color:#7aa2f7;font-weight:600;margin-bottom:8px;">\U0001f1f2\U0001f1f2 Myanmar Code Keywords</div>
+                        ${kwPanelHtml}
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+                        <div class="code-editor-statusbar" style="padding:2px 10px;">
+                            <span id="myan-pos-${winId}">Ln 1, Col 1</span>
+                            <span style="color:#565f89;">|</span>
+                            <span>Myanmar Code (.myan)</span>
+                            <span style="color:#565f89;">|</span>
+                            <span>UTF-8</span>
+                        </div>
+                        <div class="code-editor-body" style="flex:1;">
+                            <div class="code-line-numbers" id="myan-lines-${winId}">1</div>
+                            <textarea class="code-textarea" id="myan-code-${winId}" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" style="font-family:'JetBrains Mono','Noto Sans Myanmar',monospace;">${self._escapeHtml(content)}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            const textarea = document.getElementById(`myan-code-${winId}`);
+            const lineNums = document.getElementById(`myan-lines-${winId}`);
+            const posEl = document.getElementById(`myan-pos-${winId}`);
+
+            const updateLines = () => {
+                const lines = textarea.value.split('\n').length;
+                lineNums.innerHTML = Array.from({length:lines},(_,i)=>i+1).join('\n');
+            };
+            const updatePos = () => {
+                const val = textarea.value.substring(0, textarea.selectionStart);
+                const lines = val.split('\n');
+                posEl.textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length + 1}`;
+            };
+            const markModified = () => {
+                isModified = true;
+                const fnEl = document.getElementById(`myan-filename-${winId}`);
+                if (fnEl) fnEl.textContent = '\u25cf ' + filename;
+            };
+
+            textarea.addEventListener('input', () => { updateLines(); updatePos(); markModified(); });
+            textarea.addEventListener('scroll', () => { lineNums.scrollTop = textarea.scrollTop; });
+            textarea.addEventListener('click', updatePos);
+            textarea.addEventListener('keyup', updatePos);
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const s = textarea.selectionStart;
+                    textarea.value = textarea.value.substring(0,s) + '    ' + textarea.value.substring(textarea.selectionEnd);
+                    textarea.selectionStart = textarea.selectionEnd = s + 4;
+                    updateLines(); markModified();
+                }
+                if (e.key === 'Enter') {
+                    const before = textarea.value.substring(0, textarea.selectionStart);
+                    const lastLine = before.split('\n').pop();
+                    const indent = lastLine.match(/^\s*/)[0];
+                    if (indent) {
+                        e.preventDefault();
+                        const s = textarea.selectionStart;
+                        textarea.value = textarea.value.substring(0,s) + '\n' + indent + textarea.value.substring(textarea.selectionEnd);
+                        textarea.selectionStart = textarea.selectionEnd = s + 1 + indent.length;
+                        updateLines(); markModified();
+                    }
+                }
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    saveFile();
+                }
+            });
+            updateLines();
+            updatePos();
+
+            // Keyword panel click - insert keyword at cursor
+            body.querySelectorAll('.myan-kw-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const kw = item.dataset.kw;
+                    const s = textarea.selectionStart;
+                    textarea.value = textarea.value.substring(0,s) + kw + ' ' + textarea.value.substring(textarea.selectionEnd);
+                    textarea.selectionStart = textarea.selectionEnd = s + kw.length + 1;
+                    textarea.focus();
+                    updatePos(); markModified();
+                });
+            });
+
+            const saveFile = () => {
+                if (currentPath && self.vfs.exists(currentPath)) {
+                    self.vfs.write(currentPath, textarea.value);
+                    isModified = false;
+                    const fnEl = document.getElementById(`myan-filename-${winId}`);
+                    if (fnEl) fnEl.textContent = filename;
+                    self.renderDesktopIcons();
+                    self.notif.show(`Saved: ${filename}`, 'success', 1500);
+                } else {
+                    saveAsFile();
+                }
+            };
+
+            const saveAsFile = () => {
+                self._showInputDialog('\U0001f4be Save As (.myan)', filename, filename, (newName) => {
+                    if (!newName) return;
+                    if (!newName.endsWith('.myan')) newName += '.myan';
+                    const path = '/Desktop/' + newName;
+                    self.vfs.write(path, textarea.value);
+                    currentPath = path;
+                    filename = newName;
+                    isModified = false;
+                    const fnEl = document.getElementById(`myan-filename-${winId}`);
+                    if (fnEl) { fnEl.textContent = filename; fnEl.title = path; }
+                    self.renderDesktopIcons();
+                    self.notif.show(`Saved: ${filename}`, 'success', 1500);
+                });
+            };
+
+            const openFile = () => {
+                const searchPaths = ['/Desktop', '/Documents', '/myan-os'];
+                let allFiles = [];
+                searchPaths.forEach(p => {
+                    try { self.vfs.list(p).forEach(f => { if (f.type === 'file') allFiles.push(f); }); } catch(e) {}
+                });
+                const myanFiles = allFiles.filter(f => f.path.endsWith('.myan'));
+                const otherFiles = allFiles.filter(f => !f.path.endsWith('.myan'));
+                const displayFiles = [...myanFiles, ...otherFiles];
+                if (displayFiles.length === 0) {
+                    self.notif.show('No files found', 'info', 2000);
+                    return;
+                }
+                const dlgApp = { id:'dlg-'+Date.now(), name:'Open File', icon:'\U0001f4c2', desc:'Select a .myan file', category:'system' };
+                const dlgId = ++self.windowIdCounter;
+                const dlgEl = self.createWindowElement(dlgId, dlgApp);
+                document.getElementById('desktop').appendChild(dlgEl);
+                self.windows.set(dlgId, { id:dlgId, app:dlgApp, arg:null, element:dlgEl, minimized:false, maximized:false, x:250, y:120, width:400, height:400 });
+                self.positionWindow(dlgId);
+                self.focusWindow(dlgId);
+                self.updateTaskbarApps();
+                const dlgBody = document.getElementById(`win-body-${dlgId}`);
+                dlgBody.innerHTML = '<div style="padding:12px;height:100%;overflow-y:auto;">' + displayFiles.map(f => {
+                    const name = self.vfs.basename(f.path);
+                    const icon = f.path.endsWith('.myan') ? '\U0001f1f2\U0001f1f2' : self._getFileIcon(f.path);
+                    const highlight = f.path.endsWith('.myan') ? 'background:rgba(122,162,247,0.08);border:1px solid rgba(122,162,247,0.15);' : '';
+                    return '<div class="open-file-item" data-path="' + f.path + '" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:background 0.12s;' + highlight + '"><span style="font-size:20px;">' + icon + '</span><div style="flex:1;"><div style="font-size:13px;color:#c0caf5;">' + name + '</div><div style="font-size:11px;color:#565f89;">' + f.path + '</div></div></div>';
+                }).join('') + '</div>';
+                dlgBody.querySelectorAll('.open-file-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const p = item.dataset.path;
+                        currentPath = p;
+                        filename = self.vfs.basename(p);
+                        content = self.vfs.read(p) || '';
+                        isModified = false;
+                        textarea.value = content;
+                        updateLines(); updatePos();
+                        const fnEl = document.getElementById(`myan-filename-${winId}`);
+                        if (fnEl) { fnEl.textContent = filename; fnEl.title = p; }
+                        self.closeWindow(dlgId);
+                        self.notif.show(`Opened: ${filename}`, 'info', 1500);
+                    });
+                    item.addEventListener('mouseenter', () => item.style.background = 'rgba(122,162,247,0.15)');
+                    item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+                });
+            };
+
+            document.getElementById(`myan-new-${winId}`).onclick = () => {
+                content = '';
+                currentPath = null;
+                filename = 'untitled.myan';
+                isModified = false;
+                textarea.value = '';
+                updateLines();
+                const fnEl = document.getElementById(`myan-filename-${winId}`);
+                if (fnEl) { fnEl.textContent = filename; fnEl.title = 'New file'; }
+            };
+            document.getElementById(`myan-open-${winId}`).onclick = openFile;
+            document.getElementById(`myan-save-${winId}`).onclick = saveFile;
+            document.getElementById(`myan-run-${winId}`).onclick = () => {
+                if (!currentPath) { saveAsFile(); } else { saveFile(); }
+                setTimeout(() => {
+                    self.openApp('terminal');
+                    self.notif.show('Run your code in Terminal: myan run ' + filename, 'info', 3000);
+                }, 300);
+            };
+            document.getElementById(`myan-kw-toggle-${winId}`).onclick = () => {
+                keywordPanelOpen = !keywordPanelOpen;
+                render();
+            };
+        };
+        render();
     }
 
-    renderPackageManager(body) {
-        const packages = [
-            { n:'myanmar-code', v:'2.0.1', ic:'🇲🇲', au:'MWD', inst:true },
-            { n:'myanos-terminal', v:'1.0.0', ic:'⬛', au:'Meonnmi-ops', inst:true },
-            { n:'myanos-display-engine', v:'1.0.0', ic:'🖥️', au:'Meonnmi-ops', inst:true },
-            { n:'myanos-ps2-layer', v:'1.0.0', ic:'🎮', au:'Meonnmi-ops', inst:true },
-            { n:'myanos-android-layer', v:'1.0.0', ic:'📱', au:'Meonnmi-ops', inst:true },
-            { n:'myanos-toolbox', v:'1.0.0', ic:'🔧', au:'Meonnmi-ops', inst:true },
+    renderPackageManager(body, winId) {
+        const self = this;
+        let searchQuery = '';
+        let packages = [
+            { n:'myanmar-code', v:'2.0.1', ic:'\U0001f1f2\U0001f1f2', au:'MWD', desc:'Myanmar programming language', inst:true },
+            { n:'myanos-terminal', v:'1.0.0', ic:'\u2b1b', au:'Meonnmi-ops', desc:'Full terminal emulator', inst:true },
+            { n:'myanos-display-engine', v:'1.0.0', ic:'\U0001f5a5\ufe0f', au:'Meonnmi-ops', desc:'Display rendering engine', inst:true },
+            { n:'myanos-ps2-layer', v:'1.0.0', ic:'\U0001f3ae', au:'Meonnmi-ops', desc:'PS2 emulation layer', inst:false },
+            { n:'myanos-android-layer', v:'1.0.0', ic:'\U0001f4f1', au:'Meonnmi-ops', desc:'Android compatibility layer', inst:false },
+            { n:'myanos-toolbox', v:'1.0.0', ic:'\U0001f527', au:'Meonnmi-ops', desc:'System utilities toolbox', inst:true },
+            { n:'myanos-ai-assistant', v:'0.5.0', ic:'\U0001f916', au:'Meonnmi-ops', desc:'AI-powered assistant', inst:false },
+            { n:'myanos-web-browser', v:'1.0.0', ic:'\U0001f310', au:'Meonnmi-ops', desc:'Embedded web browser', inst:true },
         ];
-        body.innerHTML = `<div style="padding:20px;height:100%;overflow-y:auto;">
-            <h3 style="color:#c0caf5;margin-bottom:16px;">📦 MyanPM — Package Manager</h3>
-            <div style="margin-bottom:16px;padding:12px;background:rgba(122,162,247,0.08);border:1px solid rgba(122,162,247,0.15);border-radius:8px;">
-                <div style="font-size:12px;color:#7aa2f7;">Run in terminal: <code style="background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:4px;">myan install &lt;package&gt;</code></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                ${packages.map(p => `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <span style="font-size:20px;">${p.ic}</span>
-                        <div><div style="font-size:13px;color:#c0caf5;">${p.n}</div><div style="font-size:11px;color:#565f89;">${p.v}</div></div>
+
+        const render = () => {
+            const filtered = searchQuery
+                ? packages.filter(p => p.n.toLowerCase().includes(searchQuery.toLowerCase()) || p.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                : packages;
+            const instCount = packages.filter(p => p.inst).length;
+
+            body.innerHTML = `
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <div style="padding:12px 16px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <span style="font-size:20px;">\U0001f4e6</span>
+                        <div style="font-size:15px;color:#c0caf5;font-weight:600;">MyanPM</div>
+                        <span style="font-size:11px;color:#565f89;">Package Manager</span>
+                        <div style="flex:1;"></div>
+                        <span style="font-size:11px;color:#565f89;">${instCount}/${packages.length} installed</span>
+                        <button id="pkg-refresh-${winId}" style="padding:4px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#a9b1d6;font-size:12px;cursor:pointer;">\u27f3 Refresh</button>
                     </div>
-                    <div style="font-size:11px;color:#565f89;">${p.au}</div>
-                    <div style="margin-top:6px;font-size:11px;color:${p.inst?'#9ece6a':'#565f89'}">${p.inst?'✅ Installed':'⬜ Available'}</div>
-                </div>`).join('')}
-            </div></div>`;
+                    <div style="position:relative;">
+                        <input id="pkg-search-${winId}" type="text" placeholder="Search packages..." value="${searchQuery}" style="width:100%;padding:8px 12px;padding-left:32px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#c0caf5;font-size:13px;outline:none;box-sizing:border-box;" />
+                        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#565f89;font-size:13px;">\U0001f50d</span>
+                    </div>
+                </div>
+                <div style="flex:1;overflow-y:auto;padding:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        ${filtered.map(p => `
+                        <div id="pkg-card-${winId}-${p.n}" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px;transition:border-color 0.2s;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                                <span style="font-size:22px;">${p.ic}</span>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:13px;color:#c0caf5;font-weight:500;">${p.n}</div>
+                                    <div style="font-size:11px;color:#565f89;">v${p.v} \u00b7 ${p.au}</div>
+                                </div>
+                            </div>
+                            <div style="font-size:11px;color:#565f89;margin-bottom:8px;line-height:1.4;">${p.desc}</div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <span class="pkg-badge-${p.inst?'inst':'avail'}" style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;${p.inst?'background:rgba(158,206,106,0.15);color:#9ece6a;':'background:rgba(255,255,255,0.06);color:#565f89;'}">${p.inst?'\u2705 Installed':'\u2b1c Available'}</span>
+                                <button class="pkg-action-btn" data-pkg="${p.n}" data-action="${p.inst?'remove':'install'}" style="padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer;transition:background 0.15s;${p.inst?'background:rgba(247,118,142,0.12);border:1px solid rgba(247,118,142,0.25);color:#f7768e;':'background:rgba(158,206,106,0.12);border:1px solid rgba(158,206,106,0.25);color:#9ece6a;'}">${p.inst?'Remove':'Install'}</button>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                    ${filtered.length === 0 ? '<div style="text-align:center;padding:40px;color:#565f89;">No packages found matching "' + searchQuery + '"</div>' : ''}
+                </div>
+            </div>`;
+
+            // Search
+            document.getElementById(`pkg-search-${winId}`).addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                render();
+            });
+
+            // Refresh
+            document.getElementById(`pkg-refresh-${winId}`).onclick = () => {
+                self.notif.show('Package list refreshed', 'info', 1500);
+                render();
+            };
+
+            // Install/Remove buttons
+            body.querySelectorAll('.pkg-action-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const pkgName = btn.dataset.pkg;
+                    const action = btn.dataset.action;
+                    const card = document.getElementById(`pkg-card-${winId}-${pkgName}`);
+                    if (!card) return;
+
+                    // Loading state
+                    btn.disabled = true;
+                    btn.textContent = action === 'install' ? 'Installing...' : 'Removing...';
+                    btn.style.opacity = '0.6';
+
+                    try {
+                        const res = await fetch('/api/myan', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: action, package: pkgName })
+                        });
+                        if (res.ok) {
+                            const pkg = packages.find(p => p.n === pkgName);
+                            if (pkg) pkg.inst = action === 'install';
+                            self.notif.show(`${action === 'install' ? 'Installed' : 'Removed'}: ${pkgName}`, 'success', 2000);
+                            render();
+                        } else {
+                            self.notif.show(`Failed to ${action} ${pkgName}`, 'error', 2000);
+                            btn.disabled = false;
+                            btn.textContent = action === 'install' ? 'Install' : 'Remove';
+                            btn.style.opacity = '1';
+                        }
+                    } catch(e) {
+                        // Fallback: simulate locally
+                        const pkg = packages.find(p => p.n === pkgName);
+                        if (pkg) {
+                            pkg.inst = action === 'install';
+                            self.notif.show(`${action === 'install' ? 'Installed' : 'Removed'}: ${pkgName} (local)`, action === 'install' ? 'success' : 'warning', 2000);
+                            render();
+                        } else {
+                            self.notif.show(`Failed to ${action} ${pkgName}: API unavailable`, 'error', 2000);
+                            btn.disabled = false;
+                            btn.textContent = action === 'install' ? 'Install' : 'Remove';
+                            btn.style.opacity = '1';
+                        }
+                    }
+                });
+            });
+        };
+        render();
     }
 
     renderToolbox(body) {

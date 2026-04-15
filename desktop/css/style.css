@@ -17,6 +17,28 @@ body {
     color: #c0caf5;
 }
 
+/* ── Accessibility: focus-visible outlines ── */
+*:focus-visible {
+    outline: 2px solid #7aa2f7;
+    outline-offset: 2px;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid #7aa2f7;
+    outline-offset: 2px;
+}
+
+/* ── Interactive cursor hints ── */
+button, [role="button"], .ctx-item, .start-app-item,
+.grub-item, .fm-sidebar-item, .fm-item, .settings-item,
+.toggle, .start-footer span, #clock, .tray-icon,
+.fm-path span, .fm-nav-btn, .fm-toolbar-btn {
+    cursor: pointer;
+}
+
 /* ══════════════════════════════════════════════════════════
    NOTIFICATIONS
    ══════════════════════════════════════════════════════════ */
@@ -42,7 +64,7 @@ body {
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    animation: slideInRight 0.25s ease;
+    animation: slideInRight 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: auto;
     cursor: default;
     font-size: 13px;
@@ -59,12 +81,12 @@ body {
 .notif-out { animation: slideOutRight 0.3s ease forwards; }
 
 @keyframes slideInRight {
-    from { opacity: 0; transform: translateX(60px); }
-    to { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateX(80px) scale(0.96); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
 }
 @keyframes slideOutRight {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(60px); }
+    from { opacity: 1; transform: translateX(0) scale(1); }
+    to { opacity: 0; transform: translateX(80px) scale(0.96); }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -171,9 +193,15 @@ body {
 .loading-bar-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #7aa2f7, #bb9af7, #9ece6a);
+    background: linear-gradient(90deg, #7aa2f7, #bb9af7, #9ece6a, #7aa2f7);
+    background-size: 300% 100%;
     border-radius: 3px;
-    transition: width 0.3s ease;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: loadingShimmer 2s linear infinite;
+}
+@keyframes loadingShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
 }
 .loading-status {
     margin-top: 16px;
@@ -226,13 +254,20 @@ body {
     padding: 8px 4px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
     width: 90px;
     height: 90px;
 }
-.desktop-icon:hover { background: rgba(255,255,255,0.08); }
-.desktop-icon:active { background: rgba(255,255,255,0.12); }
-.desktop-icon.selected { background: rgba(122, 162, 247, 0.2); border: 1px solid rgba(122, 162, 247, 0.4); }
+.desktop-icon:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.desktop-icon:active {
+    background: rgba(255,255,255,0.12);
+    transform: translateY(0);
+}
+.desktop-icon.selected { background: rgba(122, 162, 247, 0.2); border: 1px solid rgba(122, 162, 247, 0.4); box-shadow: 0 0 12px rgba(122,162,247,0.15); }
 
 .desktop-icon .icon {
     width: 48px; height: 48px;
@@ -307,8 +342,16 @@ body {
     white-space: nowrap;
     overflow: hidden;
 }
-.taskbar-app:hover { background: rgba(255,255,255,0.08); }
-.taskbar-app.active { background: rgba(122, 162, 247, 0.15); border-bottom: 2px solid #7aa2f7; color: #c0caf5; }
+.taskbar-app:hover {
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 8px rgba(122,162,247,0.1);
+}
+.taskbar-app.active {
+    background: rgba(122, 162, 247, 0.15);
+    border-bottom: 2px solid #7aa2f7;
+    color: #c0caf5;
+    box-shadow: 0 0 12px rgba(122,162,247,0.15);
+}
 .taskbar-app .app-icon { font-size: 16px; }
 
 #system-tray {
@@ -456,10 +499,13 @@ body {
     color: transparent;
     transition: all 0.15s;
 }
-.win-ctrl:hover { color: rgba(0,0,0,0.7); }
+.win-ctrl:hover { color: rgba(0,0,0,0.7); transform: scale(1.2); }
 .win-ctrl.minimize { background: #e0af68; }
+.win-ctrl.minimize:hover { background: #ffbd3f; }
 .win-ctrl.maximize { background: #9ece6a; }
+.win-ctrl.maximize:hover { background: #b9f27c; }
 .win-ctrl.close { background: #f7768e; }
+.win-ctrl.close:hover { background: #ff3333; box-shadow: 0 0 8px rgba(255,51,51,0.5); }
 
 .window-body {
     flex: 1;
@@ -487,7 +533,7 @@ body {
     z-index: 99999;
     display: none;
     min-width: 220px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04);
 }
 .context-menu.open { display: block; }
 .ctx-item {
@@ -528,7 +574,7 @@ body {
     border-radius: 8px;
     padding: 6px;
     min-width: 180px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04);
     z-index: 100000;
 }
 
@@ -749,6 +795,7 @@ body {
     tab-size: 4;
     white-space: pre;
     overflow: auto;
+    caret-color: #7aa2f7;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -878,6 +925,39 @@ body {
     flex-shrink: 0;
 }
 
+/* ── File Manager Drag-Drop ── */
+.fm-drop-target {
+    border: 2px dashed rgba(122, 162, 247, 0.6) !important;
+    background: rgba(122, 162, 247, 0.08) !important;
+    box-shadow: 0 0 16px rgba(122,162,247,0.2), inset 0 0 12px rgba(122,162,247,0.05);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+/* ── File Manager Selected Item ── */
+.fm-selected {
+    background: rgba(122, 162, 247, 0.2) !important;
+    border: 1px solid rgba(122, 162, 247, 0.4);
+    box-shadow: 0 0 8px rgba(122,162,247,0.12);
+}
+
+/* ── File Manager Toolbar Buttons ── */
+.fm-toolbar-btn {
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    color: #a9b1d6;
+    font-size: 11px;
+    transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    white-space: nowrap;
+}
+.fm-toolbar-btn:hover {
+    background: rgba(122, 162, 247, 0.15);
+    color: #c0caf5;
+    box-shadow: 0 0 6px rgba(122,162,247,0.1);
+}
+
 /* ══════════════════════════════════════════════════════════
    SETTINGS
    ══════════════════════════════════════════════════════════ */
@@ -971,16 +1051,35 @@ body {
 }
 .lock-content input:focus {
     border-color: #7aa2f7;
-    box-shadow: 0 0 16px rgba(122,162,247,0.2);
+    box-shadow: 0 0 20px rgba(122,162,247,0.35), 0 0 40px rgba(122,162,247,0.1);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+@keyframes lockPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.lock-content .lock-icon {
+    animation: lockPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px rgba(122,162,247,0.3));
 }
 
 /* ══════════════════════════════════════════════════════════
    SCROLLBAR
    ══════════════════════════════════════════════════════════ */
+/* ── Smooth Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-corner { background: transparent; }
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
 
 /* ══════════════════════════════════════════════════════════
    ANIMATIONS
@@ -990,6 +1089,64 @@ body {
 #start-menu { animation: fadeIn 0.12s ease; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .blink { animation: blink 1s step-end infinite; }
+
+/* ══════════════════════════════════════════════════════════
+   PACKAGE MANAGER
+   ══════════════════════════════════════════════════════════ */
+.pkg-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid rgba(122, 162, 247, 0.15);
+    border-top-color: #7aa2f7;
+    border-radius: 50%;
+    animation: pkgSpin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes pkgSpin {
+    to { transform: rotate(360deg); }
+}
+.pkg-status { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 12px; color: #a9b1d6; }
+.pkg-status.installing { color: #e0af68; }
+.pkg-status.complete { color: #9ece6a; }
+.pkg-status.error { color: #f7768e; }
+
+/* ══════════════════════════════════════════════════════════
+   MYANMAR CODE EDITOR — KEYWORD PANEL
+   ══════════════════════════════════════════════════════════ */
+.myanmar-code-panel {
+    width: 220px;
+    background: rgba(22, 24, 38, 0.95);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 8px;
+}
+.mc-keyword-cat {
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #7aa2f7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    margin-top: 6px;
+    cursor: pointer;
+    transition: color 0.12s;
+}
+.mc-keyword-cat:first-child { margin-top: 0; }
+.mc-keyword-cat:hover { color: #89b4fa; }
+.mc-keyword-item {
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #a9b1d6;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    font-family: 'JetBrains Mono', monospace;
+}
+.mc-keyword-item:hover {
+    background: rgba(122, 162, 247, 0.12);
+    color: #c0caf5;
+}
 
 /* ══════════════════════════════════════════════════════════
    MOBILE RESPONSIVE
