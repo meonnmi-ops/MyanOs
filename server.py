@@ -205,9 +205,11 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                 return
             try:
                 import subprocess
+                # Training cells may need more time — 120s timeout
+                timeout = 120 if 'TRAINING_PIPELINE' in code or 'for epoch' in code else 60
                 result = subprocess.run(
                     [sys.executable, '-c', code],
-                    capture_output=True, text=True, timeout=60,
+                    capture_output=True, text=True, timeout=timeout,
                     cwd=str(BASE_DIR)
                 )
                 output = result.stdout
@@ -231,23 +233,41 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         
         elif action == 'system_stats':
             import platform
+            import os
             stats = {
                 'cpu_percent': 0,
                 'memory_used': 'N/A',
                 'memory_total': 'N/A',
+                'memory_percent': 0,
+                'disk_used': 'N/A',
+                'disk_total': 'N/A',
+                'disk_percent': 0,
                 'gpu_available': False,
                 'gpu_util': 0,
                 'gpu_mem_used': 0,
                 'gpu_mem_total': 0,
+                'uptime': 0,
+                'cpu_count': 0,
+                'cpu_freq': '',
                 'platform': platform.platform(),
                 'python': platform.python_version(),
             }
             try:
                 import psutil
                 stats['cpu_percent'] = psutil.cpu_percent(interval=0.5)
+                stats['cpu_count'] = psutil.cpu_count(logical=False) or psutil.cpu_count()
+                cpu_freq = psutil.cpu_freq()
+                if cpu_freq:
+                    stats['cpu_freq'] = f'@ {cpu_freq.current:.0f}MHz'
                 mem = psutil.virtual_memory()
                 stats['memory_used'] = f'{mem.used / 1e9:.1f} GB'
                 stats['memory_total'] = f'{mem.total / 1e9:.1f} GB'
+                stats['memory_percent'] = mem.percent
+                disk = psutil.disk_usage('/')
+                stats['disk_used'] = f'{disk.used / 1e9:.1f} GB'
+                stats['disk_total'] = f'{disk.total / 1e9:.1f} GB'
+                stats['disk_percent'] = disk.percent
+                stats['uptime'] = time.time() - psutil.boot_time()
             except ImportError:
                 pass
             try:
