@@ -1,0 +1,27 @@
+#!/bin/bash
+# MyanOS — GitHub Pages Enable Script
+# Run this in your Termux terminal to enable GitHub Pages
+
+echo "======================================"
+echo "  MyanOS — Enable GitHub Pages"
+echo "======================================"
+echo ""
+echo "Go to your browser and follow these steps:"
+echo ""
+echo "1. Open: https://github.com/meonnmi-ops/Myanos/settings/pages"
+echo ""
+echo "2. Under 'Build and deployment' > 'Source':"
+echo "   - Select: Deploy from a branch"
+echo "   - Branch: main"
+echo "   - Folder: / (root)"
+echo "   - Click Save"
+echo ""
+echo "3. Wait 1-2 minutes for deployment"
+echo ""
+echo "4. Your MyanOS will be live at:"
+echo "   https://meonnmi-ops.github.io/Myanos/"
+echo ""
+echo "======================================"
+echo "The desktop loads at:"
+echo "https://meonnmi-ops.github.io/Myanos/desktop/"
+echo "======================================"
