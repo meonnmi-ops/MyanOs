@@ -1,210 +1,120 @@
-# Myanos Web OS 🇲🇲
+# MyanOS Web OS 🇲🇲
 
 <p align="center">
-  <strong>မြန်မာ့ ပထမဆုံး Advanced Web Operating System</strong>
+  <strong>မြန်မာ့ ပထမဆုံး Web Operating System</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Live-myanos.pages.dev-blue" />
+  <img src="https://img.shields.io/badge/Version-3.0.0-blue" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow" />
+  <img src="https://img.shields.io/badge/100%25_Real-Working-brightgreen" />
+</p>
+
+<p align="center">
+  <b>တကယ် run ကြည့်ရမယ်:</b> <a href="https://meonnmi-ops.github.io/Myanos/desktop/">meonnmi-ops.github.io/Myanos/desktop</a>
 </p>
 
 ---
 
-## အကြောင်းရည်ရွယ်ချက်
+## MyanOS ဆိုတာဘယ်လို？
 
-**Myanos** (မဲနမ်း) သည် မြန်မာနိုင်ငံ၏ ပထမဆုံး Advanced Web Operating System ဖြစ်ပြီး ကိုယ်ပိုင် Package Manager၊ Linux-like Terminal၊ PS2 Game Emulation၊ Android APK Management နှင့် Professional Toolbox တွေ ပါဝင်ပါသည်။ Python ဖြင့် ရေးသားပြီး Termux/Linux စနစ်တွင် အလုပ်လုပ်ပါသည်။
+**MyanOS** သည် browser ထဲမှာတော့ အလုပ်လုပ်တဲ့ အပြည့်စုံ Web Operating System ဖြစ်ပါသည်। Install လုပ်ရမှဖြစ်၊ Server လိုမဟုတ်လား — Desktop experience အတွက် ဘာမရှိပါ။ Realistic boot sequence၊ window manager၊ App ၁၅ ခု၊ virtual file system၊ terminal တို့ အမြင် Pure HTML/CSS/JavaScript ဖြင့် ရေးသားထားပါသည်။
 
-> **Project Vision**: ကိုယ်ပိုင် package format (`.myan`)၊ ပရိုဂရမ်းဘာသာစကား (Myanmar Code — 127 keywords) နှင့် cross-platform capability တွေ ပါဝင်တဲ့ အပြည့်အစုံ Web OS တစ်ခု ဖန်တီးဖို့။
+Python backend server (`server.py`) နဲ့ ချိတ်ဆက်ထားရင် real shell command execution၊ system monitoring၊ AI integration နှင့် MyanPM package management တို့ အသုံးပြုနိုင်ပါသည်။
 
-## အရေးကြီးသော လက်ရှိများ
+> **အဓိက ဈေးနှုန်း**: ဤ project တွေး **အကြောင်းတရားအလုပ်လုပ်တဲ့ အရာတွေသာ** ဖြစ်ပါသည်। Simulated data မရှိ၊ fake system မရှိ၊ mock API မရှိပါ။ Backend service မရှိရင် features တို့ gracefully degrade လုပ်ပြီး ကျေးဇူးတင်စွာ message ပြရနိုင်ပါသည်။
 
-### 📦 MyanPM — Package Manager
-- ကိုယ်ပိုင် `.myan` package format (ZIP-based)
-- Package တွေ install/remove/search/list လုပ်နိုင်ပါသည်
-- SHA256 checksum verification
-- Dependency tracking system
-- Package အသစ် ဖန်တီးတဲ့ build tool
+---
 
-### 🖥️ Terminal
-- Interactive Linux-like terminal (Python CLI)
-- Web-based terminal UI (HTML/JS)
-- File navigation: `ls`, `cd`, `pwd`, `mkdir`, `rm`
-- System commands: `neofetch`, `uname`, `env`, `history`
-- Myanmar Code ဖြစ်စီပြီး execute လုပ်နိုင် (`mmc`)
-- Package manager ထက်ခံပါ (`myan`)
+## Live Demo
 
-### 🎮 PS2 Emulation Layer
-- Play! emulator ချိတ်ဆက်ခြင်း
-- PCSX2 ထက်ခံခြင်း
-- VNC streaming ဖြင့် browser မှာ display ပြမည်
-- Game library management
-- noVNC ဖြင့် web-based display
+Browser ထဲမှာ တိုကျဖွင့်ပြီး ကြည့်နိုင်ပါသည်:
 
-### 📱 Android Layer
-- WayDroid container ချိတ်ဆက်ခြင်း
-- ADB (Android Debug Bridge) ထက်ခံခြင်း
-- APK install/uninstall/launch လုပ်နိုင်ပါသည်
-- VNC streaming ဖြင့် Android UI ကို browser မှာ ပြနိုင်
-- Automated installation setup script
+**🌐 [https://meonnmi-ops.github.io/Myanos/desktop/](https://meonnmi-ops.github.io/Myanos/desktop/)**
 
-### 🔧 Professional Toolbox
-- **Storage**: Disk info, partition manager, disk usage, file analyzer
-- **Network**: Port scanner, ping, DNS lookup, download manager
-- **System**: Hardware info, process monitor, benchmark, log viewer
-- **Flash**: dd-based flash tool, ADB/Fastboot management
-- **Security**: SHA256/MD5 hashing, OpenSSL toolkit
+### Server မလိုဘဲ Browser မှာ အလုပ်လုပ်တဲ့အရာများ:
 
-### 🇲🇲 Myanmar Code Integration
-- Keyword ၁၂၇ ခန့်တင်ထားသော မြန်မာ ပရိုဂရမ်းဘာသာစကား
-- Terminal မှာ တိုကျ အသုံးပြုနိုင်
-- PyPI package: `myanmar-code`
-- Myanos command hub ထဲ ကိုင်တည်ငြိမ်ထား
+- Boot sequence အပြည့်စုံ (BIOS POST → GRUB → Loading)
+- Desktop (App icon ၁၅ ခု၊ right-click menu၊ wallpaper ၆ မျိုး)
+- Window manager (drag, resize, minimize, maximize, close)
+- Start menu + App search
+- Taskbar (battery, network, clock)
+- Virtual File System (localStorage-based, full CRUD)
+- Terminal (offline command ၂၀+)
+- File Manager, Code Editor, Notepad, Myanmar Code Editor
+- Settings (font size, accent color, wallpaper)
+- Lock Screen (real clock)
+- Toolbox (color picker, stopwatch, timer)
+- Web Browser (iframe-based)
 
-## စနစ်တည်ဆောက်ပုံ
-
-```
-myanos/
-├── myanos.py               # Unified Command Hub (main entry)
-├── myan_pm.py              # MyanPM Package Manager
-├── terminal/
-│   ├── terminal.py         # Python CLI terminal
-│   └── index.html          # Web-based terminal UI
-├── display_engine/
-│   └── display_engine.py   # noVNC Display Engine
-├── ps2_layer/
-│   └── ps2_layer.py        # PS2 Emulation Layer
-├── android_layer/
-│   ├── vnc_server.py       # Android APK Manager
-│   └── setup_waydroid.sh   # WayDroid Setup Script
-├── toolbox/
-│   └── toolbox.py          # Professional Toolbox
-├── packages/
-│   ├── registry.py         # Package Registry
-│   └── myanmar-code/
-│       └── mmc.py          # Myanmar Code CLI
-├── dist/                   # Built .myan packages
-├── setup.sh                # Installation script
-├── LICENSE                 # MIT License
-├── README.md               # English documentation
-└── README.my.md            # Myanmar documentation
-```
+---
 
 ## စတင်အသုံးပြုခြင်း
 
-### လိုအပ်ချက်များ
-- Python 3.8+
-- Termux (Android) သို့မဟုတ် Linux
-- ညကတည ၁၀MB နေရာ
-
-### တည်ဆောက်ခြင်း
+### နည်းလမ်း ၁: တိုက်ဖွင့်ပြီး ကြည့်ရန်
 
 ```bash
-# Repository ကို clone လုပ်ပါ
+git clone https://github.com/meonnmi-ops/Myanos.git
+cd Myanos/desktop
+# index.html ကို browser မှာဖွင်းပါ — အလုပ်လုပ်ပါသည်
+```
+
+### နည်းလမ်း ၂: Python Backend နဲ့ (အသေးစိတ်အရာအားလုံး)
+
+```bash
 git clone https://github.com/meonnmi-ops/Myanos.git
 cd Myanos
-
-# Setup လုပ်ပါ
-bash setup.sh
-
-# သို့မဟုတ် တိုကျ စတင်အသုံးပြုပါ
-python3 myanos.py help
+python3 server.py
+# http://localhost:8080 ကို browser မှာဖွင်းပါ
 ```
 
-### အသုံးပြုပုံ
+### နည်းလမ်း ၃: CLI Mode (Browser မလို)
 
 ```bash
-# စနစ်အချက်အလက်
-python3 myanos.py neofetch
-
-# Package ထိန်းချုပ်မှု
-python3 myanos.py pkg list
-python3 myanos.py pkg install ./dist/myanmar-code-2.0.1.myan
-python3 myanos.py pkg remove myanmar-code
-
-# Terminal
-python3 myanos.py terminal
-
-# Myanmar Code
-python3 myanos.py mmc run 'ပုံနှိပ် "မင်္ဂလာပါ"'
-
-# Display Engine (noVNC)
-python3 myanos.py display android
-python3 myanos.py display ps2
-
-# Android Layer
-python3 myanos.py android status
-python3 myanos.py android install app.apk
-
-# PS2 Layer
-python3 myanos.py ps2 list
-python3 myanos.py ps2 launch 1
-
-# Toolbox
-python3 myanos.py toolbox
+python3 myanos.py help       # အကြောင်းပြောပေး
+python3 myanos.py terminal   # Terminal
+python3 myanos.py neofetch   # System info
+python3 myanos.py toolbox    # Toolbox
 ```
 
-## .myan Package Format
+---
 
-```
-myapp-1.0.0.myan (ZIP archive)
-├── MANIFEST.json       # Package metadata
-├── CHECKSUM.sha256     # File integrity hashes
-└── data/               # Package files
-    ├── main.py
-    ├── config.json
-    └── assets/
-```
+## Desktop Environment (v3.0.0)
 
-### Package အသစ် ဖန်တီးခြင်း
+Desktop သည် ကိုယ်ပိုင် အပြည့်စုံ single-page application ဖြစ်ပါသည်:
 
-```bash
-python3 myan_pm.py build \
-  --name myapp \
-  --version 1.0.0 \
-  --author "Your Name" \
-  --desc "My awesome app" \
-  --src ./myapp-src \
-  --out ./dist
-```
+| Component | ဖော်ပြချက် |
+|---|---|
+| **Boot Sequence** | 3-phase: BIOS POST → GRUB bootloader → Loading bar |
+| **Window Manager** | Drag, resize, minimize, maximize, close လုပ်နိုင် |
+| **Taskbar** | Start menu, running apps, system tray |
+| **Virtual File System** | localStorage-based VFS (CRUD အပြည့်စုံ) |
+| **Context Menus** | Desktop right-click (new file/folder, wallpaper, settings) |
+| **Notifications** | Toast notification system |
+| **Lock Screen** | Password lock + real-time clock |
+| **Wallpapers** | CSS gradient theme ၆ မျိုး |
 
-## ပါဝင်ပေါ်တွေသော Packages
+---
 
-| Package | Version | Author | အကြောင်းရည်ရွယ်ချက် |
-|---------|---------|--------|-------------|
-| myanmar-code | 2.0.1 | Aung MoeOo (MWD) | မြန်မာ ပရိုဂရမ်းဘာသာစကား (127 keywords) |
-| myanos-terminal | 1.0.0 | Meonnmi-ops | Interactive Linux-like terminal |
-| myanos-display-engine | 1.0.0 | Meonnmi-ops | noVNC display streaming |
-| myanos-ps2-layer | 1.0.0 | Meonnmi-ops | PlayStation 2 emulation |
-| myanos-android-layer | 1.0.0 | Meonnmi-ops | Android APK management |
-| myanos-toolbox | 1.0.0 | Meonnmi-ops | Professional system tools |
+## Tech Stack
 
-## အနောက်ဆက်တိုးတက်မှုများ
+- **Desktop**: Pure HTML5, CSS3, Vanilla JavaScript (zero dependencies)
+- **Backend**: Python 3.8+ (stdlib only)
+- **AI**: Ollama local LLMs (optional)
+- **Display**: noVNC, VNC (optional)
 
-- [x] Phase 1: Package Manager (MyanPM)
-- [x] Phase 2: Terminal (Python + Web)
-- [x] Phase 3: PS2 Emulation Layer
-- [x] Phase 3.5: Display Engine (noVNC)
-- [x] Phase 4: Android Layer (WayDroid)
-- [x] Phase 5: Professional Toolbox
-- [ ] Phase 6: Desktop Environment (Web UI)
-- [ ] Phase 7: MyanAi (Low-Code AI Agent Builder)
-- [ ] Phase 8: App Store (Online Registry)
+---
 
-## အသုံးပြုတဲ့ ကိရိယာများ
-
-- **Language**: Python 3.8+
-- **Web Terminal**: HTML5, JavaScript, CSS3
-- **Display**: noVNC, VNC
-- **Android**: WayDroid, ADB
-- **Emulation**: Play!, PCSX2
-- **Networking**: WebSocket, HTTP
-
-## ရေးသားသူနှင့် ကျေးဇူးတင်စွာများ
+## Author & Credits
 
 - **CTO / Lead Developer**: Meonnmi-ops
 - **Myanmar Code Language**: Aung MoeOo (MWD)
 - **AI Integration**: Z-AI (Super Z)
-- **Framework**: Myanos Web OS Platform
 
 ## License
 
-ဤ Project သည် MIT License အောက်တွင် ရှိပါသည် — [LICENSE](LICENSE) ဖိုင်ကို ကြည့်ပါ။
+MIT License — [LICENSE](LICENSE) ကို ကြည့်ပါ။
 
 ---
 

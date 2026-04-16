@@ -1,192 +1,213 @@
-# Myanos Web OS 🇲🇲
+# MyanOS Web OS 🇲🇲
 
 <p align="center">
-  <strong>Myanmar's First Advanced Web Operating System</strong>
+  <strong>Myanmar's First Web Operating System</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.0.0-blue" />
-  <img src="https://img.shields.io/badge/Python-3.8+-green" />
+  <img src="https://img.shields.io/badge/Live-myanos.pages.dev-blue" />
+  <img src="https://img.shields.io/badge/Version-3.0.0-blue" />
   <img src="https://img.shields.io/badge/License-MIT-yellow" />
-  <img src="https://img.shields.io/badge/Packages-6-orange" />
+  <img src="https://img.shields.io/badge/Python-3.8+-green" />
+  <img src="https://img.shields.io/badge/Apps-15-orange" />
+  <img src="https://img.shields.io/badge/100%25_Real-Working-brightgreen" />
+</p>
+
+<p align="center">
+  <b>Try it live:</b> <a href="https://meonnmi-ops.github.io/Myanos/desktop/">meonnmi-ops.github.io/Myanos/desktop</a>
 </p>
 
 ---
 
-## Overview
+## What is MyanOS?
 
-**Myanos** (မဲနမ်း) is Myanmar's first advanced Web Operating System, featuring a custom package manager, Linux-like terminal, PS2 game emulation, Android APK management, and a professional toolbox — all built with Python and designed to run on Termux/Linux systems.
+**MyanOS** is a complete web-based operating system that runs entirely in your browser. No installation, no server required for the desktop experience. It features a realistic boot sequence, window manager, 15 built-in applications, virtual file system, and a full terminal — all built with pure HTML/CSS/JavaScript.
 
-> **Project Vision**: A complete web-based OS with its own package format (`.myan`), programming language integration (Myanmar Code with 127 keywords), and cross-platform capabilities.
+When paired with the Python backend server (`server.py`), it unlocks advanced features like real shell command execution, system monitoring, AI integration, and package management via MyanPM.
+
+> **Key Principle**: Everything in this project is **real and working**. No simulated data, no fake systems, no mock APIs. Features gracefully degrade with clear messaging when backend services are unavailable.
+
+---
+
+## Live Demo
+
+Open in your browser right now — no installation needed:
+
+**🌐 [https://meonnmi-ops.github.io/Myanos/desktop/](https://meonnmi-ops.github.io/Myanos/desktop/)**
+
+### What works in the browser (no server):
+
+- Full boot sequence (BIOS POST → GRUB → Loading)
+- Desktop with 15 app icons, right-click context menus, 6 wallpapers
+- Window manager (drag, resize, minimize, maximize, close)
+- Start menu with app search
+- Taskbar with system tray (battery, network, clock)
+- Virtual File System (localStorage-based, full CRUD)
+- Terminal with 20+ offline commands
+- File Manager, Code Editor, Notepad, Myanmar Code Editor
+- Settings (font size, accent color, wallpaper)
+- Lock Screen with real clock
+- Toolbox (color picker, stopwatch, timer)
+- Web Browser (iframe-based)
+- Keyboard shortcuts & notifications
+
+---
+
+## Quick Start
+
+### Option 1: Just Open It
+
+```bash
+# Clone and open in browser
+git clone https://github.com/meonnmi-ops/Myanos.git
+cd Myanos/desktop
+# Open index.html in any browser — it just works
+```
+
+### Option 2: With Python Backend (Full Features)
+
+```bash
+git clone https://github.com/meonnmi-ops/Myanos.git
+cd Myanos
+
+# Start server (default port 8080)
+python3 server.py
+
+# Open http://localhost:8080 in your browser
+```
+
+### Option 3: CLI Mode (No Browser)
+
+```bash
+python3 myanos.py help       # Show all commands
+python3 myanos.py terminal   # Interactive terminal
+python3 myanos.py neofetch   # System info
+python3 myanos.py toolbox    # Professional toolbox
+```
+
+---
 
 ## Features
 
+### 🖥️ Desktop Environment (v3.0.0)
+
+The desktop is a fully self-contained single-page application:
+
+| Component | Description |
+|---|---|
+| **Boot Sequence** | 3-phase realistic boot: BIOS POST → GRUB bootloader → Loading bar |
+| **Window Manager** | Draggable, resizable windows with minimize/maximize/close |
+| **Taskbar** | Start menu, running apps, system tray (battery/network/clock) |
+| **Virtual File System** | localStorage-based VFS with full CRUD operations |
+| **Context Menus** | Desktop right-click (new file/folder, wallpaper, settings) |
+| **Notifications** | Toast notification system (info/success/warning/error) |
+| **Lock Screen** | Password lock with real-time clock |
+| **Wallpapers** | 6 built-in CSS gradient themes |
+
+### 📱 Built-in Applications (15)
+
+| App | Description | Works Offline? |
+|---|---|---|
+| ⬛ **Terminal** | Linux-like shell with 20+ commands | ✅ Core commands |
+| 📁 **File Manager** | Browse, open, edit, delete VFS files | ✅ Full |
+| 📊 **System Monitor** | CPU, RAM, Disk, GPU, Processes | Server required |
+| ⚙️ **Settings** | Font size, accent color, wallpaper | ✅ Full |
+| ℹ️ **About Myanos** | System info (neofetch-style) | Partial (server = full) |
+| 🇲🇲 **Myanmar Code** | Keyword panel, editor, runner | ✅ Full |
+| 📦 **MyanPM** | Package manager UI | Server required |
+| 💻 **Code Editor** | Syntax-aware with line numbers | ✅ Full |
+| 📝 **Notepad** | Plain text editor | ✅ Full |
+| 🔧 **Toolbox** | Color picker, stopwatch, timer | ✅ Full |
+| 📱 **Android** | APK management via ADB | Server required |
+| 🎮 **PS2 Games** | PlayStation 2 game launcher | Server required |
+| 🤖 **MyanAi** | AI Agent chat (Ollama-powered) | Server + Ollama |
+| 🧠 **AI Training Center** | Code notebook, training pipeline | Server + Ollama |
+| 🌐 **Web Browser** | iframe-based web browser | ✅ (needs internet) |
+
 ### 📦 MyanPM — Package Manager
-- Custom `.myan` package format (ZIP-based)
+
+Custom `.myan` package format (ZIP-based) with:
+
 - Install, remove, search, list packages
 - SHA256 checksum verification
 - Dependency tracking system
 - Build tool for creating new packages
 
-### 🖥️ Terminal
-- Interactive Linux-like terminal (Python CLI)
-- Web-based terminal UI (HTML/JS)
-- File navigation: `ls`, `cd`, `pwd`, `mkdir`, `rm`
-- System commands: `neofetch`, `uname`, `env`, `history`
-- Built-in Myanmar Code execution (`mmc`)
-- Built-in package manager (`myan`)
-
-### 🎮 PS2 Emulation Layer
-- Play! emulator integration
-- PCSX2 support
-- VNC streaming to web browser
-- Game library management
-- Web-based display via noVNC
-
-### 📱 Android Layer
-- WayDroid container integration
-- ADB (Android Debug Bridge) support
-- APK install/uninstall/launch
-- VNC streaming of Android UI to browser
-- Setup script for automated installation
-
-### 🔧 Professional Toolbox
-- **Storage**: Disk info, partition manager, disk usage, file analyzer
-- **Network**: Port scanner, ping, DNS lookup, download manager
-- **System**: Hardware info, process monitor, benchmark, log viewer
-- **Flash**: dd-based flash tool, ADB/Fastboot management
-- **Security**: SHA256/MD5 hashing, OpenSSL toolkit
+```bash
+python3 myan_pm.py build --name myapp --version 1.0.0 --author "You" --desc "My app" --src ./src --out ./dist
+```
 
 ### 🇲🇲 Myanmar Code Integration
-- 127 keywords Myanmar programming language
-- Direct execution from terminal
-- PyPI package: `myanmar-code`
-- Integrated into Myanos command hub
+
+127-keyword Myanmar programming language:
+
+```bash
+python3 myanos.py mmc run 'ပုံနှိပ် "မင်္ဂလာပါ"'
+```
+
+### 🔧 Backend API (server.py)
+
+When `server.py` is running, these API endpoints are available:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/system-stats` | GET | Real CPU/RAM/Disk/GPU metrics |
+| `/api/exec` | POST | Execute shell commands |
+| `/api/myan` | POST | Package manager operations |
+| `/api/training` | POST | AI training code execution |
+| `/api/packages` | GET | List available packages |
+
+---
 
 ## Project Structure
 
 ```
-myanos/
-├── myanos.py               # Unified Command Hub (main entry)
-├── myan_pm.py              # MyanPM Package Manager
-├── terminal/
-│   ├── terminal.py         # Python CLI terminal
-│   └── index.html          # Web-based terminal UI
-├── display_engine/
-│   └── display_engine.py   # noVNC Display Engine
-├── ps2_layer/
-│   └── ps2_layer.py        # PS2 Emulation Layer
-├── android_layer/
-│   ├── vnc_server.py       # Android APK Manager
-│   └── setup_waydroid.sh   # WayDroid Setup Script
+Myanos/
+├── desktop/                    # ★ Web Desktop (works as static site)
+│   ├── index.html              # Main desktop HTML
+│   ├── css/
+│   │   └── style.css           # Tokyo Night theme (1400+ lines)
+│   └── js/
+│       └── desktop.js          # Full OS logic (3800+ lines)
+├── server.py                   # Python HTTP server + API
+├── myanos.py                   # Unified CLI command hub
+├── shell.py                    # MMR Shell v1.0.0
+├── myan_pm.py                  # MyanPM package manager
+├── terminal/                   # Standalone terminal
+│   ├── terminal.py             # Python CLI terminal
+│   └── index.html              # Web terminal UI
+├── myanai/
+│   └── myanai.py               # Low-code AI agent builder
 ├── toolbox/
-│   └── toolbox.py          # Professional Toolbox
+│   └── toolbox.py              # Professional system toolbox
+├── display_engine/
+│   └── display_engine.py       # noVNC display streaming
+├── ps2_layer/
+│   └── ps2_layer.py            # PS2 emulation layer
+├── android_layer/
+│   ├── vnc_server.py           # Android APK manager
+│   └── setup_waydroid.sh       # WayDroid automated setup
 ├── packages/
-│   ├── registry.py         # Package Registry
+│   ├── registry.py             # Package registry
 │   └── myanmar-code/
-│       └── mmc.py          # Myanmar Code CLI
-├── dist/                   # Built .myan packages
-│   ├── myanmar-code-2.0.1.myan
-│   ├── myanos-terminal-1.0.0.myan
-│   ├── myanos-display-engine-1.0.0.myan
-│   ├── myanos-ps2-layer-1.0.0.myan
-│   ├── myanos-android-layer-1.0.0.myan
-│   └── myanos-toolbox-1.0.0.myan
-├── setup.sh                # Installation script
-├── LICENSE                 # MIT License
-├── .gitignore
-├── README.md               # English documentation
-└── README.my.md            # Myanmar documentation
+│       └── mmc.py              # Myanmar Code CLI
+├── setup.sh                    # Installation script
+├── LICENSE                     # MIT License
+├── README.md                   # English docs
+└── README.my.md                # Myanmar docs
 ```
 
-## Quick Start
+---
 
-### Requirements
-- Python 3.8+
-- Termux (Android) or Linux
-- 10MB disk space
+## Tech Stack
 
-### Installation
+- **Desktop**: Pure HTML5, CSS3, Vanilla JavaScript (zero dependencies)
+- **Backend**: Python 3.8+ (stdlib only — `http.server`, `json`, `subprocess`)
+- **AI**: Ollama local LLMs (optional — deepseek-r1, qwen2.5)
+- **Display**: noVNC, VNC (optional)
+- **Android**: WayDroid, ADB (optional)
 
-```bash
-# Clone the repository
-git clone https://github.com/meonnmi-ops/Myanos.git
-cd Myanos
-
-# Run setup
-bash setup.sh
-
-# Or just start using it
-python3 myanos.py help
-```
-
-### Usage
-
-```bash
-# System info
-python3 myanos.py neofetch
-
-# Package management
-python3 myanos.py pkg list
-python3 myanos.py pkg install ./dist/myanmar-code-2.0.1.myan
-python3 myanos.py pkg remove myanmar-code
-
-# Terminal
-python3 myanos.py terminal
-
-# Myanmar Code
-python3 myanos.py mmc run 'ပုံနှိပ် "မင်္ဂလာပါ"'
-
-# Display Engine (noVNC)
-python3 myanos.py display android
-python3 myanos.py display ps2
-
-# Android Layer
-python3 myanos.py android status
-python3 myanos.py android install app.apk
-
-# PS2 Layer
-python3 myanos.py ps2 list
-python3 myanos.py ps2 launch 1
-
-# Toolbox
-python3 myanos.py toolbox
-```
-
-## .myan Package Format
-
-```
-myapp-1.0.0.myan (ZIP archive)
-├── MANIFEST.json       # Package metadata
-├── CHECKSUM.sha256     # File integrity hashes
-└── data/               # Package files
-    ├── main.py
-    ├── config.json
-    └── assets/
-```
-
-### Building a Package
-
-```bash
-python3 myan_pm.py build \
-  --name myapp \
-  --version 1.0.0 \
-  --author "Your Name" \
-  --desc "My awesome app" \
-  --src ./myapp-src \
-  --out ./dist
-```
-
-## Built-in Packages
-
-| Package | Version | Author | Description |
-|---------|---------|--------|-------------|
-| myanmar-code | 2.0.1 | Aung MoeOo (MWD) | Myanmar programming language (127 keywords) |
-| myanos-terminal | 1.0.0 | Meonnmi-ops | Interactive Linux-like terminal |
-| myanos-display-engine | 1.0.0 | Meonnmi-ops | noVNC display streaming |
-| myanos-ps2-layer | 1.0.0 | Meonnmi-ops | PlayStation 2 emulation |
-| myanos-android-layer | 1.0.0 | Meonnmi-ops | Android APK management |
-| myanos-toolbox | 1.0.0 | Meonnmi-ops | Professional system tools |
+---
 
 ## Roadmap
 
@@ -196,29 +217,25 @@ python3 myan_pm.py build \
 - [x] Phase 3.5: Display Engine (noVNC)
 - [x] Phase 4: Android Layer (WayDroid)
 - [x] Phase 5: Professional Toolbox
-- [ ] Phase 6: Desktop Environment (Web UI)
-- [ ] Phase 7: MyanAi (Low-Code AI Agent Builder)
+- [x] Phase 6: Desktop Environment (Web UI)
+- [x] Phase 7: MyanAI Agent Builder
+- [x] Phase 7.5: AI Training Center
 - [ ] Phase 8: App Store (Online Registry)
+- [ ] Phase 9: Multi-user Support
+- [ ] Phase 10: Cloud Sync
 
-## Tech Stack
-
-- **Language**: Python 3.8+
-- **Web Terminal**: HTML5, JavaScript, CSS3
-- **Display**: noVNC, VNC
-- **Android**: WayDroid, ADB
-- **Emulation**: Play!, PCSX2
-- **Networking**: WebSocket, HTTP
+---
 
 ## Author & Credits
 
 - **CTO / Lead Developer**: Meonnmi-ops
 - **Myanmar Code Language**: Aung MoeOo (MWD)
 - **AI Integration**: Z-AI (Super Z)
-- **Framework**: Myanos Web OS Platform
+- **Framework**: MyanOS Web OS Platform
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
