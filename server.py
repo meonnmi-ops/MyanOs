@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Myanos Web OS — Server v2.1.0
-HTTP Server + Terminal API + WebSocket (optional)
+Myanos Web OS — Server v2.2.0
+HTTP Server + Terminal API + Real System Metrics
 Serves desktop UI and handles real shell commands via /api/exec
+Real system stats via /api/system-stats (psutil + nvidia-smi)
 
 Usage: python3 server.py [port]
 Default port: 8080
@@ -15,13 +16,16 @@ import signal
 import socket
 import platform
 import threading
+import subprocess
+import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
+from datetime import datetime
 
 # ─── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
 DESKTOP_DIR = BASE_DIR / "desktop"
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 DEFAULT_PORT = 8080
 
 # ─── Shell Integration ────────────────────────────────────────────────────────
@@ -59,6 +63,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         """Handle GET requests"""
         if self.path == '/api/system':
             self.handle_system({})
+        elif self.path == '/api/system-stats':
+            self.handle_system_stats()
         elif self.path == '/api/packages':
             self.handle_packages()
         elif self.path == '/api/training':
@@ -137,6 +143,188 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             'packages': self._count_packages(),
         }
         self.send_json(info)
+
+    # ─── API: Real System Stats (psutil) ─────────────────────────────────
+    def handle_system_stats(self):
+        """Return REAL system metrics using psutil"""
+        stats = {}
+
+        # CPU
+        try:
+            import psutil
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            cpu_freq = psutil.cpu_freq()
+            cpu_count_logical = psutil.cpu_count(logical=True)
+            cpu_count_physical = psutil.cpu_count(logical=False) or cpu_count_logical
+            stats['cpu'] = {
+                'percent': cpu_percent,
+                'cores_physical': cpu_count_physical,
+                'cores_logical': cpu_count_logical,
+                'freq_current': round(cpu_freq.current, 0) if cpu_freq else 0,
+                'freq_max': round(cpu_freq.max, 0) if cpu_freq else 0,
+                'per_cpu': psutil.cpu_percent(interval=0, percpu=True),
+            }
+        except ImportError:
+            stats['cpu'] = {'percent': 0, 'cores_physical': 0, 'cores_logical': 0, 'freq_current': 0, 'freq_max': 0, 'per_cpu': []}
+        except Exception:
+            stats['cpu'] = {'percent': 0, 'cores_physical': 0, 'cores_logical': 0, 'freq_current': 0, 'freq_max': 0, 'per_cpu': []}
+
+        # Memory
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            stats['memory'] = {
+                'total': mem.total,
+                'used': mem.used,
+                'available': mem.available,
+                'percent': mem.percent,
+                'total_gb': round(mem.total / (1024**3), 1),
+                'used_gb': round(mem.used / (1024**3), 1),
+                'swap_total_gb': round(swap.total / (1024**3), 1),
+                'swap_used_gb': round(swap.used / (1024**3), 1),
+                'swap_percent': swap.percent,
+            }
+        except Exception:
+            stats['memory'] = {'total': 0, 'used': 0, 'available': 0, 'percent': 0, 'total_gb': 0, 'used_gb': 0, 'swap_total_gb': 0, 'swap_used_gb': 0, 'swap_percent': 0}
+
+        # Disk
+        try:
+            import psutil
+            disk = psutil.disk_usage('/')
+            stats['disk'] = {
+                'total': disk.total,
+                'used': disk.used,
+                'free': disk.free,
+                'percent': disk.percent,
+                'total_gb': round(disk.total / (1024**3), 1),
+                'used_gb': round(disk.used / (1024**3), 1),
+                'free_gb': round(disk.free / (1024**3), 1),
+            }
+        except Exception:
+            stats['disk'] = {'total': 0, 'used': 0, 'free': 0, 'percent': 0, 'total_gb': 0, 'used_gb': 0, 'free_gb': 0}
+
+        # Temperature
+        try:
+            import psutil
+            temps = psutil.sensors_temperatures()
+            if temps:
+                temp_val = None
+                temp_label = ''
+                for name, entries in temps.items():
+                    if entries:
+                        temp_val = entries[0].current
+                        temp_label = f"{name} {entries[0].label or ''}"
+                        break
+                stats['temperature'] = {
+                    'celsius': round(temp_val, 1) if temp_val is not None else 0,
+                    'label': temp_label,
+                }
+            else:
+                # Fallback: read from /sys/class/thermal
+                try:
+                    with open('/sys/class/thermal/thermal_zone0/temp') as f:
+                        temp_val = int(f.read().strip()) / 1000.0
+                    stats['temperature'] = {'celsius': round(temp_val, 1), 'label': 'thermal_zone0'}
+                except Exception:
+                    stats['temperature'] = {'celsius': 0, 'label': 'N/A'}
+        except Exception:
+            stats['temperature'] = {'celsius': 0, 'label': 'N/A'}
+
+        # Uptime
+        try:
+            uptime_sec = 0
+            if platform.system() == 'Linux':
+                with open('/proc/uptime') as f:
+                    uptime_sec = float(f.read().split()[0])
+            elif platform.system() == 'Darwin':
+                result = subprocess.run(['sysctl', '-n', 'kern.boottime'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    import re
+                    match = re.search(r'sec = (\d+)', result.stdout.strip())
+                    if match:
+                        uptime_sec = time.time() - int(match.group(1))
+            h = int(uptime_sec // 3600)
+            m = int((uptime_sec % 3600) // 60)
+            s = int(uptime_sec % 60)
+            stats['uptime'] = {'seconds': int(uptime_sec), 'formatted': f'{h}h {m}m {s}s'}
+        except Exception:
+            stats['uptime'] = {'seconds': 0, 'formatted': 'N/A'}
+
+        # Network
+        try:
+            import psutil
+            net_io = psutil.net_io_counters()
+            stats['network'] = {
+                'bytes_sent': net_io.bytes_sent,
+                'bytes_recv': net_io.bytes_recv,
+                'packets_sent': net_io.packets_sent,
+                'packets_recv': net_io.packets_recv,
+                'connected': True,
+            }
+            net_addrs = psutil.net_if_addrs()
+            interfaces = []
+            for iface, addrs in net_addrs.items():
+                for addr in addrs:
+                    if addr.family == 2:  # AF_INET
+                        interfaces.append({'name': iface, 'ip': addr.address})
+            stats['network']['interfaces'] = interfaces[:5]
+        except Exception:
+            stats['network'] = {'bytes_sent': 0, 'bytes_recv': 0, 'packets_sent': 0, 'packets_recv': 0, 'connected': False, 'interfaces': []}
+
+        # GPU (nvidia-smi)
+        try:
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu,utilization.gpu', '--format=csv,noheader,nounits'],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                gpus = []
+                for line in result.stdout.strip().split('\n'):
+                    parts = [p.strip() for p in line.split(',')]
+                    if len(parts) >= 6:
+                        gpus.append({
+                            'name': parts[0],
+                            'memory_total_mb': int(parts[1]) if parts[1].isdigit() else 0,
+                            'memory_used_mb': int(parts[2]) if parts[2].isdigit() else 0,
+                            'memory_free_mb': int(parts[3]) if parts[3].isdigit() else 0,
+                            'temperature': int(parts[4]) if parts[4].isdigit() else 0,
+                            'utilization': int(parts[5]) if parts[5].isdigit() else 0,
+                        })
+                stats['gpu'] = {'available': True, 'gpus': gpus}
+            else:
+                stats['gpu'] = {'available': False, 'gpus': []}
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            stats['gpu'] = {'available': False, 'gpus': []}
+
+        # Top processes
+        try:
+            import psutil
+            procs = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+                try:
+                    pinfo = proc.info
+                    procs.append(pinfo)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            procs.sort(key=lambda p: p.get('cpu_percent', 0) or 0, reverse=True)
+            stats['processes'] = procs[:10]
+        except Exception:
+            stats['processes'] = []
+
+        # OS info
+        stats['os_info'] = {
+            'system': platform.system(),
+            'release': platform.release(),
+            'version': platform.version(),
+            'machine': platform.machine(),
+            'processor': platform.processor(),
+            'hostname': platform.node(),
+            'myanos_version': VERSION,
+        }
+
+        stats['timestamp'] = datetime.now().isoformat()
+        self.send_json(stats)
 
     # ─── API: Package List ─────────────────────────────────────────────────
     def handle_packages(self):
@@ -389,12 +577,13 @@ def main():
     print()
     print(f"  ╔══════════════════════════════════════════╗")
     print(f"  ║  🇲🇲 Myanos Web OS v{VERSION}              ║")
-    print(f"  ║  MMR Shell + Myan Package Manager         ║")
+    print(f"  ║  MMR Shell + Real System Metrics          ║")
     print(f"  ║  Server running on port {port:<19}║")
     print(f"  ╚══════════════════════════════════════════╝")
     print()
     print(f"  Desktop:  http://localhost:{port}")
     print(f"  API:      http://localhost:{port}/api/exec")
+    print(f"  Stats:    http://localhost:{port}/api/system-stats")
     print(f"  Packages: http://localhost:{port}/api/packages")
     print()
     print(f"  Press Ctrl+C to stop")

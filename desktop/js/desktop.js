@@ -486,11 +486,46 @@ class MyanosDesktop {
         const tray = document.getElementById('system-tray');
         if (tray) {
             tray.innerHTML = `
-                <span class="tray-icon" title="Volume" onclick="window.myanos.notif.show('Volume: 80%','info',2000)">🔊</span>
-                <span class="tray-icon" title="Network" onclick="window.myanos.notif.show('Network: Connected','success',2000)">📶</span>
-                <span class="tray-icon" title="Battery" onclick="window.myanos.notif.show('Battery: 100%','success',2000)">🔋</span>
+                <span class="tray-icon" title="Volume" id="tray-volume" onclick="window.myanos.notif.show('Volume control','info',2000)">🔊</span>
+                <span class="tray-icon" title="Network" id="tray-network" onclick="window.myanos.notif.show('Network status','info',2000)">📶</span>
+                <span class="tray-icon" title="Battery" id="tray-battery" onclick="window.myanos.notif.show('Battery info','info',2000)">🔋</span>
                 <span id="clock">--:--</span>
             `;
+            // Real battery status
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    const updateBattery = () => {
+                        const pct = Math.round(battery.level * 100);
+                        const charging = battery.charging;
+                        const icon = charging ? '⚡' : pct > 80 ? '🔋' : pct > 40 ? '🪫' : '🪫';
+                        const el = document.getElementById('tray-battery');
+                        if (el) {
+                            el.textContent = icon;
+                            el.title = `Battery: ${pct}%${charging ? ' (Charging)' : ''}`;
+                        }
+                    };
+                    updateBattery();
+                    battery.addEventListener('levelchange', updateBattery);
+                    battery.addEventListener('chargingchange', updateBattery);
+                });
+            }
+            // Real network status
+            const updateNetwork = () => {
+                const el = document.getElementById('tray-network');
+                if (!el) return;
+                if (navigator.onLine) {
+                    el.textContent = '📶';
+                    el.title = 'Network: Online';
+                    el.style.opacity = '1';
+                } else {
+                    el.textContent = '📵';
+                    el.title = 'Network: Offline';
+                    el.style.opacity = '0.5';
+                }
+            };
+            updateNetwork();
+            window.addEventListener('online', updateNetwork);
+            window.addEventListener('offline', updateNetwork);
         }
     }
 
@@ -1836,33 +1871,124 @@ class MyanosDesktop {
     //  APP: Other Renderers
     // ══════════════════════════════════════════════════════════
     async renderMonitor(body) {
-        const self = this;
-        let stats = { cpu_percent:0, memory_used:'--', memory_total:'--', memory_percent:0, gpu_available:false, gpu_util:0, gpu_mem_used:0, gpu_mem_total:0, disk_used:'--', disk_total:'--', disk_percent:0, uptime:0, cpu_count:0, cpu_freq:'' };
+        // Show loading state
+        body.innerHTML = `<div class="app-monitor"><div style="text-align:center;padding:40px;color:#565f89;">Loading real system metrics...</div></div>`;
+        let cpu=0, cpuCores=0, cpuFreq=0, memPct=0, memUsedGb=0, memTotalGb=0, diskPct=0, diskUsedGb=0, diskTotalGb=0, tempC=0, tempLabel='N/A', uptimeStr='N/A', netConnected=false, netIfaces=[], gpuAvailable=false, gpuList=[];
+
         try {
-            const res = await fetch('/api/training', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'system_stats'}) });
-            const d = await res.json();
-            Object.assign(stats, d);
-        } catch(e) {}
+            const res = await fetch('/api/system-stats');
+            if (res.ok) {
+                const s = await res.json();
+                cpu = s.cpu?.percent || 0;
+                cpuCores = s.cpu?.cores_physical || 0;
+                cpuFreq = s.cpu?.freq_current || 0;
+                memPct = s.memory?.percent || 0;
+                memUsedGb = s.memory?.used_gb || 0;
+                memTotalGb = s.memory?.total_gb || 0;
+                diskPct = s.disk?.percent || 0;
+                diskUsedGb = s.disk?.used_gb || 0;
+                diskTotalGb = s.disk?.total_gb || 0;
+                tempC = s.temperature?.celsius || 0;
+                tempLabel = s.temperature?.label || 'N/A';
+                uptimeStr = s.uptime?.formatted || 'N/A';
+                netConnected = s.network?.connected || false;
+                netIfaces = s.network?.interfaces || [];
+                gpuAvailable = s.gpu?.available || false;
+                gpuList = s.gpu?.gpus || [];
+            }
+        } catch(e) { /* fallback to zero values */ }
 
-        const cpu = stats.cpu_percent;
-        const mem = stats.memory_percent || 0;
-        const memUsed = stats.memory_used;
-        const memTotal = stats.memory_total;
-        const disk = stats.disk_percent || 0;
-        const cpuCores = stats.cpu_count || 'N/A';
-        const cpuFreq = stats.cpu_freq || '';
+        // Build per-CPU bars if available
+        let perCpuHtml = '';
+        try {
+            const res = await fetch('/api/system-stats');
+            if (res.ok) {
+                const s = await res.json();
+                if (s.cpu?.per_cpu?.length) {
+                    perCpuHtml = '<div class="monitor-card" style="grid-column:1/-1;"><h4>🔬 Per-Core Usage</h4><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+                    s.cpu.per_cpu.forEach((pct, i) => {
+                        perCpuHtml += `<div style="flex:1;min-width:60px;"><div style="font-size:10px;color:#565f89;margin-bottom:2px;">Core ${i}</div><div class="monitor-bar" style="height:6px;"><div class="monitor-bar-fill fill-cpu" style="width:${pct}%;transition:width 0.3s;"></div></div><div style="font-size:10px;color:#a9b1d6;text-align:right;">${pct}%</div></div>`;
+                    });
+                    perCpuHtml += '</div></div>';
+                }
+                // Build GPU card if available
+                if (gpuAvailable && gpuList.length) {
+                    gpuList.forEach((gpu, i) => {
+                        const gpuMemPct = gpu.memory_total_mb ? Math.round(gpu.memory_used_mb / gpu.memory_total_mb * 100) : 0;
+                        perCpuHtml += `<div class="monitor-card"><h4>🎮 GPU ${i}: ${this._escapeHtml(gpu.name)}</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-disk" style="width:${gpuMemPct}%;transition:width 0.3s;"></div></div><div class="monitor-stats"><span>${gpu.memory_used_mb} MB / ${gpu.memory_total_mb} MB</span><span>${gpuMemPct}%</span></div><div style="margin-top:4px;font-size:11px;color:#565f89;">Util: ${gpu.utilization}% | Temp: ${gpu.temperature}°C</div></div>`;
+                    });
+                }
+                // Build network interfaces
+                if (netIfaces.length) {
+                    let ifaceHtml = '<div style="font-size:12px;">';
+                    netIfaces.forEach(iface => {
+                        ifaceHtml += `<div style="color:#9ece6a;">● ${this._escapeHtml(iface.name)}</div><div style="color:#565f89;font-size:11px;">${iface.ip}</div>`;
+                    });
+                    ifaceHtml += '</div>';
+                    perCpuHtml = perCpuHtml.replace(
+                        '<div class="monitor-card"><h4>📡 Network</h4>',
+                        `<div class="monitor-card"><h4>📡 Network</h4>${ifaceHtml}`
+                    );
+                }
+                // Build top processes
+                if (s.processes?.length) {
+                    perCpuHtml += '<div class="monitor-card" style="grid-column:1/-1;"><h4>📊 Top Processes</h4><div style="margin-top:8px;font-family:\'JetBrains Mono\',monospace;font-size:11px;"><table style="width:100%;border-collapse:collapse;"><tr style="color:#565f89;border-bottom:1px solid rgba(255,255,255,0.06);"><th style="text-align:left;padding:4px;">PID</th><th style="text-align:left;padding:4px;">Name</th><th style="text-align:right;padding:4px;">CPU%</th><th style="text-align:right;padding:4px;">MEM%</th></tr>';
+                    s.processes.forEach(p => {
+                        perCpuHtml += `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);"><td style="padding:3px 4px;color:#565f89;">${p.pid}</td><td style="padding:3px 4px;color:#a9b1d6;">${this._escapeHtml(p.name||'')}</td><td style="padding:3px 4px;text-align:right;color:${(p.cpu_percent||0)>50?'#f7768e':'#a9b1d6'};">${(p.cpu_percent||0).toFixed(1)}</td><td style="padding:3px 4px;text-align:right;color:${(p.memory_percent||0)>50?'#e0af68':'#a9b1d6'};">${(p.memory_percent||0).toFixed(1)}</td></tr>`;
+                    });
+                    perCpuHtml += '</table></div></div>';
+                }
+            }
+        } catch(e) { /* keep what we have */ }
 
-        body.innerHTML = `<div class="app-monitor">
-            <div class="monitor-card"><h4>⚡ CPU Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-cpu" style="width:0%" data-target="${cpu}%"></div></div><div class="monitor-stats"><span>${cpu}%</span><span>${cpuCores} cores ${cpuFreq}</span></div></div>
-            <div class="monitor-card"><h4>🧠 Memory Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-mem" style="width:0%" data-target="${mem}%"></div></div><div class="monitor-stats"><span>${memUsed} / ${memTotal}</span><span>${mem.toFixed(0)}%</span></div></div>
-            <div class="monitor-card"><h4>💾 Disk Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-disk" style="width:0%" data-target="${disk}%"></div></div><div class="monitor-stats"><span>${stats.disk_used} / ${stats.disk_total}</span><span>${disk.toFixed(0)}%</span></div></div>
-            ${stats.gpu_available ? `<div class="monitor-card"><h4>🎮 GPU</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-cpu" style="width:${stats.gpu_util}%"></div></div><div class="monitor-stats"><span>VRAM: ${stats.gpu_mem_used.toFixed(0)} / ${stats.gpu_mem_total.toFixed(0)} MiB</span><span>${stats.gpu_util.toFixed(0)}%</span></div></div>` : '<div class="monitor-card"><h4>🎮 GPU</h4><div style="font-size:13px;text-align:center;padding:8px;color:#565f89;">No GPU detected</div></div>'}
-            <div class="monitor-card"><h4>⏱️ Uptime</h4><div style="font-size:14px;text-align:center;padding:8px;color:#a9b1d6;" id="uptime-display">${stats.uptime ? Math.floor(stats.uptime/3600)+'h '+Math.floor((stats.uptime%3600)/60)+'m' : '0h 0m 0s'}</div></div>
-            <div class="monitor-card"><h4>📡 Network</h4><div style="font-size:14px;text-align:center;padding:8px;"><span style="color:#9ece6a;">● Connected</span><br><span style="color:#565f89;font-size:12px;">${stats.platform || 'Web Runtime'}</span></div></div>
+        const netHtml = netConnected
+            ? `<span style="color:#9ece6a;">● Connected</span>${netIfaces.length ? '<br><span style="color:#565f89;font-size:12px;">' + netIfaces.map(i => i.name).join(', ') + '</span>' : '<br><span style="color:#565f89;font-size:12px;">Online</span>'}`
+            : `<span style="color:#f7768e;">● Offline</span>`;
+
+        body.innerHTML = `<div class="app-monitor" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;">
+            <div class="monitor-card"><h4>⚡ CPU Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-cpu" style="width:0%" data-target="${cpu}%"></div></div><div class="monitor-stats"><span>${cpu}%</span><span>${cpuCores} cores @ ${cpuFreq}MHz</span></div></div>
+            <div class="monitor-card"><h4>🧠 Memory Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-mem" style="width:0%" data-target="${memPct}%"></div></div><div class="monitor-stats"><span>${memUsedGb} GB / ${memTotalGb} GB</span><span>${memPct}%</span></div></div>
+            <div class="monitor-card"><h4>💾 Disk Usage</h4><div class="monitor-bar"><div class="monitor-bar-fill fill-disk" style="width:0%" data-target="${diskPct}%"></div></div><div class="monitor-stats"><span>${diskUsedGb} GB / ${diskTotalGb} GB</span><span>${diskPct}%</span></div></div>
+            <div class="monitor-card"><h4>🌡️ Temperature</h4><div style="font-size:28px;text-align:center;padding:8px;color:${tempC>60?'#f7768e':tempC>45?'#e0af68':'#9ece6a'};">${tempC}°C</div><div style="font-size:10px;text-align:center;color:#565f89;">${this._escapeHtml(tempLabel)}</div></div>
+            <div class="monitor-card"><h4>⏱️ Uptime</h4><div style="font-size:14px;text-align:center;padding:8px;color:#a9b1d6;">${uptimeStr}</div></div>
+            <div class="monitor-card"><h4>📡 Network</h4><div style="font-size:14px;text-align:center;padding:8px;">${netHtml}</div></div>
+            ${perCpuHtml}
+            <div style="grid-column:1/-1;text-align:center;"><button onclick="this.closest('.app-monitor').parentElement.dispatchEvent(new CustomEvent('refresh-monitor'))" style="padding:6px 16px;background:rgba(122,162,247,0.1);border:1px solid rgba(122,162,247,0.2);border-radius:6px;color:#7aa2f7;font-size:12px;cursor:pointer;">⟳ Refresh</button></div>
         </div>`;
         setTimeout(() => {
             body.querySelectorAll('.monitor-bar-fill[data-target]').forEach(b => { b.style.width = b.dataset.target; });
         }, 100);
+        // Auto-refresh every 5 seconds
+        const refreshInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/system-stats');
+                if (!res.ok) return;
+                const s = await res.json();
+                // Update CPU
+                const cpuBar = body.querySelector('.fill-cpu');
+                const cpuCard = body.querySelectorAll('.monitor-card')[0];
+                if (cpuBar && cpuCard) {
+                    cpuBar.style.width = s.cpu?.percent + '%';
+                    cpuBar.dataset.target = s.cpu?.percent + '%';
+                    cpuCard.querySelector('.monitor-stats').innerHTML = `<span>${s.cpu?.percent}%</span><span>${s.cpu?.cores_physical || 0} cores @ ${s.cpu?.freq_current || 0}MHz</span>`;
+                }
+                // Update Memory
+                const memBar = body.querySelector('.fill-mem');
+                const memCard = body.querySelectorAll('.monitor-card')[1];
+                if (memBar && memCard) {
+                    memBar.style.width = s.memory?.percent + '%';
+                    memCard.querySelector('.monitor-stats').innerHTML = `<span>${s.memory?.used_gb || 0} GB / ${s.memory?.total_gb || 0} GB</span><span>${s.memory?.percent || 0}%</span>`;
+                }
+                // Update Temperature
+                const tempCards = body.querySelectorAll('.monitor-card');
+                tempCards.forEach(c => { if (c.textContent.includes('Temperature') || c.textContent.includes('Temperature')) {
+                    const val = s.temperature?.celsius || 0;
+                    const label = s.temperature?.label || 'N/A';
+                    const tempEl = c.querySelector('div[style*="font-size:28px"]');
+                    if (tempEl) { tempEl.textContent = val + '°C'; tempEl.style.color = val > 60 ? '#f7768e' : val > 45 ? '#e0af68' : '#9ece6a'; }
+                }});
+            } catch(e) { clearInterval(refreshInterval); }
+        }, 5000);
     }
 
     renderSettings(body) {
@@ -1952,14 +2078,44 @@ class MyanosDesktop {
         });
     }
 
-    renderNeofetch(body) {
+    async renderNeofetch(body) {
+        // Start with static layout, then fill real data
+        let osInfo = 'Myanos Web OS v3.0.0';
+        let kernel = 'Unknown';
+        let cpuInfo = 'Unknown';
+        let memInfo = 'Unknown';
+        let uptime = 'N/A';
+        let diskInfo = 'N/A';
+        let hostname = 'myanos';
+        let pythonVer = 'Unknown';
+        let gpuInfo = 'Not available';
+
+        try {
+            const res = await fetch('/api/system-stats');
+            if (res.ok) {
+                const s = await res.json();
+                if (s.os_info) {
+                    kernel = `${s.os_info.system} ${s.os_info.release}`;
+                    hostname = s.os_info.hostname || 'myanos';
+                    pythonVer = s.os_info.system === 'Linux' ? `Python/${s.os_info.myanos_version || '2.2.0'}` : '';
+                }
+                if (s.cpu) cpuInfo = `${s.cpu.cores_physical || '?'} cores @ ${s.cpu.freq_max || '?'}MHz`;
+                if (s.memory) memInfo = `${s.memory.used_gb || 0} GB / ${s.memory.total_gb || 0} GB (${s.memory.percent || 0}%)`;
+                if (s.uptime) uptime = s.uptime.formatted || 'N/A';
+                if (s.disk) diskInfo = `${s.disk.used_gb || 0} GB / ${s.disk.total_gb || 0} GB (${s.disk.percent || 0}%)`;
+                if (s.gpu?.available && s.gpu.gpus?.length) {
+                    gpuInfo = s.gpu.gpus.map(g => `${g.name} (${g.memory_total_mb}MB)`).join(', ');
+                }
+            }
+        } catch(e) { /* keep defaults */ }
+
         body.innerHTML = `<div class="app-neofetch"><pre class="logo">       ┌──────────────┐
        │   Myanos OS   │
        │  ████████████  │
        │  █▀▀▀▀▀▀▀▀█  │
        │  █ ▀▀▀▀▀▀ █  │
        │    ▀▀▀▀▀▀    │
-       └──────────────┘</pre><div class="title">meonnmi@myanos</div><div style="color:#565f89;">──────────────────────────────────</div><div><span class="label">  OS:        </span><span class="info">Myanos Web OS v3.0.0</span></div><div><span class="label">  Shell:     </span><span class="info">MMR Shell v1.0.0</span></div><div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment</span></div><div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div><div><span class="label">  Packages:  </span><span class="info">.myan (MyanPM)</span></div><div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div><div><span class="label">  Wallpaper: </span><span class="info">${(WALLPAPERS[this.vfs.getWallpaper()] || WALLPAPERS.default).name}</span></div><div style="color:#565f89;">──────────────────────────────────</div><div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div></div>`;
+       └──────────────┘</pre><div class="title">meonnmi@${this._escapeHtml(hostname)}</div><div style="color:#565f89;">──────────────────────────────────</div><div><span class="label">  OS:        </span><span class="info">Myanos Web OS v3.0.0</span></div><div><span class="label">  Host:      </span><span class="info">${this._escapeHtml(hostname)}</span></div><div><span class="label">  Kernel:    </span><span class="info">${this._escapeHtml(kernel)}</span></div><div><span class="label">  Shell:     </span><span class="info">MMR Shell v1.0.0</span></div><div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment</span></div><div><span class="label">  CPU:       </span><span class="info">${this._escapeHtml(cpuInfo)}</span></div><div><span class="label">  Memory:    </span><span class="info">${this._escapeHtml(memInfo)}</span></div><div><span class="label">  Disk:      </span><span class="info">${this._escapeHtml(diskInfo)}</span></div><div><span class="label">  GPU:       </span><span class="info">${this._escapeHtml(gpuInfo)}</span></div><div><span class="label">  Uptime:    </span><span class="info">${this._escapeHtml(uptime)}</span></div><div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div><div><span class="label">  Packages:  </span><span class="info">.myan (MyanPM)</span></div><div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div><div><span class="label">  Wallpaper: </span><span class="info">${(WALLPAPERS[this.vfs.getWallpaper()] || WALLPAPERS.default).name}</span></div><div style="color:#565f89;">──────────────────────────────────</div><div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div></div>`;
     }
 
     renderMyanmarCode(body, winId) {
@@ -2317,8 +2473,8 @@ class MyanosDesktop {
                             btn.style.opacity = '1';
                         }
                     } catch(e) {
-                        // No fake local fallback — show real error
-                        self.notif.show(`Server offline: cannot ${action} ${pkgName}`, 'error', 2000);
+                        // Offline: report error, do NOT simulate install
+                        self.notif.show(`API unavailable — cannot ${action} ${pkgName}`, 'error', 3000);
                         btn.disabled = false;
                         btn.textContent = action === 'install' ? 'Install' : 'Remove';
                         btn.style.opacity = '1';
@@ -2525,19 +2681,90 @@ class MyanosDesktop {
         document.getElementById('color-preview').style.background=ih;
     }
 
-    renderAndroid(body) {
+    async renderAndroid(body) {
         body.innerHTML = `<div style="padding:20px;text-align:center;">
             <div style="font-size:48px;">📱</div>
             <h3 style="color:#c0caf5;margin:12px 0;">Android Layer</h3>
-            <p style="color:#565f89;">Connect via: <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;">python3 myanos.py display android</code></p>
+            <div id="android-status" style="color:#565f89;margin-bottom:16px;">Checking Android status...</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="window.myanos._checkAndroid()" style="padding:8px 16px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:8px;color:#7aa2f7;font-size:12px;cursor:pointer;">🔍 Check Status</button>
+                <button onclick="window.myanos._androidCmd('list')" style="padding:8px 16px;background:rgba(158,206,106,0.15);border:1px solid rgba(158,206,106,0.3);border-radius:8px;color:#9ece6a;font-size:12px;cursor:pointer;">📦 List APKs</button>
+            </div>
+            <pre id="android-output" style="margin-top:16px;text-align:left;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b1d6;max-height:300px;overflow-y:auto;display:none;"></pre>
         </div>`;
+        // Auto-check on open
+        window.myanos._checkAndroid();
     }
-    renderPS2(body) {
+
+    async _checkAndroid() {
+        const el = document.getElementById('android-status');
+        const out = document.getElementById('android-output');
+        try {
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'which adb'}) });
+            const data = await res.json();
+            if (data.output && !data.output.includes('not found') && data.output.trim()) {
+                el.innerHTML = '<span style="color:#9ece6a;">● ADB detected</span> — ' + this._escapeHtml(data.output.trim());
+            } else {
+                el.innerHTML = '<span style="color:#e0af68;">● ADB not found</span> — Install Android platform-tools';
+            }
+        } catch(e) {
+            el.innerHTML = '<span style="color:#f7768e;">● API offline</span> — Start server.py for full features';
+        }
+    }
+
+    async _androidCmd(cmd) {
+        const out = document.getElementById('android-output');
+        if (out) { out.style.display = 'block'; out.textContent = 'Running...\n'; }
+        try {
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'adb ' + cmd}) });
+            const data = await res.json();
+            if (out) out.textContent = data.output || '(no output)';
+        } catch(e) {
+            if (out) out.textContent = 'Error: ' + e.message;
+        }
+    }
+
+    async renderPS2(body) {
         body.innerHTML = `<div style="padding:20px;text-align:center;">
             <div style="font-size:48px;">🎮</div>
             <h3 style="color:#c0caf5;margin:12px 0;">PS2 Emulation Layer</h3>
-            <p style="color:#565f89;">Place .iso files in ~/PS2/ and run: <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;">python3 myanos.py ps2 list</code></p>
+            <div id="ps2-status" style="color:#565f89;margin-bottom:16px;">Checking PS2 status...</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="window.myanos._checkPS2()" style="padding:8px 16px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:8px;color:#7aa2f7;font-size:12px;cursor:pointer;">🔍 Check Status</button>
+                <button onclick="window.myanos._ps2Cmd('list')" style="padding:8px 16px;background:rgba(158,206,106,0.15);border:1px solid rgba(158,206,106,0.3);border-radius:8px;color:#9ece6a;font-size:12px;cursor:pointer;">💿 List ISOs</button>
+            </div>
+            <pre id="ps2-output" style="margin-top:16px;text-align:left;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b1d6;max-height:300px;overflow-y:auto;display:none;"></pre>
         </div>`;
+        window.myanos._checkPS2();
+    }
+
+    async _checkPS2() {
+        const el = document.getElementById('ps2-status');
+        const out = document.getElementById('ps2-output');
+        try {
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'ls ~/PS2/ 2>/dev/null || echo "No PS2 directory found"'}) });
+            const data = await res.json();
+            if (data.output && !data.output.includes('No PS2 directory')) {
+                const isos = data.output.trim().split('\n').filter(f => f.endsWith('.iso') || f.endsWith('.ISO'));
+                el.innerHTML = `<span style="color:#9ece6a;">● ${isos.length} ISO(s) found</span> in ~/PS2/`;
+            } else {
+                el.innerHTML = '<span style="color:#e0af68;">● No PS2 directory</span> — Create ~/PS2/ and add .iso files';
+            }
+        } catch(e) {
+            el.innerHTML = '<span style="color:#f7768e;">● API offline</span> — Start server.py for full features';
+        }
+    }
+
+    async _ps2Cmd(cmd) {
+        const out = document.getElementById('ps2-output');
+        if (out) { out.style.display = 'block'; out.textContent = 'Running...\n'; }
+        try {
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'ls -la ~/PS2/ 2>/dev/null || echo "No PS2 directory"'}) });
+            const data = await res.json();
+            if (out) out.textContent = data.output || '(no output)';
+        } catch(e) {
+            if (out) out.textContent = 'Error: ' + e.message;
+        }
     }
     renderMyanAi(body) {
         const self = this;
