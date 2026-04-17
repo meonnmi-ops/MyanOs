@@ -1379,6 +1379,29 @@ button, [role="button"], .ctx-item, .start-app-item,
 .tc-session-option h4 { font-size:13px; color:#c0caf5; margin-bottom:4px; }
 .tc-session-option p { font-size:11px; color:#565f89; }
 
+/* Colab GPU Connect Panel */
+.tc-colab-url-row { display:flex; gap:6px; align-items:center; }
+.tc-colab-url-input {
+    flex:1; padding:6px 10px; background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08); border-radius:6px;
+    color:#c0caf5; font-size:11px; font-family:'JetBrains Mono',monospace;
+    outline:none; transition:border-color 0.15s;
+}
+.tc-colab-url-input:focus { border-color:rgba(122,162,247,0.5); }
+.tc-colab-url-input::placeholder { color:#3b4261; }
+.tc-colab-info-card {
+    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px; padding:10px; margin:4px 8px;
+}
+.tc-colab-info-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.tc-colab-info-row:last-child { border-bottom:none; }
+.tc-colab-info-label { font-size:11px; color:#565f89; }
+.tc-colab-info-value { font-size:11px; color:#a9b1d6; font-family:'JetBrains Mono',monospace; }
+.tc-colab-info-value.green { color:#9ece6a; font-weight:600; }
+
 /* ══════════════════════════════════════════════════════════
    MOBILE RESPONSIVE
    ══════════════════════════════════════════════════════════ */

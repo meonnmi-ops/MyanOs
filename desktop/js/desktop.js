@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   Myanos Desktop Environment v3.0.0
+   Myanos Desktop Environment v4.2.0
    Full Real OS Experience — Boot + VFS + Window Manager
    + Context Menu + Code Editor + Notepad + File Manager
    + Notifications + Keyboard Shortcuts + Properties Window
+   + Ollama Local AI + HuggingFace Free Inference
    ═══════════════════════════════════════════════════════ */
 
 // ── Virtual File System (localStorage) ────────────────────────────────
@@ -200,7 +201,7 @@ function runBootSequence(callback) {
     const fillEl = document.getElementById('loading-fill');
     const statusEl = document.getElementById('loading-status');
 
-    const biosText = `Myanos BIOS v3.0.0 — POST (Power On Self Test)
+    const biosText = `Myanos BIOS v4.2.0 — POST (Power On Self Test)
 
 CPU: AMD64 Compatible Processor ......... OK
 Memory Test: 8192 MB ...................... OK
@@ -208,9 +209,10 @@ Storage: VFS (Virtual File System) ....... OK
 Display: Web Runtime ..................... OK
 Network: Online .......................... OK
 Security: Secure Boot ................... OK
+AI Engine: Ollama (Local) ................ OK
 
 Detecting boot device...
-  HDD-0: Myanos OS v3.0.0 ............... Found
+  HDD-0: Myanos OS v4.2.0 ............... Found
 
 Press F2 for Setup, F12 for Boot Menu
 Booting from HDD-0...`;
@@ -232,7 +234,7 @@ Booting from HDD-0...`;
         biosEl.classList.remove('active');
         grubEl.classList.add('active');
         const grubItems = [
-            '*Myanos Web OS v3.0.0',
+            '*Myanos Web OS v4.2.0',
             ' Myanos Web OS (Recovery Mode)',
             ' Myanos Web OS (Safe Mode)',
         ];
@@ -386,7 +388,7 @@ class MyanosDesktop {
         this.setupKeyboardShortcuts();
         this.startClock();
         this.applySettings();
-        this.notif.show('Myanos v3.0.0 — Desktop ready', 'success', 3000);
+        this.notif.show('Myanos v4.2.0 — Desktop ready', 'success', 3000);
     }
 
     applySettings() {
@@ -1234,9 +1236,10 @@ class MyanosDesktop {
        │  █ ▀▀▀▀▀▀ █  │
        │    ▀▀▀▀▀▀    │
        └──────────────┘
-  OS:        Myanos Web OS v3.0.0
+  OS:        Myanos Web OS v4.2.0
   Shell:     MMR Shell v1.0.0
   Desktop:   Myanos Desktop Environment
+  AI:        Ollama + HuggingFace (FREE)
   Theme:     Tokyo Night Dark
   Packages:  .myan (MyanPM)
   Language:  Myanmar Code (127 keywords)
@@ -2115,7 +2118,7 @@ class MyanosDesktop {
        │  █▀▀▀▀▀▀▀▀█  │
        │  █ ▀▀▀▀▀▀ █  │
        │    ▀▀▀▀▀▀    │
-       └──────────────┘</pre><div class="title">meonnmi@${this._escapeHtml(hostname)}</div><div style="color:#565f89;">──────────────────────────────────</div><div><span class="label">  OS:        </span><span class="info">Myanos Web OS v3.0.0</span></div><div><span class="label">  Host:      </span><span class="info">${this._escapeHtml(hostname)}</span></div><div><span class="label">  Kernel:    </span><span class="info">${this._escapeHtml(kernel)}</span></div><div><span class="label">  Shell:     </span><span class="info">MMR Shell v1.0.0</span></div><div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment</span></div><div><span class="label">  CPU:       </span><span class="info">${this._escapeHtml(cpuInfo)}</span></div><div><span class="label">  Memory:    </span><span class="info">${this._escapeHtml(memInfo)}</span></div><div><span class="label">  Disk:      </span><span class="info">${this._escapeHtml(diskInfo)}</span></div><div><span class="label">  GPU:       </span><span class="info">${this._escapeHtml(gpuInfo)}</span></div><div><span class="label">  Uptime:    </span><span class="info">${this._escapeHtml(uptime)}</span></div><div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div><div><span class="label">  Packages:  </span><span class="info">.myan (MyanPM)</span></div><div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div><div><span class="label">  Wallpaper: </span><span class="info">${(WALLPAPERS[this.vfs.getWallpaper()] || WALLPAPERS.default).name}</span></div><div style="color:#565f89;">──────────────────────────────────</div><div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div></div>`;
+       └──────────────┘</pre><div class="title">meonnmi@${this._escapeHtml(hostname)}</div><div style="color:#565f89;">──────────────────────────────────</div><div><span class="label">  OS:        </span><span class="info">Myanos Web OS v4.2.0</span></div><div><span class="label">  Host:      </span><span class="info">${this._escapeHtml(hostname)}</span></div><div><span class="label">  Kernel:    </span><span class="info">${this._escapeHtml(kernel)}</span></div><div><span class="label">  Shell:     </span><span class="info">MMR Shell v1.0.0</span></div><div><span class="label">  Desktop:   </span><span class="info">Myanos Desktop Environment</span></div><div><span class="label">  CPU:       </span><span class="info">${this._escapeHtml(cpuInfo)}</span></div><div><span class="label">  Memory:    </span><span class="info">${this._escapeHtml(memInfo)}</span></div><div><span class="label">  Disk:      </span><span class="info">${this._escapeHtml(diskInfo)}</span></div><div><span class="label">  GPU:       </span><span class="info">${this._escapeHtml(gpuInfo)}</span></div><div><span class="label">  Uptime:    </span><span class="info">${this._escapeHtml(uptime)}</span></div><div><span class="label">  Theme:     </span><span class="info">Tokyo Night Dark</span></div><div><span class="label">  Packages:  </span><span class="info">.myan (MyanPM)</span></div><div><span class="label">  Language:  </span><span class="info">Myanmar Code (127 keywords)</span></div><div><span class="label">  Wallpaper: </span><span class="info">${(WALLPAPERS[this.vfs.getWallpaper()] || WALLPAPERS.default).name}</span></div><div style="color:#565f89;">──────────────────────────────────</div><div class="highlight">  🇲🇲 Myanos Web OS — Myanmar's First Advanced Web OS</div></div>`;
     }
 
     renderMyanmarCode(body, winId) {
@@ -2768,27 +2771,61 @@ class MyanosDesktop {
     }
     renderMyanAi(body) {
         const self = this;
+        const BACKEND = self._settings.backendUrl || 'https://meonnmi0ps-myanos-os.hf.space';
+
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
+            <!-- Header -->
             <div style="padding:10px 14px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;">
                 <span style="font-size:20px;">🤖</span>
-                <div>
-                    <div style="font-size:14px;color:#c0caf5;font-weight:600;">MyanAi — Myanmar AI Assistant</div>
-                    <div style="font-size:11px;color:#565f89;">Powered by Qwen Myanmar Code (GGUF via Ollama)</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;color:#c0caf5;font-weight:600;">MyanAi — Multi-Agent AI</div>
+                    <div style="font-size:10px;color:#565f89;" id="ai-agent-info">Manager: qwen2.5:7b | Worker: burmese-coder-4b</div>
                 </div>
-                <div id="ai-status" style="margin-left:auto;padding:3px 10px;background:rgba(122,162,247,0.1);border-radius:10px;font-size:11px;color:#7aa2f7;">● Connected</div>
+                <div id="ai-agent-badges" style="display:flex;gap:4px;">
+                    <span id="ai-badge-manager" style="padding:2px 8px;background:rgba(122,162,247,0.1);border-radius:8px;font-size:10px;color:#565f89;" title="Manager Agent">M</span>
+                    <span id="ai-badge-worker" style="padding:2px 8px;background:rgba(187,154,247,0.1);border-radius:8px;font-size:10px;color:#565f89;" title="Worker Agent">W</span>
+                </div>
+                <div id="ai-status" style="padding:3px 10px;background:rgba(122,162,247,0.1);border-radius:10px;font-size:11px;color:#565f89;">● Connecting...</div>
             </div>
+            <!-- Progress Bar (hidden by default) -->
+            <div id="ai-progress-bar" style="display:none;padding:6px 14px;background:rgba(30,32,50,0.3);border-bottom:1px solid rgba(255,255,255,0.04);">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div id="ai-progress-spinner" style="width:14px;height:14px;border:2px solid rgba(122,162,247,0.2);border-top:2px solid #7aa2f7;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+                    <div style="flex:1;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                            <span id="ai-progress-label" style="font-size:10px;color:#7aa2f7;">Processing...</span>
+                            <span id="ai-progress-pct" style="font-size:10px;color:#565f89;">0%</span>
+                        </div>
+                        <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+                            <div id="ai-progress-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#7aa2f7,#bb9af7);border-radius:2px;transition:width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Heartbeat Status Bar -->
+            <div id="ai-heartbeat" style="display:flex;gap:8px;padding:4px 14px;background:rgba(30,32,50,0.2);border-bottom:1px solid rgba(255,255,255,0.03);font-size:10px;color:#565f89;">
+                <span id="hb-dot" style="color:#f7768e;">●</span>
+                <span id="hb-text">Checking server...</span>
+                <span style="flex:1;"></span>
+                <span id="hb-models">--</span>
+                <span id="hb-tasks">Tasks: 0</span>
+            </div>
+            <!-- Chat -->
             <div id="ai-chat" style="flex:1;overflow-y:auto;padding:14px;font-size:13px;line-height:1.6;"></div>
+            <!-- Input -->
             <div style="padding:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;">
                 <input id="ai-input" placeholder="Type a message... (Myanmar or English)" style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#c0caf5;font-size:13px;outline:none;" />
                 <button id="ai-send" style="padding:10px 18px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:8px;color:#7aa2f7;font-size:13px;cursor:pointer;">Send</button>
             </div>
-        </div>`;
+        </div>
+        <style>@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>`;
+
         const chat = document.getElementById('ai-chat');
         const input = document.getElementById('ai-input');
         const sendBtn = document.getElementById('ai-send');
-        let conversationHistory = [{role:'system',content:'You are MyanAi, a helpful Myanmar AI assistant. You can speak both Myanmar and English. Help users with coding, questions, and general assistance. Be friendly and concise.'}];
+        let conversationHistory = [{role:'system',content:'You are MyanAi, a helpful Myanmar AI assistant powered by Multi-Agent system. You can speak both Myanmar and English. Help users with coding, questions, and general assistance. Be friendly and concise.'}];
 
-        const addMsg = (role, text) => {
+        const addMsg = (role, text, agent) => {
             const div = document.createElement('div');
             div.style.cssText = `display:flex;gap:10px;margin-bottom:14px;${role==='user'?'flex-direction:row-reverse':''}`;
             const bubble = document.createElement('div');
@@ -2796,13 +2833,59 @@ class MyanosDesktop {
             bubble.textContent = text;
             const avatar = document.createElement('div');
             avatar.style.cssText = 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;';
-            avatar.style.background = role==='user'?'rgba(122,162,247,0.2)':'rgba(187,154,247,0.2)';
-            avatar.textContent = role==='user'?'👤':'🤖';
+            avatar.style.background = role==='user'?'rgba(122,162,247,0.2)':(agent==='worker'?'rgba(247,118,142,0.2)':'rgba(187,154,247,0.2)');
+            avatar.textContent = role==='user'?'👤':(agent==='worker'?'⚡':'🤖');
             div.appendChild(avatar); div.appendChild(bubble); chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         };
 
-        addMsg('ai', 'မင်္ဂလာပါ! 🇲🇲\nမင်္ဂလာပါ Boss! MyanAi ကocom တင်ပါတယ်။ မြန်မာဘာသာနှင့် English နှစ်မျိုးလုံး ပြောနိုင်ပါတယ်။\n\nWhat can I help you with?');
+        const showProgress = (show, label, pct) => {
+            const bar = document.getElementById('ai-progress-bar');
+            if (!bar) return;
+            bar.style.display = show ? 'block' : 'none';
+            if (label) { const l = document.getElementById('ai-progress-label'); if (l) l.textContent = label; }
+            if (pct !== undefined) {
+                const f = document.getElementById('ai-progress-fill'); if (f) f.style.width = pct + '%';
+                const p = document.getElementById('ai-progress-pct'); if (p) p.textContent = pct + '%';
+            }
+        };
+
+        addMsg('ai', 'မင်္ဂလာပါ! 🇲🇲\nMyanAi Multi-Agent System ကocom တင်ပါတယ်။\n\n🤖 Manager: qwen2.5:7b (Task planning)\n⚡ Worker: burmese-coder-4b (Myanmar Code)\n\nမြန်မာ / English နှစ်ခုလုံး ပြောနိုင်ပါတယ်။');
+
+        // Heartbeat polling
+        const heartbeatInterval = setInterval(async () => {
+            try {
+                const res = await fetch(BACKEND + '/api/heartbeat');
+                const hb = await res.json();
+                const dot = document.getElementById('hb-dot');
+                const txt = document.getElementById('hb-text');
+                const models = document.getElementById('hb-models');
+                const tasks = document.getElementById('hb-tasks');
+                const mBadge = document.getElementById('ai-badge-manager');
+                const wBadge = document.getElementById('ai-badge-worker');
+                const status = document.getElementById('ai-status');
+                if (dot) dot.style.color = '#9ece6a';
+                if (txt) txt.textContent = 'Server: Online';
+                if (models) models.textContent = (hb.system?.models_loaded || 0) + ' models';
+                if (tasks) tasks.textContent = 'Tasks: ' + (hb.active_tasks?.length || 0);
+                if (mBadge) { mBadge.style.color = hb.agents?.manager?.status === 'ready' ? '#7aa2f7' : '#f7768e'; mBadge.title = 'Manager: ' + (hb.agents?.manager?.status || 'offline'); }
+                if (wBadge) { wBadge.style.color = hb.agents?.worker?.status === 'ready' ? '#bb9af7' : '#f7768e'; wBadge.title = 'Worker: ' + (hb.agents?.worker?.status || 'offline'); }
+                if (status) { status.textContent = '● Online'; status.style.color = '#9ece6a'; }
+            } catch(e) {
+                const dot = document.getElementById('hb-dot');
+                const txt = document.getElementById('hb-text');
+                const status = document.getElementById('ai-status');
+                if (dot) dot.style.color = '#f7768e';
+                if (txt) txt.textContent = 'Server: Offline';
+                if (status) { status.textContent = '● Offline'; status.style.color = '#f7768e'; }
+            }
+        }, 5000);
+
+        // Initial heartbeat
+        fetch(BACKEND + '/api/heartbeat').then(r=>r.json()).then(hb => {
+            const info = document.getElementById('ai-agent-info');
+            if (info) info.textContent = 'Manager: ' + (hb.agents?.manager?.model || 'N/A') + ' | Worker: ' + (hb.agents?.worker?.model || 'N/A');
+        }).catch(() => {});
 
         const sendMessage = async () => {
             const msg = input.value.trim();
@@ -2810,34 +2893,35 @@ class MyanosDesktop {
             input.value = '';
             addMsg('user', msg);
             conversationHistory.push({role:'user',content:msg});
-            const statusEl = document.getElementById('ai-status');
-            if (statusEl) { statusEl.textContent='● Thinking...'; statusEl.style.color='#e0af68'; }
+            showProgress(true, 'Sending to AI...', 10);
 
             try {
-                const res = await fetch('http://localhost:11434/api/chat', {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({model:'qwen-myanmar-code',messages:conversationHistory,stream:false})
+                const res = await fetch(BACKEND + '/api/ai-chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({messages: conversationHistory, backend: 'auto'})
                 });
                 const data = await res.json();
-                const reply = data?.message?.content || data?.response || 'Sorry, I could not generate a response.';
-                addMsg('ai', reply);
-                conversationHistory.push({role:'assistant',content:reply});
-                if (statusEl) { statusEl.textContent='● Connected'; statusEl.style.color='#9ece6a'; }
+                showProgress(false);
+                if (data.success) {
+                    const agent = data.agent || 'manager';
+                    const reply = data.response || 'No response generated.';
+                    addMsg('ai', reply, agent);
+                    conversationHistory.push({role:'assistant',content:reply});
+                    const info = document.getElementById('ai-agent-info');
+                    if (info) info.textContent = 'Last: ' + (data.model || 'unknown') + ' (' + agent + ')';
+                } else {
+                    addMsg('ai', '❌ ' + (data.error || 'Request failed. Please try again.'));
+                }
             } catch(e) {
-                addMsg('ai', '⚠️ Ollama server not running.\n\nTo set up:\n1. Install Ollama: curl -fsSL https://ollama.com/install.sh | sh\n2. Create model: ollama create myanmar -f Modelfile\n3. Start: ollama serve\n\nOr use the built-in response system below.\n\nHello! I am MyanAi. I can help with Myanmar programming and general questions. Please start Ollama for full AI capabilities.');
-                if (statusEl) { statusEl.textContent='● Offline'; statusEl.style.color='#f7768e'; }
+                showProgress(false);
+                addMsg('ai', '⚠️ Cannot connect to server.\n\nBackend: ' + BACKEND + '\nError: ' + e.message + '\n\nCheck your internet connection or Settings > Network.');
             }
         };
 
         sendBtn.addEventListener('click', sendMessage);
         input.addEventListener('keydown', (e) => { if (e.key==='Enter') sendMessage(); });
         input.focus();
-        // Check Ollama status
-        fetch('http://localhost:11434/api/tags').then(r=>r.json()).then(d=>{
-            const st=document.getElementById('ai-status');
-            if(st){st.textContent=d?.models?.length?'● '+d.models.length+' model(s)':'● Ollama OK';st.style.color='#9ece6a';}
-        }).catch(()=>{const st=document.getElementById('ai-status');if(st){st.textContent='● Offline';st.style.color='#f7768e';}});
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2860,7 +2944,114 @@ class MyanosDesktop {
             consoleLogs: [],
             trainingState: { active:false, epoch:0, totalEpochs:10, loss:0, lr:0.001, accuracy:0 },
             dashInterval: null,
+            colabUrl: localStorage.getItem('tc_colab_url') || '',
+            colabConnected: false,
+            colabGpuName: '',
+            colabGpuMemory: '',
+            colabUptime: 0,
+            keepAliveInterval: null,
         };
+
+        // ── API URL Helper (Colab or Localhost) ──
+        function getApiUrl(path) {
+            if (session.colabUrl && session.colabConnected) {
+                return session.colabUrl.replace(/\/+$/, '') + path;
+            }
+            return path;
+        }
+
+        // ── Colab Connect / Disconnect ──
+        async function connectColab(url) {
+            url = (url || '').trim();
+            if (!url) { self.notif.show('Enter Colab URL first', 'warning'); return; }
+            url = url.replace(/\/+$/, '');
+            addConsoleLog('info', `Connecting to Colab: ${url}...`);
+            try {
+                const res = await fetch(url + '/api/health', { signal: AbortSignal.timeout(8000) });
+                const data = await res.json();
+                if (data.status === 'online') {
+                    session.colabUrl = url;
+                    session.colabConnected = true;
+                    session.colabGpuName = data.gpu || 'CPU Only';
+                    session.colabGpuMemory = data.gpu_memory || 'N/A';
+                    session.colabUptime = data.uptime_seconds || 0;
+                    localStorage.setItem('tc_colab_url', url);
+                    updateColabStatusUI('connected', data);
+                    addConsoleLog('success', `Colab connected! GPU: ${session.colabGpuName}, VRAM: ${session.colabGpuMemory}`);
+                    self.notif.show(`Colab GPU Connected: ${session.colabGpuName}`, 'success');
+                    startKeepAlive();
+                    if (session.activeSidebar === 'colab') renderSidebar();
+                } else {
+                    throw new Error('Server returned offline status');
+                }
+            } catch(e) {
+                session.colabConnected = false;
+                updateColabStatusUI('disconnected');
+                addConsoleLog('error', `Colab connection failed: ${e.message}`);
+                self.notif.show('Colab connection failed', 'error');
+            }
+        }
+
+        function disconnectColab() {
+            session.colabConnected = false;
+            stopKeepAlive();
+            updateColabStatusUI('disconnected');
+            addConsoleLog('warn', 'Disconnected from Colab GPU');
+            self.notif.show('Colab disconnected', 'info');
+            if (session.activeSidebar === 'colab') renderSidebar();
+        }
+
+        function updateColabStatusUI(state, data) {
+            const dot = document.getElementById('tc-colab-status-dot');
+            const text = document.getElementById('tc-colab-status-text');
+            const tab = document.getElementById('tc-colab-sidebar-tab');
+            if (state === 'connected') {
+                if (dot) dot.className = 'tc-connect-dot connected';
+                if (text) text.textContent = session.colabGpuName || 'GPU';
+                if (tab) { tab.style.color = '#9ece6a'; tab.style.borderBottomColor = '#9ece6a'; }
+            } else if (state === 'connecting') {
+                if (dot) dot.className = 'tc-connect-dot checking';
+                if (text) text.textContent = 'connecting...';
+            } else {
+                if (dot) dot.className = 'tc-connect-dot disconnected';
+                if (text) text.textContent = 'no GPU';
+                if (tab) { tab.style.color = ''; tab.style.borderBottomColor = ''; }
+            }
+        }
+
+        // ── Keep Alive (prevent Colab disconnect) ──
+        function startKeepAlive() {
+            stopKeepAlive();
+            if (!session.colabUrl) return;
+            session.keepAliveInterval = setInterval(async () => {
+                if (!session.colabUrl || !session.colabConnected) { stopKeepAlive(); return; }
+                try {
+                    const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/keep-alive', { signal: AbortSignal.timeout(5000) });
+                    const data = await res.json();
+                    if (data.status === 'alive') {
+                        session.colabUptime = data.uptime || 0;
+                        // Silently update uptime in sidebar if visible
+                        const uptimeEl = document.getElementById('tc-colab-uptime-val');
+                        if (uptimeEl) {
+                            const h = Math.floor(data.uptime / 3600);
+                            const m = Math.floor((data.uptime % 3600) / 60);
+                            const s = data.uptime % 60;
+                            uptimeEl.textContent = `${h}h ${m}m ${s}s`;
+                        }
+                    }
+                } catch(e) {
+                    session.colabConnected = false;
+                    updateColabStatusUI('disconnected');
+                    addConsoleLog('error', 'Colab connection lost (keep-alive failed)');
+                    stopKeepAlive();
+                    if (session.activeSidebar === 'colab') renderSidebar();
+                }
+            }, 55000);
+        }
+
+        function stopKeepAlive() {
+            if (session.keepAliveInterval) { clearInterval(session.keepAliveInterval); session.keepAliveInterval = null; }
+        }
 
         // ── Create notebook container ──
         body.innerHTML = `<div class="tc-container" style="position:relative;">
@@ -2880,6 +3071,10 @@ class MyanosDesktop {
                 <button class="tc-toolbar-btn" id="tc-toggle-sidebar" title="Toggle Sidebar">☰</button>
                 <button class="tc-toolbar-btn ${session.activeView==='notebook'?'active':''}" id="tc-view-notebook" title="Notebook">📓</button>
                 <button class="tc-toolbar-btn ${session.activeView==='dashboard'?'active':''}" id="tc-view-dashboard" title="Dashboard">📊</button>
+                <span id="tc-colab-status-badge" style="display:flex;align-items:center;gap:4px;font-size:10px;color:#565f89;margin-right:6px;" title="Colab GPU Status">
+                    <span class="tc-connect-dot disconnected" id="tc-colab-status-dot"></span>
+                    <span id="tc-colab-status-text">no GPU</span>
+                </span>
                 <span id="tc-connect-status" style="display:flex;align-items:center;gap:4px;font-size:10px;color:#565f89;" title="Ollama Status">
                     <span class="tc-connect-dot checking" id="tc-connect-dot"></span>
                     <span id="tc-connect-text">checking...</span>
@@ -2891,6 +3086,7 @@ class MyanosDesktop {
                 <!-- Sidebar -->
                 <div class="tc-sidebar" id="tc-sidebar">
                     <div class="tc-sidebar-tabs">
+                        <div class="tc-sidebar-tab" data-tab="colab" id="tc-colab-sidebar-tab">🖥️ GPU</div>
                         <div class="tc-sidebar-tab active" data-tab="files">📁 Files</div>
                         <div class="tc-sidebar-tab" data-tab="models">🤖 Models</div>
                         <div class="tc-sidebar-tab" data-tab="sessions">📋 Sessions</div>
@@ -3111,7 +3307,7 @@ class MyanosDesktop {
             addConsoleLog('info', `Running Cell [${session.cells.indexOf(cell)}]...`);
 
             try {
-                const res = await fetch('/api/training', {
+                const res = await fetch(getApiUrl('/api/training'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'execute_cell', code: code })
@@ -3196,7 +3392,236 @@ class MyanosDesktop {
             const content = document.getElementById('tc-sidebar-content');
             if (!content) return;
 
-            if (session.activeSidebar === 'files') {
+            if (session.activeSidebar === 'colab') {
+                // Colab GPU Connect Panel
+                const uptimeH = Math.floor(session.colabUptime / 3600);
+                const uptimeM = Math.floor((session.colabUptime % 3600) / 60);
+                const uptimeS = session.colabUptime % 60;
+
+                content.innerHTML = `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">🖥️ Colab GPU Connect</div>
+                        <div style="padding:6px 8px;">
+                            <div class="tc-colab-url-row">
+                                <input class="tc-colab-url-input" id="tc-colab-url-input" type="text"
+                                    placeholder="https://xxxx.ngrok-free.app"
+                                    value="${self._escapeHtml(session.colabUrl)}" />
+                                <button class="tc-toolbar-btn ${session.colabConnected?'stop-btn':'run-btn'}" id="tc-colab-connect-btn"
+                                    style="padding:5px 10px;font-size:10px;white-space:nowrap;flex-shrink:0;">
+                                    ${session.colabConnected?'✕ Disconnect':'🔗 Connect'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ${session.colabConnected ? `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📊 GPU Status</div>
+                        <div class="tc-colab-info-card">
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">GPU</span><span class="tc-colab-info-value green">${self._escapeHtml(session.colabGpuName)}</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">VRAM</span><span class="tc-colab-info-value">${self._escapeHtml(session.colabGpuMemory)}</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Uptime</span><span class="tc-colab-info-value" id="tc-colab-uptime-val">${uptimeH}h ${uptimeM}m ${uptimeS}s</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Status</span><span class="tc-colab-info-value" style="color:#9ece6a;">Online</span></div>
+                        </div>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">⚡ Quick Actions</div>
+                        <button class="tc-toolbar-btn" id="tc-colab-gpu-info" style="width:100%;justify-content:center;margin-bottom:4px;">🔍 GPU Details</button>
+                        <button class="tc-toolbar-btn" id="tc-colab-upload-ds" style="width:100%;justify-content:center;margin-bottom:4px;">📤 Upload Dataset</button>
+                        <button class="tc-toolbar-btn" id="tc-colab-start-train" style="width:100%;justify-content:center;margin-bottom:4px;">🔥 Start Training</button>
+                        <button class="tc-toolbar-btn" id="tc-colab-hf-datasets" style="width:100%;justify-content:center;margin-bottom:4px;">📥 HF Datasets</button>
+                        <button class="tc-toolbar-btn" id="tc-colab-check-pkgs" style="width:100%;justify-content:center;">🧪 Check Packages</button>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">💓 Keep Alive</div>
+                        <div style="padding:4px 8px;font-size:11px;color:#565f89;">
+                            Auto-ping every 55s: <span style="color:#9ece6a;">Active</span>
+                        </div>
+                        <div style="padding:2px 8px;font-size:10px;color:#3b4261;">
+                            Last ping: ${session.colabUptime > 0 ? 'running' : 'never'}
+                        </div>
+                    </div>` : `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📖 How to Connect</div>
+                        <div style="padding:6px 8px;font-size:11px;color:#565f89;line-height:1.6;">
+                            <div style="margin-bottom:6px;">
+                                <span style="color:#7aa2f7;font-weight:600;">Step 1:</span> Open Google Colab<br/>
+                                <span style="color:#565f89;font-size:10px;">colab.research.google.com</span>
+                            </div>
+                            <div style="margin-bottom:6px;">
+                                <span style="color:#7aa2f7;font-weight:600;">Step 2:</span> Upload the notebook<br/>
+                                <span style="color:#565f89;font-size:10px;">Myanos-Colab-Linker.ipynb</span>
+                            </div>
+                            <div style="margin-bottom:6px;">
+                                <span style="color:#7aa2f7;font-weight:600;">Step 3:</span> Runtime > T4 GPU<br/>
+                                <span style="color:#565f89;font-size:10px;">Change runtime type</span>
+                            </div>
+                            <div style="margin-bottom:6px;">
+                                <span style="color:#7aa2f7;font-weight:600;">Step 4:</span> Run all cells<br/>
+                                <span style="color:#565f89;font-size:10px;">Copy the public URL</span>
+                            </div>
+                            <div>
+                                <span style="color:#7aa2f7;font-weight:600;">Step 5:</span> Paste URL above & Connect
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">💡 Tip</div>
+                        <div style="padding:4px 8px;font-size:10px;color:#565f89;">
+                            Run the "Keep Alive" cell in Colab to prevent auto-disconnect.
+                        </div>
+                    </div>`}`;
+
+                // Wire up Colab sidebar events
+                document.getElementById('tc-colab-connect-btn')?.addEventListener('click', () => {
+                    if (session.colabConnected) {
+                        disconnectColab();
+                    } else {
+                        const url = document.getElementById('tc-colab-url-input')?.value;
+                        connectColab(url);
+                    }
+                });
+                document.getElementById('tc-colab-url-input')?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const url = e.target.value;
+                        connectColab(url);
+                    }
+                });
+                document.getElementById('tc-colab-gpu-info')?.addEventListener('click', async () => {
+                    if (!session.colabUrl) return;
+                    addConsoleLog('info', 'Fetching GPU details from Colab...');
+                    try {
+                        const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/gpu/info');
+                        const data = await res.json();
+                        if (data.gpu_available) {
+                            addConsoleLog('success', `GPU: ${data.name}`);
+                            addConsoleLog('info', `VRAM: ${data.memory_used_gb} / ${data.memory_total_gb}`);
+                            addConsoleLog('info', `Utilization: ${data.utilization}%`);
+                            addConsoleLog('info', `Temperature: ${data.temperature_c > 0 ? data.temperature_c + 'C' : 'N/A'}`);
+                            addConsoleLog('info', `CUDA: ${data.cuda_version || 'N/A'}`);
+                        } else {
+                            addConsoleLog('warn', 'No GPU available on Colab (switch to GPU runtime)');
+                        }
+                    } catch(e) {
+                        addConsoleLog('error', `Failed: ${e.message}`);
+                    }
+                });
+                document.getElementById('tc-colab-upload-ds')?.addEventListener('click', () => {
+                    addCell('code', `# Upload Dataset to Colab GPU\n# This will send your dataset to the Colab server for training\n\nimport json\n\n# Example: Create a Myanmar instruction dataset\ndataset = [\n    {"instruction": "မြန်မာလို ပြောပေးပါ", "input": "", "output": "ဟုတ်ကဲ့သို့။ မင်္ဂလာပါ။"},\n    {"instruction": "What is AI?", "input": "", "output": "AI ဆိုတာ Artificial Intelligence ပါ။ လမ်းညွှန်ချက်ကို ကိရိယာတစ်ခုနဲ့ တိုက်ရိုက်လုပ်တတ်တဲ့ နည်းပညာဖြစ်ပါတယ်။"},\n    {"instruction": "အောက်ပါကို မြန်မာလို ဘက်ဆင်ပေးပါ: Hello", "input": "", "output": "ဟုတ်ပါ"},\n]\n\n# To upload, you can run this in a connected Colab cell:\n# The dataset will be saved to /content/myanos_dataset.jsonl\nprint(f"Dataset ready: {len(dataset)} samples")\nprint("Upload this to Colab using the sidebar Upload button")`);
+                    self.notif.show('Dataset template created', 'success');
+                });
+                document.getElementById('tc-colab-start-train')?.addEventListener('click', async () => {
+                    if (!session.colabUrl) return;
+                    self._showInputDialog('🔥 Start Training on Colab', 'Dataset path (e.g. /content/myanos_dataset.jsonl)', '/content/myanos_dataset.jsonl', async (datasetPath) => {
+                        if (!datasetPath) return;
+                        addConsoleLog('info', `Starting training on Colab GPU: ${datasetPath}`);
+                        addConsoleLog('info', 'Switching to Dashboard to monitor progress...');
+                        switchView('dashboard');
+                        try {
+                            const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/train/start', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ dataset_path: datasetPath, model_name: 'myanmar-model', epochs: 10, learning_rate: 2e-5 })
+                            });
+                            const data = await res.json();
+                            // Parse training output
+                            const logEl = document.getElementById('tc-training-log');
+                            const panel = document.getElementById('tc-train-status');
+                            if (data.status === 0 && data.output) {
+                                const lines = data.output.split('\\n');
+                                let started = false;
+                                lines.forEach(line => {
+                                    if (line.includes('TRAINING_START')) { started = true; if (panel) panel.textContent = 'Training on Colab GPU...'; return; }
+                                    if (line.includes('TRAINING_PIPELINE_END')) {
+                                        const parts = line.split(':');
+                                        session.trainingState.active = false;
+                                        if (panel) panel.textContent = `Completed! Time: ${parts[1]}s, Loss: ${parts[2]}, Acc: ${parts[3]}%`;
+                                        addConsoleLog('success', `Training completed in ${parts[1]}s`);
+                                        return;
+                                    }
+                                    if (line.startsWith('EPOCH_DATA:')) {
+                                        const parts = line.split(':');
+                                        const epoch = parseInt(parts[1]), total = parseInt(parts[2]);
+                                        const loss = parseFloat(parts[3]), acc = parseFloat(parts[4]);
+                                        const lr = parseFloat(parts[5]), speed = parseFloat(parts[6]);
+                                        const pct = (epoch / total * 100).toFixed(0);
+                                        const fill = document.getElementById('tc-epoch-fill');
+                                        if (fill) fill.style.width = pct + '%';
+                                        document.getElementById('tc-epoch-label').textContent = `Epoch ${epoch}/${total}`;
+                                        document.getElementById('tc-loss-val').textContent = loss.toFixed(4);
+                                        document.getElementById('tc-acc-val').textContent = acc.toFixed(1) + '%';
+                                        document.getElementById('tc-lr-val').textContent = lr.toFixed(6);
+                                        document.getElementById('tc-speed-val').textContent = speed.toFixed(0) + ' it/s';
+                                        if (logEl) {
+                                            const entry = document.createElement('div');
+                                            entry.className = 'tc-log-entry';
+                                            const ts = new Date().toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+                                            entry.innerHTML = `<span class="tc-log-time">${ts}</span><span class="tc-log-icon">🔥</span><span class="tc-log-msg">Epoch ${epoch}: loss=${loss.toFixed(4)} acc=${acc.toFixed(1)}% (Colab GPU)</span>`;
+                                            logEl.insertBefore(entry, logEl.firstChild);
+                                        }
+                                    }
+                                });
+                            } else {
+                                addConsoleLog('error', `Training failed: ${data.output}`);
+                            }
+                        } catch(e) {
+                            addConsoleLog('error', `Training error: ${e.message}`);
+                        }
+                    });
+                });
+                document.getElementById('tc-colab-hf-datasets')?.addEventListener('click', async () => {
+                    if (!session.colabUrl) return;
+                    addConsoleLog('info', 'Fetching available Myanmar datasets...');
+                    try {
+                        const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/myanmar/datasets');
+                        const data = await res.json();
+                        if (data.status === 0) {
+                            addConsoleLog('success', `${data.datasets.length} Myanmar datasets available on HuggingFace:`);
+                            data.datasets.forEach((ds, i) => {
+                                addConsoleLog('info', `  ${i+1}. ${ds.name} (${ds.rows} rows) [${ds.type}]`);
+                            });
+                            self._showInputDialog('📥 Download HF Dataset', 'Dataset ID (e.g. wikipedia_my)', '', async (dsId) => {
+                                if (!dsId) return;
+                                addConsoleLog('info', `Downloading ${dsId} from HuggingFace via Colab...`);
+                                try {
+                                    const dlRes = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/hf/download', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ dataset_id: dsId })
+                                    });
+                                    const dlData = await dlRes.json();
+                                    addConsoleLog(dlData.status === 0 ? 'success' : 'error', dlData.output || dlData.error || 'Download complete');
+                                } catch(e) {
+                                    addConsoleLog('error', `Download failed: ${e.message}`);
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        addConsoleLog('error', `Failed: ${e.message}`);
+                    }
+                });
+                document.getElementById('tc-colab-check-pkgs')?.addEventListener('click', async () => {
+                    if (!session.colabUrl) return;
+                    addConsoleLog('info', 'Checking ML packages on Colab...');
+                    try {
+                        const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/packages/check', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ packages: ['torch', 'transformers', 'datasets', 'accelerate', 'peft', 'trl', 'bitsandbytes'] })
+                        });
+                        const data = await res.json();
+                        if (data.status === 0) {
+                            for (const [pkg, info] of Object.entries(data.packages)) {
+                                const status = info.installed ? `v${info.version}` : 'NOT INSTALLED';
+                                const level = info.installed ? 'success' : 'warn';
+                                addConsoleLog(level, `  ${pkg}: ${status}`);
+                            }
+                        }
+                    } catch(e) {
+                        addConsoleLog('error', `Check failed: ${e.message}`);
+                    }
+                });
+
+            } else if (session.activeSidebar === 'files') {
                 const files = self.vfs.list('/Documents');
                 const filesHtml = files.length > 0 ? files.map(f =>
                     `<div class="tc-file-item" data-path="${f.path}"><span class="file-icon">${f.type==='folder'?'📁':self._getFileIcon(f.path)}</span><span class="file-name">${self.vfs.basename(f.path)}</span></div>`
@@ -3400,7 +3825,7 @@ class MyanosDesktop {
             if (session.dashInterval) clearInterval(session.dashInterval);
             session.dashInterval = setInterval(async () => {
                 try {
-                    const res = await fetch('/api/training', {
+                    const res = await fetch(getApiUrl('/api/training'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'system_stats' })
@@ -3422,11 +3847,17 @@ class MyanosDesktop {
                         if (utilPct) utilPct.textContent = data.gpu_util + '%';
                         if (memPct) memPct.textContent = data.gpu_mem_used.toFixed(0) + ' / ' + data.gpu_mem_total.toFixed(0) + ' MiB';
                         const gpuInfo = document.getElementById('tc-gpu-info');
-                        if (gpuInfo) gpuInfo.textContent = 'GPU detected via nvidia-smi';
+                        const gpuName = data.gpu_name || (session.colabConnected ? session.colabGpuName : 'GPU');
+                        let infoText = gpuName;
+                        if (data.gpu_temperature && data.gpu_temperature > 0) {
+                            infoText += ` | ${data.gpu_temperature}C`;
+                        }
+                        if (session.colabConnected) infoText += ' | Colab';
+                        if (gpuInfo) gpuInfo.textContent = infoText;
                         document.getElementById('tc-gpu-val').textContent = data.gpu_util + '%';
                     } else {
                         const gpuInfo = document.getElementById('tc-gpu-info');
-                        if (gpuInfo) gpuInfo.textContent = 'No GPU detected (nvidia-smi not found)';
+                        if (gpuInfo) gpuInfo.textContent = session.colabConnected ? 'No GPU (change Colab runtime to GPU)' : 'No GPU detected';
                         document.getElementById('tc-gpu-val').textContent = 'N/A';
                     }
                 } catch(e) {
@@ -3512,7 +3943,7 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
             if (logEl) logEl.innerHTML = '';
 
             // Execute training code via real backend
-            fetch('/api/training', {
+            fetch(getApiUrl('/api/training'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'execute_cell', code: trainingCode })
@@ -3677,7 +4108,7 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
                     consoleInput.value = '';
                     addConsoleLog('info', `$ ${cmd}`);
                     try {
-                        const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd, session:'tc-console'}) });
+                        const res = await fetch(getApiUrl('/api/exec'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd, session:'tc-console'}) });
                         const data = await res.json();
                         addConsoleLog('', data.output || '(no output)');
                     } catch(err) {
@@ -3705,7 +4136,7 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
 
         if (session.cells.length === 0) {
             // Default cells
-            addCell('markdown', '# AI Training Center\nWelcome to **MyanOS AI Training Center** — a Google Colab-like notebook environment for AI/ML development.\n\n## Features\n- 🐍 **Python Code Execution** — Run code cells with Shift+Enter\n- 📓 **Notebook Interface** — Add code and markdown cells\n- 🤖 **Ollama Integration** — Connect to local AI models\n- 📊 **Training Dashboard** — Monitor GPU, memory, training progress\n- 💾 **Session Management** — Save and load notebook sessions\n- 📁 **File Browser** — Access VFS files and datasets\n\n## Quick Start\n1. Select a template from the **Sessions** tab in sidebar\n2. Or click **+ Code** to add a new code cell\n3. Press **Shift+Enter** to run a cell\n4. Switch to **Dashboard** view for system monitoring');
+            addCell('markdown', '# AI Training Center\nWelcome to **MyanOS AI Training Center** — a Colab-like notebook for AI/ML with **real GPU power**.\n\n## Features\n- 🐍 **Python Code Execution** — Run code cells with Shift+Enter\n- 📓 **Notebook Interface** — Add code and markdown cells\n- 🖥️ **Colab GPU Connect** — Use Google Colab T4 GPU as backend (NEW!)\n- 📊 **GPU Dashboard** — Real-time VRAM, temp, utilization monitoring\n- 🤖 **Ollama Integration** — Connect to local AI models\n- 🇲🇲 **Myanmar NLP** — 72+ datasets, fine-tuning tools\n- 💾 **Session Management** — Save and load notebook sessions\n- 💓 **Keep Alive** — Auto-ping prevents Colab disconnect\n\n## Quick Start (Colab GPU)\n1. Open Google Colab > Upload **Myanos-Colab-Linker.ipynb**\n2. Change runtime to **T4 GPU** > Run all cells\n3. Copy the public URL\n4. Click **GPU** tab in sidebar > Paste URL > **Connect**\n5. Start coding with real GPU!');
             addCell('code', '# Welcome — Test Your Environment\nimport sys\nimport os\nimport platform\n\nprint("=" * 45)\nprint("  MyanOS AI Training Center")\nprint("=" * 45)\nprint(f"  Python:    {sys.version.split()[0]}")\nprint(f"  Platform:  {platform.system()}")\nprint(f"  Arch:      {platform.machine()}")\nprint(f"  PID:       {os.getpid()}")\nprint("=" * 45)\nprint("  Environment ready! Start coding below.")\nprint("=" * 45)');
         } else {
             refreshAllCells();
@@ -3714,6 +4145,13 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
         renderSidebar();
         fetchOllamaModels();
         addConsoleLog('info', 'AI Training Center initialized');
+
+        // Auto-reconnect to saved Colab URL
+        if (session.colabUrl) {
+            updateColabStatusUI('connecting');
+            addConsoleLog('info', `Auto-reconnecting to saved Colab: ${session.colabUrl}...`);
+            setTimeout(() => connectColab(session.colabUrl), 1500);
+        }
     }
 
     renderBrowser(body) {
@@ -3725,10 +4163,15 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
                 <button id="br-home" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">🏠</button>
                 <input id="br-url" type="text" value="https://github.com/meonnmi-ops/Myanos" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
             </div>
-            <div id="br-bookmarks" style="display:flex;gap:4px;padding:4px 12px;background:rgba(30,32,50,0.3);border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;">
+            <div id="br-bookmarks" style="display:flex;gap:4px;padding:4px 12px;background:rgba(30,32,50,0.3);border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;overflow-x:auto;white-space:nowrap;">
                 <span class="br-bm" data-url="https://github.com/meonnmi-ops/Myanos" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">GitHub</span>
-                <span class="br-bm" data-url="https://www.google.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">Google</span>
-                <span class="br-bm" data-url="https://my.wikipedia.org" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">Wikipedia MM</span>
+                <span class="br-bm" data-url="https://duckduckgo.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">DuckDuckGo</span>
+                <span class="br-bm" data-url="https://developer.mozilla.org" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#bb9af7;cursor:pointer;">MDN Docs</span>
+                <span class="br-bm" data-url="https://www.w3schools.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#9ece6a;cursor:pointer;">W3Schools</span>
+                <span class="br-bm" data-url="https://huggingface.co" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#e0af68;cursor:pointer;">HuggingFace</span>
+                <span class="br-bm" data-url="https://stackoverflow.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#f7768e;cursor:pointer;">StackOverflow</span>
+                <span class="br-bm" data-url="https://codepen.io" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7dcfff;cursor:pointer;">CodePen</span>
+                <span class="br-bm" data-url="https://en.wikipedia.org/wiki/Computer_programming" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#a9b1d6;cursor:pointer;">Wikipedia: Programming</span>
             </div>
             <div id="br-frame-container" style="flex:1;position:relative;">
                 <iframe id="br-iframe" src="https://github.com/meonnmi-ops/Myanos" style="width:100%;height:100%;border:none;background:#fff;" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
