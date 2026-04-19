@@ -288,8 +288,8 @@ def cmd_ai(args):
         print("       Install: myanos pkg install ./dist/myanai-1.0.0.myan")
         return
     sys.path.insert(0, str(BASE_DIR / "myanai"))
- os.chdir(str(BASE_DIR / "myanai"))
- os.system(f"{sys.executable} {myanai_script} {' '.join(args[1:])}")
+    os.chdir(str(BASE_DIR / "myanai"))
+    os.system(f"{sys.executable} {myanai_script} {' '.join(args[1:])}")
 
 def main():
     args = sys.argv[1:]

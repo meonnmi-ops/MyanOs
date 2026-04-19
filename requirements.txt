@@ -1,0 +1,9 @@
+# MyanOS Web OS v4.3.0 — Requirements
+# Core: Python 3.6+ stdlib (no pip needed for basic operation)
+# Optional: install these for enhanced features
+
+# System monitoring (CPU, RAM, Disk, GPU, Network stats)
+psutil>=5.9.0
+
+# Myanmar Code language support (optional)
+# myanmar-code>=2.0.1

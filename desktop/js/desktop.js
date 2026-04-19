@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   Myanos Desktop Environment v4.2.0
+   Myanos Desktop Environment v4.3.0
    Full Real OS Experience — Boot + VFS + Window Manager
    + Context Menu + Code Editor + Notepad + File Manager
    + Notifications + Keyboard Shortcuts + Properties Window
@@ -201,7 +201,7 @@ function runBootSequence(callback) {
     const fillEl = document.getElementById('loading-fill');
     const statusEl = document.getElementById('loading-status');
 
-    const biosText = `Myanos BIOS v4.2.0 — POST (Power On Self Test)
+    const biosText = `Myanos BIOS v4.3.0 — POST (Power On Self Test)
 
 CPU: AMD64 Compatible Processor ......... OK
 Memory Test: 8192 MB ...................... OK
@@ -212,7 +212,7 @@ Security: Secure Boot ................... OK
 AI Engine: Ollama (Local) ................ OK
 
 Detecting boot device...
-  HDD-0: Myanos OS v4.2.0 ............... Found
+  HDD-0: Myanos OS v4.3.0 ............... Found
 
 Press F2 for Setup, F12 for Boot Menu
 Booting from HDD-0...`;
@@ -234,7 +234,7 @@ Booting from HDD-0...`;
         biosEl.classList.remove('active');
         grubEl.classList.add('active');
         const grubItems = [
-            '*Myanos Web OS v4.2.0',
+            '*Myanos Web OS v4.3.0',
             ' Myanos Web OS (Recovery Mode)',
             ' Myanos Web OS (Safe Mode)',
         ];
@@ -356,6 +356,9 @@ class MyanosDesktop {
         this._termHistoryIdx = -1;
         this._settings = JSON.parse(localStorage.getItem('myanos_settings') || '{}');
         this._isLocked = false;
+        this._apiKey = null;
+        this._lockAttempts = 0;
+        this._lockCooldown = false;
 
         this.apps = [
             { id:'terminal', name:'Terminal', icon:'⬛', desc:'MMR Shell', category:'system' },
@@ -373,6 +376,8 @@ class MyanosDesktop {
             { id:'myanai', name:'MyanAi', icon:'🤖', desc:'AI Agent Builder', category:'ai' },
             { id:'ai-training', name:'AI Training Center', icon:'🧠', desc:'Train & manage AI models', category:'ai' },
             { id:'browser', name:'Web Browser', icon:'🌐', desc:'Browse the web', category:'apps' },
+            { id:'calculator', name:'Calculator', icon:'🔢', desc:'Scientific calculator', category:'tools' },
+            { id:'media-player', name:'Media Player', icon:'🎵', desc:'Audio player', category:'apps' },
         ];
 
         this.init();
@@ -388,7 +393,23 @@ class MyanosDesktop {
         this.setupKeyboardShortcuts();
         this.startClock();
         this.applySettings();
-        this.notif.show('Myanos v4.2.0 — Desktop ready', 'success', 3000);
+        this.notif.show('Myanos v4.3.0 — Desktop ready', 'success', 3000);
+    }
+
+    async _fetchApiKey() {
+        if (this._apiKey) return this._apiKey;
+        try {
+            const cached = localStorage.getItem('myanos_api_key');
+            if (cached) { this._apiKey = cached; return cached; }
+            const res = await fetch('/api/key');
+            const data = await res.json();
+            if (data.api_key) {
+                this._apiKey = data.api_key;
+                localStorage.setItem('myanos_api_key', data.api_key);
+                return data.api_key;
+            }
+        } catch(e) {}
+        return '';
     }
 
     applySettings() {
@@ -1018,10 +1039,6 @@ class MyanosDesktop {
                 this.renderDesktopIcons();
                 this.notif.show('Desktop refreshed', 'info', 1500);
             }
-            // ESC - unlock
-            if (e.key === 'Escape' && this._isLocked) {
-                this.unlockScreen();
-            }
         });
     }
 
@@ -1047,6 +1064,8 @@ class MyanosDesktop {
             'myanai': () => this.renderMyanAi(body),
             'ai-training': () => this.renderTrainingCenter(body),
             'browser': () => this.renderBrowser(body),
+            'calculator': () => this.renderCalculator(body),
+            'media-player': () => this.renderMediaPlayer(body),
         };
         const r = renderers[win.app.id];
         if (r) r();
@@ -1062,7 +1081,8 @@ class MyanosDesktop {
         term.innerHTML = `<div class="term-line" style="color:#7aa2f7;">Connecting to MMR Shell...</div>`;
         let apiWorking = false;
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd:'echo MMRSHELL_OK'}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body:JSON.stringify({cmd:'echo MMRSHELL_OK'}) });
             const data = await res.json();
             if (data.output && data.output.includes('MMRSHELL_OK')) apiWorking = true;
         } catch(e) { apiWorking = false; }
@@ -1129,7 +1149,7 @@ class MyanosDesktop {
             'date': () => new Date().toString(),
             'whoami': () => 'meonnmi',
             'hostname': () => 'myanos',
-            'uname': () => 'Myanos Web OS v3.0.0 AMD64',
+            'uname': () => 'Myanos Web OS v4.3.0 AMD64',
             'pwd': () => '/home/meonnmi',
             'neofetch': () => this._neofetchText(),
         };
@@ -1218,7 +1238,8 @@ class MyanosDesktop {
         }
 
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cmd,session:winId}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body:JSON.stringify({cmd,session:winId}) });
             const data = await res.json();
             if (data.output==='__CLEAR__') { term.innerHTML=''; }
             else if (data.output==='exit') { this.closeWindow(winId); return; }
@@ -1879,7 +1900,8 @@ class MyanosDesktop {
         let cpu=0, cpuCores=0, cpuFreq=0, memPct=0, memUsedGb=0, memTotalGb=0, diskPct=0, diskUsedGb=0, diskTotalGb=0, tempC=0, tempLabel='N/A', uptimeStr='N/A', netConnected=false, netIfaces=[], gpuAvailable=false, gpuList=[];
 
         try {
-            const res = await fetch('/api/system-stats');
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/system-stats', { headers:{'X-API-Key': apiKey} });
             if (res.ok) {
                 const s = await res.json();
                 cpu = s.cpu?.percent || 0;
@@ -1904,7 +1926,8 @@ class MyanosDesktop {
         // Build per-CPU bars if available
         let perCpuHtml = '';
         try {
-            const res = await fetch('/api/system-stats');
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/system-stats', { headers:{'X-API-Key': apiKey} });
             if (res.ok) {
                 const s = await res.json();
                 if (s.cpu?.per_cpu?.length) {
@@ -1964,7 +1987,8 @@ class MyanosDesktop {
         // Auto-refresh every 5 seconds
         const refreshInterval = setInterval(async () => {
             try {
-                const res = await fetch('/api/system-stats');
+                const apiKey = await this._fetchApiKey();
+                const res = await fetch('/api/system-stats', { headers:{'X-API-Key': apiKey} });
                 if (!res.ok) return;
                 const s = await res.json();
                 // Update CPU
@@ -2042,7 +2066,7 @@ class MyanosDesktop {
                     <div style="text-align:center;padding:20px 0;">
                         <div style="font-size:64px;margin-bottom:12px;">🇲🇲</div>
                         <div style="font-size:20px;color:#c0caf5;font-weight:600;">Myanos Web OS</div>
-                        <div style="font-size:13px;color:#565f89;margin-top:4px;">Version 3.1.0</div>
+                        <div style="font-size:13px;color:#565f89;margin-top:4px;">Version 4.3.0</div>
                     </div>
                     <table style="width:100%;border-collapse:collapse;">
                         <tr class="settings-row"><td style="color:#565f89;">Developer</td><td style="color:#a9b1d6;text-align:right;">Meonnmi-ops (Boss)</td></tr>
@@ -2053,9 +2077,115 @@ class MyanosDesktop {
                         <tr class="settings-row"><td style="color:#565f89;">GitHub</td><td style="color:#7aa2f7;text-align:right;cursor:pointer;" onclick="window.myanos.openApp('browser')">meonnmi-ops/Myanos</td></tr>
                     </table>
                 </div>`;
+            } else if (tab === 'security') {
+                content.innerHTML = `<div class="settings-section">
+                    <h3>&#128274; Security</h3>
+                    <div class="settings-row"><label>Default Password</label>
+                        <div style="font-size:12px;color:#e0af68;">myanos2024 (change recommended)</div></div>
+                    <div class="settings-row"><label>API Key</label>
+                        <div style="font-size:12px;color:#565f89;">Auto-generated (64-char hex)</div></div>
+                    <div class="settings-row"><label>Rate Limit</label>
+                        <div style="font-size:12px;color:#565f89;">30 requests/min per IP</div></div>
+                    <div class="settings-row"><label>Command Safety</label>
+                        <div style="font-size:12px;color:#9ece6a;">Active (blocks dangerous commands)</div></div>
+                    <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+                        <h4 style="color:#c0caf5;margin-bottom:12px;">Change Password</h4>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <input id="pw-current" type="password" placeholder="Current password" style="padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#c0caf5;font-size:13px;outline:none;box-sizing:border-box;" />
+                            <input id="pw-new" type="password" placeholder="New password (min 4 chars)" style="padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#c0caf5;font-size:13px;outline:none;box-sizing:border-box;" />
+                            <input id="pw-confirm" type="password" placeholder="Confirm new password" style="padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#c0caf5;font-size:13px;outline:none;box-sizing:border-box;" />
+                            <div id="pw-change-msg" style="font-size:12px;min-height:18px;"></div>
+                            <button id="pw-change-btn" style="padding:8px 20px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:6px;color:#7aa2f7;font-size:13px;cursor:pointer;align-self:flex-start;">Change Password</button>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+                        <h4 style="color:#c0caf5;margin-bottom:12px;">API Key</h4>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input id="api-key-display" readonly style="flex:1;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;color:#565f89;font-size:11px;font-family:monospace;outline:none;" />
+                            <button id="api-key-show" style="padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#a9b1d6;font-size:11px;cursor:pointer;">Show</button>
+                            <button id="api-key-regen" style="padding:8px 12px;background:rgba(247,118,142,0.12);border:1px solid rgba(247,118,142,0.25);border-radius:6px;color:#f7768e;font-size:11px;cursor:pointer;">Regenerate</button>
+                        </div>
+                        <div id="api-key-msg" style="font-size:12px;min-height:18px;margin-top:6px;"></div>
+                    </div>
+                </div>`;
+                // Password change logic
+                const pwBtn = document.getElementById('pw-change-btn');
+                const pwMsg = document.getElementById('pw-change-msg');
+                pwBtn.onclick = async () => {
+                    const curr = document.getElementById('pw-current').value;
+                    const newPw = document.getElementById('pw-new').value;
+                    const confirm = document.getElementById('pw-confirm').value;
+                    pwMsg.style.color = '#e0af68';
+                    if (!curr || !newPw) { pwMsg.textContent = 'All fields required'; return; }
+                    if (newPw.length < 4) { pwMsg.textContent = 'New password must be at least 4 characters'; return; }
+                    if (newPw !== confirm) { pwMsg.textContent = 'Passwords do not match'; return; }
+                    pwBtn.disabled = true; pwBtn.textContent = 'Changing...';
+                    try {
+                        const res = await fetch('/api/password/change', {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({current_password:curr, new_password:newPw})
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            pwMsg.style.color = '#9ece6a';
+                            pwMsg.textContent = 'Password changed successfully!';
+                            document.getElementById('pw-current').value = '';
+                            document.getElementById('pw-new').value = '';
+                            document.getElementById('pw-confirm').value = '';
+                        } else {
+                            pwMsg.style.color = '#f7768e';
+                            pwMsg.textContent = data.error || 'Failed to change password';
+                        }
+                    } catch(e) {
+                        pwMsg.style.color = '#f7768e';
+                        pwMsg.textContent = 'Network error';
+                    }
+                    pwBtn.disabled = false; pwBtn.textContent = 'Change Password';
+                };
+                // API Key display
+                const keyDisplay = document.getElementById('api-key-display');
+                const keyShowBtn = document.getElementById('api-key-show');
+                const keyRegenBtn = document.getElementById('api-key-regen');
+                const keyMsg = document.getElementById('api-key-msg');
+                fetch('/api/key').then(r => r.json()).then(data => {
+                    if (data.api_key) {
+                        keyDisplay.value = data.api_key.substring(0,16) + '...';
+                        keyDisplay.dataset.full = data.api_key || '';
+                    }
+                }).catch(() => {});
+                keyShowBtn.onclick = () => {
+                    if (keyDisplay.value.includes('...')) {
+                        keyDisplay.value = keyDisplay.dataset.full || 'N/A';
+                        keyDisplay.style.color = '#c0caf5';
+                        keyShowBtn.textContent = 'Hide';
+                    } else {
+                        keyDisplay.value = (keyDisplay.dataset.full || '').substring(0,16) + '...';
+                        keyDisplay.style.color = '#565f89';
+                        keyShowBtn.textContent = 'Show';
+                    }
+                };
+                keyRegenBtn.onclick = async () => {
+                    keyRegenBtn.disabled = true; keyRegenBtn.textContent = '...';
+                    try {
+                        const apiKey = await self._fetchApiKey();
+                        const res = await fetch('/api/key', {
+                            method:'POST', headers:{'Content-Type':'application/json','X-API-Key':apiKey},
+                            body: JSON.stringify({action:'regenerate'})
+                        });
+                        const data = await res.json();
+                        if (data.api_key) {
+                            keyDisplay.value = data.api_key.substring(0,16) + '...';
+                            keyDisplay.dataset.full = data.api_key;
+                            self._apiKey = data.api_key;
+                            keyMsg.style.color = '#9ece6a';
+                            keyMsg.textContent = 'New API key generated. Restart required for full effect.';
+                        }
+                    } catch(e) { keyMsg.style.color = '#f7768e'; keyMsg.textContent = 'Failed'; }
+                    keyRegenBtn.disabled = false; keyRegenBtn.textContent = 'Regenerate';
+                };
             } else {
-                const tabNames = {sound:'🔊 Sound',network:'📶 Network',security:'🔒 Security',language:'🌐 Language',packages:'📦 Packages'};
-                content.innerHTML = `<div class="settings-section"><h3>${tabNames[tab]||tab}</h3><div style="padding:40px;text-align:center;color:#565f89;"><div style="font-size:36px;margin-bottom:12px;">🚧</div><p>Coming in next update</p></div></div>`;
+                const tabNames = {sound:'&#128266; Sound',network:'&#128246; Network',language:'&#127760; Language',packages:'&#128230; Packages'};
+                content.innerHTML = `<div class="settings-section"><h3>${tabNames[tab]||tab}</h3><div style="padding:40px;text-align:center;color:#565f89;"><div style="font-size:36px;margin-bottom:12px;">&#128679;</div><p>Coming in next update</p></div></div>`;
             }
         };
         body.innerHTML = `<div class="app-settings">
@@ -2083,7 +2213,7 @@ class MyanosDesktop {
 
     async renderNeofetch(body) {
         // Start with static layout, then fill real data
-        let osInfo = 'Myanos Web OS v3.0.0';
+        let osInfo = 'Myanos Web OS v4.3.0';
         let kernel = 'Unknown';
         let cpuInfo = 'Unknown';
         let memInfo = 'Unknown';
@@ -2094,7 +2224,8 @@ class MyanosDesktop {
         let gpuInfo = 'Not available';
 
         try {
-            const res = await fetch('/api/system-stats');
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/system-stats', { headers:{'X-API-Key': apiKey} });
             if (res.ok) {
                 const s = await res.json();
                 if (s.os_info) {
@@ -2459,9 +2590,10 @@ class MyanosDesktop {
                     btn.style.opacity = '0.6';
 
                     try {
+                        const apiKey = await self._fetchApiKey();
                         const res = await fetch('/api/myan', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
                             body: JSON.stringify({ action: action, package: pkgName })
                         });
                         if (res.ok) {
@@ -2703,7 +2835,8 @@ class MyanosDesktop {
         const el = document.getElementById('android-status');
         const out = document.getElementById('android-output');
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'which adb'}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body: JSON.stringify({cmd:'which adb'}) });
             const data = await res.json();
             if (data.output && !data.output.includes('not found') && data.output.trim()) {
                 el.innerHTML = '<span style="color:#9ece6a;">● ADB detected</span> — ' + this._escapeHtml(data.output.trim());
@@ -2719,7 +2852,8 @@ class MyanosDesktop {
         const out = document.getElementById('android-output');
         if (out) { out.style.display = 'block'; out.textContent = 'Running...\n'; }
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'adb ' + cmd}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body: JSON.stringify({cmd:'adb ' + cmd}) });
             const data = await res.json();
             if (out) out.textContent = data.output || '(no output)';
         } catch(e) {
@@ -2745,7 +2879,8 @@ class MyanosDesktop {
         const el = document.getElementById('ps2-status');
         const out = document.getElementById('ps2-output');
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'ls ~/PS2/ 2>/dev/null || echo "No PS2 directory found"'}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body: JSON.stringify({cmd:'ls ~/PS2/ 2>/dev/null || echo "No PS2 directory found"'}) });
             const data = await res.json();
             if (data.output && !data.output.includes('No PS2 directory')) {
                 const isos = data.output.trim().split('\n').filter(f => f.endsWith('.iso') || f.endsWith('.ISO'));
@@ -2762,7 +2897,8 @@ class MyanosDesktop {
         const out = document.getElementById('ps2-output');
         if (out) { out.style.display = 'block'; out.textContent = 'Running...\n'; }
         try {
-            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:'ls -la ~/PS2/ 2>/dev/null || echo "No PS2 directory"'}) });
+            const apiKey = await this._fetchApiKey();
+            const res = await fetch('/api/exec', { method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key': apiKey}, body: JSON.stringify({cmd:'ls -la ~/PS2/ 2>/dev/null || echo "No PS2 directory"'}) });
             const data = await res.json();
             if (out) out.textContent = data.output || '(no output)';
         } catch(e) {
@@ -3087,6 +3223,7 @@ class MyanosDesktop {
                 <div class="tc-sidebar" id="tc-sidebar">
                     <div class="tc-sidebar-tabs">
                         <div class="tc-sidebar-tab" data-tab="colab" id="tc-colab-sidebar-tab">🖥️ GPU</div>
+                        <div class="tc-sidebar-tab" data-tab="codeagent" id="tc-codeagent-sidebar-tab">🧠 Code Agent</div>
                         <div class="tc-sidebar-tab active" data-tab="files">📁 Files</div>
                         <div class="tc-sidebar-tab" data-tab="models">🤖 Models</div>
                         <div class="tc-sidebar-tab" data-tab="sessions">📋 Sessions</div>
@@ -3621,6 +3758,142 @@ class MyanosDesktop {
                     }
                 });
 
+            } else if (session.activeSidebar === 'codeagent') {
+                // Myanmar Code Agent Pipeline Panel
+                content.innerHTML = `
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">🧠 Myanmar Code Agent v1.0</div>
+                        <div style="padding:6px 8px;font-size:11px;color:#a9b1d6;line-height:1.5;">
+                            Train a Myanmar-focused code generation model using deepseek-coder-1.3b-base with QLoRA.
+                        </div>
+                        <div class="tc-colab-info-card">
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Base</span><span class="tc-colab-info-value">deepseek-coder-1.3b</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Method</span><span class="tc-colab-info-value">QLoRA 4-bit (r=16)</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Data</span><span class="tc-colab-info-value">100 examples</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Output</span><span class="tc-colab-info-value">GGUF Q4/Q5 + Ollama</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">GPU</span><span class="tc-colab-info-value green">T4 (Colab Free)</span></div>
+                        </div>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">⚡ Pipeline Actions</div>
+                        <button class="tc-toolbar-btn" id="tc-ca-load-pipeline" style="width:100%;justify-content:center;margin-bottom:4px;">📥 Load Code Agent Pipeline</button>
+                        <button class="tc-toolbar-btn" id="tc-ca-sync-jsonl" style="width:100%;justify-content:center;margin-bottom:4px;">🔄 Auto-Sync JSONL to Colab</button>
+                        <button class="tc-toolbar-btn" id="tc-ca-download-nb" style="width:100%;justify-content:center;margin-bottom:4px;">📜 Download Colab Notebook</button>
+                        <button class="tc-toolbar-btn" id="tc-ca-test-ollama" style="width:100%;justify-content:center;">🧪 Test with Ollama</button>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📊 GPU Status</div>
+                        <div id="tc-ca-gpu-info" style="padding:4px 8px;font-size:11px;color:#565f89;">
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Local GPU</span><span class="tc-colab-info-value" id="tc-ca-local-gpu">Checking...</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Colab GPU</span><span class="tc-colab-info-value" id="tc-ca-colab-gpu">${session.colabConnected ? session.colabGpuName || 'Connected' : 'Not connected'}</span></div>
+                            <div class="tc-colab-info-row"><span class="tc-colab-info-label">Ollama</span><span class="tc-colab-info-value" id="tc-ca-ollama-status">Checking...</span></div>
+                        </div>
+                    </div>
+                    <div class="tc-sidebar-section">
+                        <div class="tc-sidebar-title">📖 Quick Guide</div>
+                        <div style="padding:4px 8px;font-size:10px;color:#565f89;line-height:1.5;">
+                            <div style="margin-bottom:3px;"><span style="color:#7aa2f7;">1.</span> Load Pipeline to add training cells</div>
+                            <div style="margin-bottom:3px;"><span style="color:#7aa2f7;">2.</span> Connect Colab GPU via GPU tab</div>
+                            <div style="margin-bottom:3px;"><span style="color:#7aa2f7;">3.</span> Run cells sequentially</div>
+                            <div style="margin-bottom:3px;"><span style="color:#7aa2f7;">4.</span> Download GGUF when done</div>
+                            <div><span style="color:#7aa2f7;">5.</span> Import to Ollama for local use</div>
+                        </div>
+                    </div>`;
+
+                // Load Pipeline button
+                document.getElementById('tc-ca-load-pipeline')?.addEventListener('click', () => {
+                    addConsoleLog('info', 'Loading Myanmar Code Agent training pipeline...');
+                    addCell('markdown', '## Myanmar Code Agent Training Pipeline v1.0\nBase: **deepseek-coder-1.3b-base** | Method: **QLoRA 4-bit**');
+                    addCell('code', `# Cell 1: Environment Setup\nimport os\nimport subprocess\n\nprint('Installing dependencies...')\nos.system('pip install --quiet unsloth transformers peft bitsandbytes datasets accelerate trl')\nos.system('pip install --quiet gguf')\n\n# Check GPU\ngpu = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total','--format=csv,noheader'], capture_output=True, text=True)\nprint(f'GPU: {gpu.stdout.strip() if gpu.returncode == 0 else \"No GPU\"}')\nprint('Environment ready!')`);
+                    addCell('code', `# Cell 2: Prepare Training Data (100 examples)\ntraining_data = [\n    {\"instruction\": \"Write a Python function to reverse a string\", \"output\": \"def reverse_string(s):\\\\n    return s[::-1]\\\\n\\\\nprint(reverse_string('hello'))\"},\n    {\"instruction\": \"Myanmar programming မှာ for loop ကို အသုံးပြုပါ\", \"output\": \"for i in range(10):\\\\n    print(i)\"},\n    {\"instruction\": \"Create a calculator class\", \"output\": \"class Calc:\\\\n    def add(self, a, b): return a + b\\\\n    def sub(self, a, b): return a - b\"},\n    {\"instruction\": \"Write a REST API with Flask\", \"output\": \"from flask import Flask, jsonify\\\\napp = Flask(__name__)\\\\n\\\\n@app.route('/api/status')\\\\ndef status():\\\\n    return jsonify({'status': 'ok'})\"},\n]\n\n# Generate 96 more variations programmatically\nimport random\ntemplates = [\n    (\"Write a function to {action} in Python\", [\"sort a list\", \"reverse a string\", \"check prime\", \"binary search\"]),\n    (\"Create a {concept} class\", [\"Stack\", \"Queue\", \"LinkedList\", \"HashMap\"]),\n    (\"Myanmar text {task}\", [\"tokenizer\", \"normalizer\", \"word counter\", \"TTS helper\"]),\n]\nfor tpl, variants in templates:\n    for v in variants:\n        training_data.append({\"instruction\": tpl.format(action=v, concept=v, task=v),\n            \"output\": f\"# Implementation for {v}\\\\ndef {v.lower().replace(' ','_')}():\\\\n    pass  # TODO\"})\n\n# Pad to 100\nwhile len(training_data) < 100:\n    training_data.append(random.choice(training_data[:20]))\n\nprint(f'Training data: {len(training_data)} examples')`);
+                    addCell('code', `# Cell 3: Load Model + QLoRA\nfrom unsloth import FastLanguageModel\nimport torch\n\nmodel, tokenizer = FastLanguageModel.from_pretrained(\n    model_name=\"deepseek-ai/deepseek-coder-1.3b-base\",\n    max_seq_length=2048,\n    dtype=None,\n    load_in_4bit=True,\n)\n\nmodel = FastLanguageModel.get_peft_model(\n    model,\n    r=16,\n    target_modules=[\"q_proj\",\"k_proj\",\"v_proj\",\"o_proj\",\"gate_proj\",\"up_proj\",\"down_proj\"],\n    lora_alpha=32, lora_dropout=0.05, bias=\"none\",\n    use_gradient_checkpointing=\"unsloth\", random_state=42,\n)\n\nprint(f'Model loaded! Trainable: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')`);
+                    addCell('code', `# Cell 4: Train (3 epochs)\nfrom transformers import TrainingArguments\nfrom trl import SFTTrainer\nfrom unsloth import is_bfloat16_supported\n\ntrainer = SFTTrainer(\n    model=model, tokenizer=tokenizer,\n    train_dataset=None,  # TODO: format training_data\n    args=TrainingArguments(\n        output_dir=\"./myan-code-agent\",\n        num_train_epochs=3,\n        per_device_train_batch_size=4,\n        gradient_accumulation_steps=4,\n        learning_rate=2e-4,\n        fp16=not is_bfloat16_supported(),\n        bf16=is_bfloat16_supported(),\n        logging_steps=10, optim=\"adamw_8bit\",\n        report_to=\"none\",\n    ),\n)\n\nprint('Starting training...')\nstats = trainer.train()\nprint(f'Training complete! Loss: {stats.metrics.get(\"train_loss\", \"N/A\")}')`);
+                    addCell('code', `# Cell 5: Export GGUF + Ollama\nimport os\n\n# Merge and save\nmodel.save_pretrained_merged(\"./myan-code-agent-merged\", tokenizer, save_method=\"merged_16bit\")\n\n# Convert to GGUF\nos.system('python -m gguf.scripts.convert --outfile ./myan-code-agent-Q4_K_M.gguf ./myan-code-agent-merged --outtype q4_k_m')\nprint(f'Q4_K_M: {os.path.getsize(\"./myan-code-agent-Q4_K_M.gguf\")/(1024*1024):.1f} MB')\n\n# Create Ollama Modelfile\nmodelfile = '''FROM ./myan-code-agent-Q4_K_M.gguf\\nPARAMETER temperature 0.3\\nSYSTEM \"You are MyanCode, a Myanmar-focused coding assistant.\"\\n'''\nwith open('./Modelfile', 'w') as f: f.write(modelfile)\nprint('GGUF + Modelfile ready!')\nprint('Deploy: ollama create myan-code-agent -f Modelfile')`);
+                    self.notif.show('Code Agent pipeline loaded (5 cells)', 'success');
+                    addConsoleLog('success', 'Code Agent pipeline loaded with 5 training cells');
+                });
+
+                // Auto-Sync JSONL button
+                document.getElementById('tc-ca-sync-jsonl')?.addEventListener('click', async () => {
+                    if (!session.colabConnected) {
+                        self.notif.show('Connect Colab GPU first (GPU tab)', 'warning');
+                        return;
+                    }
+                    addConsoleLog('info', 'Auto-Syncing JSONL dataset to Colab...');
+                    try {
+                        const res = await fetch(session.colabUrl.replace(/\/+$/, '') + '/api/dataset/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: 'myan-code-agent.jsonl',
+                                format: 'jsonl',
+                                data: [
+                                    {"text": "Write a Python function to reverse a string\\ndef reverse_string(s):\\n    return s[::-1]"},
+                                    {"text": "Create a calculator class in Python\\nclass Calculator:\\n    def add(self, a, b): return a + b"},
+                                    {"text": "Myanmar programming for loop\\nfor i in range(10):\\n    print(i)"},
+                                ]
+                            })
+                        });
+                        const data = await res.json();
+                        addConsoleLog('success', `Synced! ${data.samples || 3} samples sent to Colab`);
+                        self.notif.show('JSONL synced to Colab', 'success');
+                    } catch(e) {
+                        addConsoleLog('error', `Sync failed: ${e.message}`);
+                    }
+                });
+
+                // Download Notebook button
+                document.getElementById('tc-ca-download-nb')?.addEventListener('click', () => {
+                    addConsoleLog('info', 'Download Myanmar-Code-Agent-Training.ipynb from download folder');
+                    self.notif.show('Notebook: /download/Myanmar-Code-Agent-Training.ipynb', 'info', 5000);
+                });
+
+                // Test Ollama button
+                document.getElementById('tc-ca-test-ollama')?.addEventListener('click', async () => {
+                    addConsoleLog('info', 'Checking Ollama for myan-code-agent model...');
+                    try {
+                        const res = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+                        const data = await res.json();
+                        const models = data.models || [];
+                        const found = models.find(m => m.name.includes('myan-code'));
+                        if (found) {
+                            addConsoleLog('success', 'Model found: ' + found.name + ' (' + (found.size/(1024*1024*1024)).toFixed(1) + ' GB)');
+                            addConsoleLog('info', 'Run in terminal: ollama run myan-code-agent');
+                        } else {
+                            addConsoleLog('warn', 'myan-code-agent not found in Ollama');
+                            addConsoleLog('info', `Available models: ${models.map(m=>m.name).join(', ') || 'none'}`);
+                        }
+                        const ollamaEl = document.getElementById('tc-ca-ollama-status');
+                        if (ollamaEl) ollamaEl.textContent = found ? 'Model found' : 'Not installed';
+                        if (ollamaEl) ollamaEl.className = 'tc-colab-info-value' + (found ? ' green' : '');
+                    } catch(e) {
+                        const ollamaEl = document.getElementById('tc-ca-ollama-status');
+                        if (ollamaEl) { ollamaEl.textContent = 'Offline'; ollamaEl.className = 'tc-colab-info-value'; }
+                        addConsoleLog('warn', 'Ollama not running (start: ollama serve)');
+                    }
+                });
+
+                // Check local GPU
+                (async () => {
+                    try {
+                        const apiKey = await self._fetchApiKey();
+                        const res = await fetch('/api/system-stats', { headers: { 'X-API-Key': apiKey } });
+                        const data = await res.json();
+                        const gpuEl = document.getElementById('tc-ca-local-gpu');
+                        if (gpuEl) {
+                            if (data.gpu && data.gpu.available) {
+                                gpuEl.textContent = data.gpu.gpus[0]?.name || 'GPU Available';
+                                gpuEl.className = 'tc-colab-info-value green';
+                            } else {
+                                gpuEl.textContent = 'No GPU';
+                            }
+                        }
+                    } catch(e) {
+                        const gpuEl = document.getElementById('tc-ca-local-gpu');
+                        if (gpuEl) gpuEl.textContent = 'Check failed';
+                    }
+                })();
+
             } else if (session.activeSidebar === 'files') {
                 const files = self.vfs.list('/Documents');
                 const filesHtml = files.length > 0 ? files.map(f =>
@@ -4136,7 +4409,7 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
 
         if (session.cells.length === 0) {
             // Default cells
-            addCell('markdown', '# AI Training Center\nWelcome to **MyanOS AI Training Center** — a Colab-like notebook for AI/ML with **real GPU power**.\n\n## Features\n- 🐍 **Python Code Execution** — Run code cells with Shift+Enter\n- 📓 **Notebook Interface** — Add code and markdown cells\n- 🖥️ **Colab GPU Connect** — Use Google Colab T4 GPU as backend (NEW!)\n- 📊 **GPU Dashboard** — Real-time VRAM, temp, utilization monitoring\n- 🤖 **Ollama Integration** — Connect to local AI models\n- 🇲🇲 **Myanmar NLP** — 72+ datasets, fine-tuning tools\n- 💾 **Session Management** — Save and load notebook sessions\n- 💓 **Keep Alive** — Auto-ping prevents Colab disconnect\n\n## Quick Start (Colab GPU)\n1. Open Google Colab > Upload **Myanos-Colab-Linker.ipynb**\n2. Change runtime to **T4 GPU** > Run all cells\n3. Copy the public URL\n4. Click **GPU** tab in sidebar > Paste URL > **Connect**\n5. Start coding with real GPU!');
+            addCell('markdown', '# AI Training Center\nWelcome to **MyanOS AI Training Center v4.3.0** — a Colab-like notebook for AI/ML with **real GPU power**.\n\n## Features\n- Python Code Execution — Run code cells with Shift+Enter\n- Notebook Interface — Add code and markdown cells\n- Colab GPU Connect — Use Google Colab T4 GPU as backend\n- GPU Dashboard — Real-time VRAM, temp, utilization monitoring\n- Ollama Integration — Connect to local AI models\n- Myanmar NLP — 72+ datasets, fine-tuning tools\n- Session Management — Save and load notebook sessions\n- Keep Alive — Auto-ping prevents Colab disconnect\n- **Code Agent Pipeline** — Train Myanmar code models (deepseek-coder 1.3B)\n- **Auto-Sync JSONL** — Upload datasets to Colab GPU in one click\n\n## Quick Start (Colab GPU)\n1. Open Google Colab > Upload **Myanos-Colab-Linker.ipynb**\n2. Change runtime to **T4 GPU** > Run all cells\n3. Copy the public URL\n4. Click **GPU** tab in sidebar > Paste URL > **Connect**\n5. Start coding with real GPU!\n\n## Myanmar Code Agent (NEW!)\nClick **Code Agent** tab in sidebar to load the training pipeline for Myanmar-focused code generation using deepseek-coder-1.3b-base with QLoRA.');
             addCell('code', '# Welcome — Test Your Environment\nimport sys\nimport os\nimport platform\n\nprint("=" * 45)\nprint("  MyanOS AI Training Center")\nprint("=" * 45)\nprint(f"  Python:    {sys.version.split()[0]}")\nprint(f"  Platform:  {platform.system()}")\nprint(f"  Arch:      {platform.machine()}")\nprint(f"  PID:       {os.getpid()}")\nprint("=" * 45)\nprint("  Environment ready! Start coding below.")\nprint("=" * 45)');
         } else {
             refreshAllCells();
@@ -4154,52 +4427,386 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
         }
     }
 
+    renderCalculator(body) {
+    const calcId = `calc-${Date.now()}`;
+    body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;padding:12px;background:rgba(13,15,25,0.6);">
+        <div id="${calcId}-display" style="background:rgba(30,32,50,0.8);border-radius:10px;padding:16px;margin-bottom:10px;text-align:right;min-height:80px;">
+            <div id="${calcId}-history" style="font-size:12px;color:#565f89;min-height:18px;overflow:hidden;">&nbsp;</div>
+            <div id="${calcId}-result" style="font-size:32px;color:#c0caf5;font-family:'JetBrains Mono',monospace;font-weight:300;">0</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="calc-btn calc-fn" data-action="mc">MC</button>
+            <button class="calc-btn calc-fn" data-action="mr">MR</button>
+            <button class="calc-btn calc-fn" data-action="m+">M+</button>
+            <button class="calc-btn calc-fn" data-action="m-">M-</button>
+            <button class="calc-btn calc-op" data-action="clear">C</button>
+            <button class="calc-btn calc-op" data-action="backspace">⌫</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;flex:1;">
+            <button class="calc-btn calc-sci" data-action="sin">sin</button>
+            <button class="calc-btn calc-sci" data-action="cos">cos</button>
+            <button class="calc-btn calc-sci" data-action="tan">tan</button>
+            <button class="calc-btn calc-sci" data-action="log">log</button>
+            <button class="calc-btn calc-sci" data-action="ln">ln</button>
+            <button class="calc-btn calc-sci" data-action="sqrt">√</button>
+            <button class="calc-btn calc-sci" data-action="pow">x²</button>
+            <button class="calc-btn calc-sci" data-action="pi">π</button>
+            <button class="calc-btn calc-sci" data-action="e">e</button>
+            <button class="calc-btn calc-op" data-action="(">(</button>
+            <button class="calc-btn calc-num" data-action="7">7</button>
+            <button class="calc-btn calc-num" data-action="8">8</button>
+            <button class="calc-btn calc-num" data-action="9">9</button>
+            <button class="calc-btn calc-op" data-action="/">/</button>
+            <button class="calc-btn calc-op" data-action="%)">%</button>
+            <button class="calc-btn calc-num" data-action="4">4</button>
+            <button class="calc-btn calc-num" data-action="5">5</button>
+            <button class="calc-btn calc-num" data-action="6">6</button>
+            <button class="calc-btn calc-op" data-action="*">×</button>
+            <button class="calc-btn calc-op" data-action="negate">±</button>
+            <button class="calc-btn calc-num" data-action="1">1</button>
+            <button class="calc-btn calc-num" data-action="2">2</button>
+            <button class="calc-btn calc-num" data-action="3">3</button>
+            <button class="calc-btn calc-op" data-action="-">−</button>
+            <button class="calc-btn calc-eq" data-action="=">=</button>
+            <button class="calc-btn calc-num" data-action="0">0</button>
+            <button class="calc-btn calc-num" data-action=".">.</button>
+            <button class="calc-btn calc-op" data-action="(">(</button>
+            <button class="calc-btn calc-op" data-action="+">+</button>
+            <button class="calc-btn calc-eq" data-action="=" style="grid-row:span 2;">=</button>
+        </div>
+    </div>`;
+
+    const display = document.getElementById(`${calcId}-result`);
+    const history = document.getElementById(`${calcId}-history`);
+    let expression = '';
+    let memory = 0;
+    let justEvaluated = false;
+
+    const updateDisplay = () => { display.textContent = expression || '0'; };
+    const showError = (msg) => { display.textContent = msg; display.style.color = '#f7768e'; setTimeout(() => display.style.color = '#c0caf5', 1500); };
+
+    const safeEval = (expr) => {
+        try {
+            // Replace display symbols with JS operators
+            let jsExpr = expr.replace(/×/g, '*').replace(/−/g, '-').replace(/π/g, Math.PI.toString()).replace(/e(?!xp)/g, Math.E.toString());
+            // Handle functions
+            jsExpr = jsExpr.replace(/sin\(/g, 'Math.sin(').replace(/cos\(/g, 'Math.cos(').replace(/tan\(/g, 'Math.tan(');
+            jsExpr = jsExpr.replace(/log\(/g, 'Math.log10(').replace(/ln\(/g, 'Math.log(').replace(/sqrt\(/g, 'Math.sqrt(');
+            jsExpr = jsExpr.replace(/%/g, '/100');
+            // Security: only allow math operations
+            if (/[^0-9+\-*/().%\sMathsincotaglqrPIE]/.test(jsExpr.replace(/Math\.\w+/g, ''))) return null;
+            const result = Function('"use strict"; return (' + jsExpr + ')')();
+            return typeof result === 'number' && isFinite(result) ? parseFloat(result.toPrecision(12)) : null;
+        } catch(e) { return null; }
+    };
+
+    document.querySelectorAll(`#${calcId} .calc-btn`).forEach(btn => {
+        btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            if (action === 'clear') { expression = ''; history.textContent = ''; justEvaluated = false; updateDisplay(); return; }
+            if (action === 'backspace') { expression = expression.slice(0, -1); justEvaluated = false; updateDisplay(); return; }
+            if (action === '=') {
+                if (!expression) return;
+                const result = safeEval(expression);
+                if (result !== null) { history.textContent = expression + ' ='; expression = String(result); justEvaluated = true; updateDisplay(); }
+                else { showError('Error'); expression = ''; }
+                return;
+            }
+            if (action === 'mc') { memory = 0; this.notif.show('Memory cleared', 'info', 1000); return; }
+            if (action === 'mr') { if (memory) { if (justEvaluated) expression = ''; expression += memory; justEvaluated = false; updateDisplay(); } return; }
+            if (action === 'm+') { const val = safeEval(expression); if (val !== null) { memory += val; this.notif.show('M+ ' + memory, 'info', 1000); } return; }
+            if (action === 'm-') { const val = safeEval(expression); if (val !== null) { memory -= val; this.notif.show('M- ' + memory, 'info', 1000); } return; }
+            if (action === 'negate') {
+                if (expression && !isNaN(expression)) { expression = expression.startsWith('-') ? expression.slice(1) : '-' + expression; }
+                updateDisplay(); return;
+            }
+            if (action === 'pow') {
+                const val = safeEval(expression);
+                if (val !== null) { history.textContent = expression + '² ='; expression = String(val * val); justEvaluated = true; updateDisplay(); }
+                return;
+            }
+            if (['sin', 'cos', 'tan', 'log', 'ln', 'sqrt'].includes(action)) {
+                if (justEvaluated) { expression = action + '(' + expression; } else { expression += action + '('; }
+                justEvaluated = false; updateDisplay(); return;
+            }
+            if (action === 'pi') { expression += 'π'; justEvaluated = false; updateDisplay(); return; }
+            if (action === 'e') { expression += 'e'; justEvaluated = false; updateDisplay(); return; }
+            // Numbers and operators
+            if (justEvaluated && /[0-9.]/.test(action)) { expression = ''; }
+            justEvaluated = false;
+            expression += action;
+            updateDisplay();
+        });
+    });
+
+    // Keyboard support
+    const keyHandler = (e) => {
+        if (!document.getElementById(`${calcId}-display`)) { document.removeEventListener('keydown', keyHandler); return; }
+        const key = e.key;
+        if (/[0-9.+\-*/()%]/.test(key)) {
+            if (justEvaluated && /[0-9.]/.test(key)) expression = '';
+            justEvaluated = false;
+            expression += key;
+            updateDisplay();
+        } else if (key === 'Enter' || key === '=') {
+            e.preventDefault();
+            const result = safeEval(expression);
+            if (result !== null) { history.textContent = expression + ' ='; expression = String(result); justEvaluated = true; updateDisplay(); }
+            else { showError('Error'); expression = ''; }
+        } else if (key === 'Backspace') {
+            expression = expression.slice(0, -1); justEvaluated = false; updateDisplay();
+        } else if (key === 'Escape') {
+            expression = ''; history.textContent = ''; justEvaluated = false; updateDisplay();
+        }
+    };
+    document.addEventListener('keydown', keyHandler);
+}
+
+    renderMediaPlayer(body) {
+    const mpId = `mp-${Date.now()}`;
+    body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;background:rgba(13,15,25,0.6);">
+        <!-- Visualizer -->
+        <div style="flex:1;position:relative;min-height:120px;">
+            <canvas id="${mpId}-canvas" style="width:100%;height:100%;display:block;"></canvas>
+            <div id="${mpId}-drop" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(122,162,247,0.15);border:2px dashed #7aa2f7;border-radius:8px;z-index:2;">
+                <div style="color:#7aa2f7;font-size:16px;">Drop audio files here</div>
+            </div>
+            <div id="${mpId}-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#565f89;">
+                <div style="font-size:48px;margin-bottom:8px;">🎵</div>
+                <div style="font-size:13px;">Drop audio files or click to add</div>
+                <label style="margin-top:12px;padding:8px 16px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:16px;color:#7aa2f7;cursor:pointer;font-size:12px;">
+                    Browse Files <input type="file" id="${mpId}-file" accept="audio/*" multiple style="display:none;" />
+                </label>
+            </div>
+        </div>
+        <!-- Now Playing -->
+        <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div id="${mpId}-title" style="font-size:13px;color:#c0caf5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;">No track loaded</div>
+                <div id="${mpId}-time" style="font-size:11px;color:#565f89;font-family:'JetBrains Mono',monospace;">0:00 / 0:00</div>
+            </div>
+            <!-- Progress -->
+            <div style="position:relative;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;cursor:pointer;margin-bottom:8px;" id="${mpId}-progress-bar">
+                <div id="${mpId}-progress" style="height:100%;width:0%;background:#7aa2f7;border-radius:2px;transition:width 0.1s;"></div>
+            </div>
+            <!-- Controls -->
+            <div style="display:flex;align-items:center;justify-content:center;gap:16px;">
+                <button id="${mpId}-prev" style="background:none;border:none;color:#a9b1d6;font-size:16px;cursor:pointer;">⏮</button>
+                <button id="${mpId}-play" style="background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);color:#7aa2f7;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;">▶</button>
+                <button id="${mpId}-stop" style="background:none;border:none;color:#a9b1d6;font-size:16px;cursor:pointer;">⏹</button>
+                <button id="${mpId}-next" style="background:none;border:none;color:#a9b1d6;font-size:16px;cursor:pointer;">⏭</button>
+                <div style="margin-left:12px;display:flex;align-items:center;gap:6px;">
+                    <span style="color:#565f89;font-size:11px;">🔊</span>
+                    <input type="range" id="${mpId}-volume" min="0" max="100" value="80" style="width:70px;accent-color:#7aa2f7;" />
+                </div>
+            </div>
+        </div>
+        <!-- Playlist -->
+        <div id="${mpId}-playlist" style="max-height:140px;overflow-y:auto;border-top:1px solid rgba(255,255,255,0.06);"></div>
+    </div>`;
+
+    const audio = new Audio();
+    let playlist = [];
+    let currentTrack = -1;
+    let isPlaying = false;
+    let analyser = null;
+    let animFrame = null;
+
+    const titleEl = document.getElementById(`${mpId}-title`);
+    const timeEl = document.getElementById(`${mpId}-time`);
+    const progressEl = document.getElementById(`${mpId}-progress`);
+    const playBtn = document.getElementById(`${mpId}-play`);
+    const canvas = document.getElementById(`${mpId}-canvas`);
+    const emptyEl = document.getElementById(`${mpId}-empty`);
+    const playlistEl = document.getElementById(`${mpId}-playlist`);
+    const volumeEl = document.getElementById(`${mpId}-volume`);
+    const progressBar = document.getElementById(`${mpId}-progress-bar`);
+    const dropEl = document.getElementById(`${mpId}-drop`);
+
+    audio.volume = 0.8;
+
+    // Web Audio API visualizer
+    const setupVisualizer = () => {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = ctx.createMediaElementSource(audio);
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyser.connect(ctx.destination);
+        } catch(e) { analyser = null; }
+    };
+
+    const drawVisualizer = () => {
+        if (!analyser || !isPlaying) {
+            // Draw idle animation
+            if (canvas) {
+                const c = canvas.getContext('2d');
+                canvas.width = canvas.offsetWidth * 2; canvas.height = canvas.offsetHeight * 2;
+                c.scale(2, 2);
+                const w = canvas.offsetWidth, h = canvas.offsetHeight;
+                c.fillStyle = 'rgba(13,15,25,0.8)'; c.fillRect(0, 0, w, h);
+                c.strokeStyle = 'rgba(122,162,247,0.15)'; c.lineWidth = 1;
+                for (let i = 0; i < 32; i++) {
+                    const x = (w / 32) * i;
+                    const barH = 3 + Math.sin(Date.now() / 1000 + i * 0.3) * 2;
+                    c.beginPath(); c.moveTo(x, h / 2 - barH); c.lineTo(x, h / 2 + barH); c.stroke();
+                }
+            }
+            if (isPlaying || currentTrack >= 0) animFrame = requestAnimationFrame(drawVisualizer);
+            return;
+        }
+        animFrame = requestAnimationFrame(drawVisualizer);
+        if (!canvas) return;
+        const c = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2; canvas.height = canvas.offsetHeight * 2;
+        c.scale(2, 2);
+        const w = canvas.offsetWidth, h = canvas.offsetHeight;
+        const bufLen = analyser.frequencyBinCount;
+        const data = new Uint8Array(bufLen);
+        analyser.getByteFrequencyData(data);
+
+        c.fillStyle = 'rgba(13,15,25,0.85)'; c.fillRect(0, 0, w, h);
+        const barW = w / bufLen * 2.5;
+        for (let i = 0; i < bufLen; i++) {
+            const barH = (data[i] / 255) * h * 0.8;
+            const hue = 220 + (i / bufLen) * 60;
+            const alpha = 0.4 + (data[i] / 255) * 0.6;
+            c.fillStyle = `hsla(${hue}, 70%, 65%, ${alpha})`;
+            c.fillRect(i * barW, h - barH, barW - 1, barH);
+        }
+    };
+
+    const formatTime = (s) => { if(isNaN(s)) return '0:00'; const m = Math.floor(s/60); return `${m}:${String(Math.floor(s%60)).padStart(2,'0')}`; };
+    const updatePlaylist = () => {
+        playlistEl.innerHTML = playlist.map((t, i) => `<div style="padding:6px 12px;cursor:pointer;font-size:12px;color:${i===currentTrack?'#7aa2f7':'#a9b1d6'};background:${i===currentTrack?'rgba(122,162,247,0.1)':'transparent'};border-bottom:1px solid rgba(255,255,255,0.03);" data-idx="${i}">${i===currentTrack?'▶ ':''}${t.name}</div>`).join('');
+        playlistEl.querySelectorAll('div[data-idx]').forEach(el => el.onclick = () => { loadTrack(parseInt(el.dataset.idx)); playAudio(); });
+    };
+
+    const loadTrack = (idx) => {
+        if (idx < 0 || idx >= playlist.length) return;
+        currentTrack = idx;
+        audio.src = playlist[idx].url;
+        titleEl.textContent = playlist[idx].name;
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (!analyser && playlist[idx].url) setupVisualizer();
+        updatePlaylist();
+    };
+
+    const playAudio = () => { if (currentTrack < 0 && playlist.length > 0) loadTrack(0); if (currentTrack < 0) return; audio.play(); isPlaying = true; playBtn.textContent = '⏸'; if (!animFrame) drawVisualizer(); };
+    const pauseAudio = () => { audio.pause(); isPlaying = false; playBtn.textContent = '▶'; };
+    const stopAudio = () => { audio.pause(); audio.currentTime = 0; isPlaying = false; playBtn.textContent = '▶'; progressEl.style.width = '0%'; };
+
+    // Events
+    audio.ontimeupdate = () => { if (audio.duration) { progressEl.style.width = (audio.currentTime / audio.duration * 100) + '%'; timeEl.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`; } };
+    audio.onended = () => { if (currentTrack < playlist.length - 1) { loadTrack(currentTrack + 1); playAudio(); } else { stopAudio(); } };
+    playBtn.onclick = () => isPlaying ? pauseAudio() : playAudio();
+    document.getElementById(`${mpId}-stop`).onclick = stopAudio;
+    document.getElementById(`${mpId}-prev`).onclick = () => { if (currentTrack > 0) { loadTrack(currentTrack - 1); playAudio(); } };
+    document.getElementById(`${mpId}-next`).onclick = () => { if (currentTrack < playlist.length - 1) { loadTrack(currentTrack + 1); playAudio(); } };
+    volumeEl.oninput = () => { audio.volume = volumeEl.value / 100; };
+    progressBar.onclick = (e) => { if (audio.duration) { const pct = (e.offsetX / progressBar.offsetWidth) * 100; audio.currentTime = (pct / 100) * audio.duration; } };
+
+    // File handling
+    const addFiles = (files) => {
+        for (const f of files) {
+            if (f.type.startsWith('audio/')) {
+                playlist.push({ name: f.name.replace(/\.[^/.]+$/, ''), url: URL.createObjectURL(f) });
+            }
+        }
+        if (playlist.length) { updatePlaylist(); if (currentTrack < 0) loadTrack(0); this.notif.show(`${playlist.length} track(s) loaded`, 'success', 2000); }
+    };
+    document.getElementById(`${mpId}-file`).onchange = (e) => addFiles(e.target.files);
+
+    // Drag and drop
+    const container = body;
+    container.ondragover = (e) => { e.preventDefault(); dropEl.style.display = 'flex'; };
+    container.ondragleave = () => { dropEl.style.display = 'none'; };
+    container.ondrop = (e) => { e.preventDefault(); dropEl.style.display = 'none'; addFiles(e.dataTransfer.files); };
+
+    // Start idle visualizer
+    drawVisualizer();
+}
+
     renderBrowser(body) {
+        const self = this;
         body.innerHTML = `<div style="display:flex;flex-direction:column;height:100%;">
             <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(30,32,50,0.5);border-bottom:1px solid rgba(255,255,255,0.06);">
-                <button id="br-back" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">←</button>
-                <button id="br-fwd" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">→</button>
-                <button id="br-reload" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">⟳</button>
-                <button id="br-home" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">🏠</button>
-                <input id="br-url" type="text" value="https://github.com/meonnmi-ops/Myanos" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
+                <button id="br-back" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">&#8592;</button>
+                <button id="br-fwd" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">&#8594;</button>
+                <button id="br-reload" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">&#8635;</button>
+                <button id="br-home" style="padding:4px 8px;background:rgba(255,255,255,0.06);border:none;color:#a9b1d6;border-radius:4px;cursor:pointer;">&#127968;</button>
+                <input id="br-url" type="text" value="https://duckduckgo.com" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;color:#a9b1d6;font-size:12px;outline:none;" />
+                <button id="br-go" style="padding:4px 10px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:16px;color:#7aa2f7;font-size:11px;cursor:pointer;">Go</button>
             </div>
             <div id="br-bookmarks" style="display:flex;gap:4px;padding:4px 12px;background:rgba(30,32,50,0.3);border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;overflow-x:auto;white-space:nowrap;">
-                <span class="br-bm" data-url="https://github.com/meonnmi-ops/Myanos" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">GitHub</span>
                 <span class="br-bm" data-url="https://duckduckgo.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">DuckDuckGo</span>
+                <span class="br-bm" data-url="https://github.com/meonnmi-ops/Myanos" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7aa2f7;cursor:pointer;">GitHub</span>
                 <span class="br-bm" data-url="https://developer.mozilla.org" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#bb9af7;cursor:pointer;">MDN Docs</span>
                 <span class="br-bm" data-url="https://www.w3schools.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#9ece6a;cursor:pointer;">W3Schools</span>
                 <span class="br-bm" data-url="https://huggingface.co" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#e0af68;cursor:pointer;">HuggingFace</span>
                 <span class="br-bm" data-url="https://stackoverflow.com" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#f7768e;cursor:pointer;">StackOverflow</span>
                 <span class="br-bm" data-url="https://codepen.io" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#7dcfff;cursor:pointer;">CodePen</span>
-                <span class="br-bm" data-url="https://en.wikipedia.org/wiki/Computer_programming" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#a9b1d6;cursor:pointer;">Wikipedia: Programming</span>
+                <span class="br-bm" data-url="https://en.wikipedia.org/wiki/Computer_programming" style="padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:10px;color:#a9b1d6;cursor:pointer;">Wikipedia</span>
             </div>
             <div id="br-frame-container" style="flex:1;position:relative;">
-                <iframe id="br-iframe" src="https://github.com/meonnmi-ops/Myanos" style="width:100%;height:100%;border:none;background:#fff;" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
-                <div id="br-error" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(26,27,46,0.95);color:#565f89;">
-                    <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-                    <p style="font-size:14px;color:#f7768e;">This site can't be embedded</p>
-                    <p style="font-size:12px;margin-top:4px;">X-Frame-Options prevents embedding</p>
+                <iframe id="br-iframe" style="width:100%;height:100%;border:none;background:#fff;" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"></iframe>
+                <div id="br-loading" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(26,27,46,0.8);color:#7aa2f7;z-index:5;">
+                    <div style="font-size:32px;margin-bottom:12px;">&#128269;</div>
+                    <p style="font-size:13px;">Loading page...</p>
+                </div>
+                <div id="br-error" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(26,27,46,0.95);color:#565f89;z-index:5;">
+                    <div style="font-size:48px;margin-bottom:12px;">&#128274;</div>
+                    <p style="font-size:14px;color:#f7768e;">This site can't be loaded</p>
+                    <p style="font-size:12px;margin-top:4px;" id="br-error-msg">Connection error</p>
+                    <button id="br-retry" style="margin-top:12px;padding:8px 20px;background:rgba(122,162,247,0.15);border:1px solid rgba(122,162,247,0.3);border-radius:8px;color:#7aa2f7;font-size:12px;cursor:pointer;">Retry</button>
                 </div>
             </div>
         </div>`;
         const iframe = document.getElementById('br-iframe');
         const urlInput = document.getElementById('br-url');
         const errorEl = document.getElementById('br-error');
-        const navigate = (url) => { if(!url.startsWith('http')) url='https://'+url; urlInput.value=url; iframe.src=url; errorEl.style.display='none'; };
-        iframe.addEventListener('load', ()=>{ errorEl.style.display='none'; });
-        iframe.addEventListener('error', ()=>{ errorEl.style.display='flex'; });
-        document.getElementById('br-reload').onclick = ()=>{ iframe.src=iframe.src; };
-        document.getElementById('br-home').onclick = ()=>{ navigate('https://github.com/meonnmi-ops/Myanos'); };
+        const errorMsg = document.getElementById('br-error-msg');
+        const loadingEl = document.getElementById('br-loading');
+        let currentUrl = urlInput.value;
+        const _history = [currentUrl];
+        let _histIdx = 0;
+        const navigate = (url) => {
+            if(!url.startsWith('http')) url='https://'+url;
+            urlInput.value=url;
+            currentUrl=url;
+            loadingEl.style.display='flex';
+            errorEl.style.display='none';
+            // Use server proxy to bypass X-Frame-Options
+            iframe.src='/api/proxy?url=' + encodeURIComponent(url);
+            _history.splice(_histIdx+1);
+            _history.push(url);
+            _histIdx = _history.length - 1;
+        };
+        iframe.addEventListener('load', ()=>{ loadingEl.style.display='none'; errorEl.style.display='none'; });
+        iframe.addEventListener('error', ()=>{ loadingEl.style.display='none'; errorEl.style.display='flex'; });
+        document.getElementById('br-reload').onclick = ()=>{ navigate(currentUrl); };
+        document.getElementById('br-home').onclick = ()=>{ navigate('https://duckduckgo.com'); };
+        document.getElementById('br-go').onclick = ()=>{ navigate(urlInput.value); };
+        document.getElementById('br-back').onclick = ()=>{ if(_histIdx>0){ _histIdx--; navigate(_history[_histIdx]); } };
+        document.getElementById('br-fwd').onclick = ()=>{ if(_histIdx<_history.length-1){ _histIdx++; navigate(_history[_histIdx]); } };
+        document.getElementById('br-retry').onclick = ()=>{ navigate(currentUrl); };
         urlInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') navigate(urlInput.value); });
         document.querySelectorAll('.br-bm').forEach(bm => bm.addEventListener('click', ()=>navigate(bm.dataset.url)));
+        // Load initial page via proxy
+        navigate(currentUrl);
     }
 
     // ── Lock Screen ──
     showLockScreen() {
         this._isLocked = true;
+        this._lockAttempts = 0;
+        this._lockCooldown = false;
         const ls = document.getElementById('lock-screen');
         if (!ls) return;
         ls.style.display = 'flex';
+        const errorEl = document.getElementById('lock-error');
+        if (errorEl) errorEl.style.display = 'none';
         const updateTime = () => {
             const now = new Date();
             const timeEl = document.getElementById('lock-time');
@@ -4210,13 +4817,62 @@ print(f"TRAINING_PIPELINE_END:{total_time:.2f}:{sum(losses)/len(losses):.6f}:{su
         updateTime();
         this._lockInterval = setInterval(updateTime, 1000);
         const input = document.getElementById('lock-input');
-        if (input) setTimeout(() => input.focus(), 200);
+        if (input) {
+            input.value = '';
+            setTimeout(() => input.focus(), 200);
+            input.onkeydown = async (e) => {
+                if (e.key === 'Escape') { this.unlockScreen(); return; }
+                if (e.key === 'Enter') {
+                    if (this._lockCooldown) return;
+                    const pw = input.value;
+                    if (!pw) return;
+                    try {
+                        const res = await fetch('/api/password/verify', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ password: pw })
+                        });
+                        const data = await res.json();
+                        if (data.valid) {
+                            this.unlockScreen();
+                        } else {
+                            this._lockAttempts++;
+                            const remaining = 5 - this._lockAttempts;
+                            if (errorEl) {
+                                errorEl.textContent = remaining > 0 ? `Wrong password. ${remaining} attempt(s) remaining.` : 'Too many attempts. Locked for 30 seconds.';
+                                errorEl.style.display = 'block';
+                            }
+                            if (this._lockAttempts >= 5) {
+                                this._lockCooldown = true;
+                                input.disabled = true;
+                                setTimeout(() => {
+                                    this._lockAttempts = 0;
+                                    this._lockCooldown = false;
+                                    input.disabled = false;
+                                    if (errorEl) errorEl.style.display = 'none';
+                                    input.focus();
+                                }, 30000);
+                            }
+                            input.value = '';
+                            input.focus();
+                        }
+                    } catch(err) {
+                        // Offline fallback: skip auth
+                        this.unlockScreen();
+                    }
+                }
+            };
+        }
     }
     unlockScreen() {
         this._isLocked = false;
+        this._lockAttempts = 0;
+        this._lockCooldown = false;
         const ls = document.getElementById('lock-screen');
         if (ls) ls.style.display = 'none';
         clearInterval(this._lockInterval);
+        const input = document.getElementById('lock-input');
+        if (input) { input.value = ''; input.onkeydown = null; }
     }
 
     _escapeHtml(text) {

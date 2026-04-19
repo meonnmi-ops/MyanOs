@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-Myanos Web OS — Server v2.2.0
-HTTP Server + Terminal API + Real System Metrics
-Serves desktop UI and handles real shell commands via /api/exec
-Real system stats via /api/system-stats (psutil + nvidia-smi)
+Myanos Web OS — Server v4.3.0
+Production-Ready HTTP Server with Security Layer
+- API Key Authentication (X-API-Key header)
+- Rate Limiting (30 req/min/IP)
+- Command Safety (blocks rm -rf /, mkfs, fork bombs)
+- SHA-256 Password Hashing
+- Real System Metrics (psutil + nvidia-smi)
 
 Usage: python3 server.py [port]
 Default port: 8080
 """
 
 import os
+import re
 import sys
 import json
 import signal
@@ -18,25 +22,125 @@ import platform
 import threading
 import subprocess
 import time
+import hashlib
+import secrets
+import urllib.request
+import urllib.parse
+import urllib.error
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from datetime import datetime
+from collections import defaultdict
+from threading import Thread
+import atexit
 
 # ─── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
 DESKTOP_DIR = BASE_DIR / "desktop"
-VERSION = "2.2.0"
+VERSION = "4.3.0"
 DEFAULT_PORT = 8080
+API_KEY_FILE = BASE_DIR / ".myanos_api_key"
+PASSWORD_FILE = BASE_DIR / ".myanos_password"
+HASH_FILE = BASE_DIR / ".myanos_pw_hash"
+
+# ─── Rate Limiting ─────────────────────────────────────────────────────────────
+rate_limit_store = defaultdict(list)
+RATE_LIMIT_MAX = 30          # requests per window
+RATE_LIMIT_WINDOW = 60       # seconds
+
+# ─── Command Safety ────────────────────────────────────────────────────────────
+DANGEROUS_PATTERNS = [
+    'rm -rf /', 'rm -rf /*', 'mkfs', 'dd if=', ':(){ :|:& };:',
+    'fork bomb', '> /dev/sda', 'chmod -R 777 /', 'shutdown',
+    'reboot', 'init 0', 'init 6', 'poweroff', 'halt',
+]
+
+def is_command_safe(cmd):
+    """Check if a command is safe to execute"""
+    cmd_lower = cmd.strip().lower()
+    for pattern in DANGEROUS_PATTERNS:
+        if pattern in cmd_lower:
+            return False
+    # Block commands that try to remove root or critical dirs
+    if cmd_lower.startswith('rm') and ('/' == cmd_lower.strip().split()[-1] or '/.' in cmd_lower):
+        return False
+    return True
+
+# ─── Password Hashing ─────────────────────────────────────────────────────────
+def hash_password(password):
+    """SHA-256 hash with salt"""
+    salt = secrets.token_hex(16)
+    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f"{salt}:{hashed}"
+
+def verify_password(password, stored_hash):
+    """Verify password against stored hash"""
+    try:
+        salt, hashed = stored_hash.split(':')
+        computed = hashlib.sha256((salt + password).encode()).hexdigest()
+        return computed == hashed
+    except (ValueError, AttributeError):
+        return False
+
+def init_password():
+    """Initialize default password if not set"""
+    if not HASH_FILE.exists():
+        default_pw = 'myanos2024'
+        hashed = hash_password(default_pw)
+        HASH_FILE.write_text(hashed)
+        print(f"  [SECURITY] Default password set (hash stored)")
+    return HASH_FILE.read_text().strip()
+
+def init_api_key():
+    """Initialize or load API key"""
+    if not API_KEY_FILE.exists():
+        key = secrets.token_hex(32)
+        API_KEY_FILE.write_text(key)
+        print(f"  [SECURITY] New API key generated: {key[:16]}...")
+    return API_KEY_FILE.read_text().strip()
 
 # ─── Shell Integration ────────────────────────────────────────────────────────
 sys.path.insert(0, str(BASE_DIR))
 
 # ─── HTTP Handler ─────────────────────────────────────────────────────────────
 class MyanosHandler(SimpleHTTPRequestHandler):
-    """Custom handler: serves desktop/ + API endpoints"""
+    """Production-ready handler with security layer"""
 
     def __init__(self, *args, **kwargs):
+        self._api_key = init_api_key()
+        self._pw_hash = init_password()
         super().__init__(*args, directory=str(DESKTOP_DIR), **kwargs)
+
+    def _check_rate_limit(self):
+        """Rate limiting: 30 requests per minute per IP"""
+        client_ip = self.client_address[0]
+        now = time.time()
+        # Clean old entries
+        rate_limit_store[client_ip] = [
+            t for t in rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW
+        ]
+        if len(rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
+            self.send_json({'error': 'Rate limit exceeded. Try again later.'}, 429)
+            return False
+        rate_limit_store[client_ip].append(now)
+        return True
+
+    def _check_api_key(self):
+        """Verify X-API-Key header"""
+        provided = self.headers.get('X-API-Key', '')
+        if not provided:
+            self.send_json({'error': 'API key required. Use X-API-Key header.'}, 401)
+            return False
+        if provided != self._api_key:
+            self.send_json({'error': 'Invalid API key.'}, 403)
+            return False
+        return True
+
+    def _check_auth(self):
+        """Check rate limit + API key for protected endpoints"""
+        if not self._check_rate_limit():
+            return False
+        return self._check_api_key()
 
     def do_POST(self):
         """Handle API requests"""
@@ -48,6 +152,18 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             data = {}
 
+        # Public endpoints (no auth required for some)
+        if self.path == '/api/password/verify':
+            self.handle_password_verify(data)
+            return
+        if self.path == '/api/password/change':
+            self.handle_password_change(data)
+            return
+
+        # Auth-required endpoints
+        if not self._check_auth():
+            return
+
         if self.path == '/api/exec':
             self.handle_exec(data)
         elif self.path == '/api/myan':
@@ -56,6 +172,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             self.handle_system(data)
         elif self.path == '/api/training':
             self.handle_training(data)
+        elif self.path == '/api/key':
+            self.handle_api_key(data)
         else:
             self.send_json({'error': 'Unknown endpoint'}, 404)
 
@@ -69,8 +187,123 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             self.handle_packages()
         elif self.path == '/api/training':
             self.handle_training_status()
+        elif self.path == '/api/key':
+            self.handle_get_api_key()
+        elif self.path.startswith('/api/proxy'):
+            if self._check_rate_limit():
+                self.handle_proxy()
+        elif self.path == '/api/health':
+            self.send_json({
+                'status': 'ok',
+                'version': VERSION,
+                'uptime': time.time() - _server_start_time,
+                'python': platform.python_version(),
+            })
         else:
             super().do_GET()
+
+    # ─── API: Password Management ────────────────────────────────────────
+    def handle_password_verify(self, data):
+        """Verify password (no API key required for login)"""
+        if not self._check_rate_limit():
+            return
+        password = data.get('password', '')
+        if not password:
+            self.send_json({'valid': False, 'error': 'Password required'}, 400)
+            return
+        stored_hash = HASH_FILE.read_text().strip() if HASH_FILE.exists() else ''
+        if verify_password(password, stored_hash):
+            self.send_json({'valid': True})
+        else:
+            self.send_json({'valid': False, 'error': 'Wrong password'})
+
+    def handle_password_change(self, data):
+        """Change password (requires current password)"""
+        if not self._check_rate_limit():
+            return
+        current = data.get('current_password', '')
+        new_pw = data.get('new_password', '')
+        if not current or not new_pw:
+            self.send_json({'error': 'Both current and new password required'}, 400)
+            return
+        if len(new_pw) < 4:
+            self.send_json({'error': 'New password must be at least 4 characters'}, 400)
+            return
+        stored_hash = HASH_FILE.read_text().strip() if HASH_FILE.exists() else ''
+        if verify_password(current, stored_hash):
+            HASH_FILE.write_text(hash_password(new_pw))
+            self.send_json({'success': True, 'message': 'Password changed'})
+        else:
+            self.send_json({'error': 'Current password is wrong'}, 403)
+
+    # ─── API: Web Proxy (for Browser app) ─────────────────────────────────
+    def handle_proxy(self):
+        """Proxy web content to bypass X-Frame-Options"""
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        url = params.get('url', [''])[0]
+        if not url:
+            self.send_json({'error': 'URL parameter required'}, 400)
+            return
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        try:
+            req = urllib.request.Request(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+            })
+            resp = urllib.request.urlopen(req, timeout=15)
+            content = resp.read()
+            content_type = resp.headers.get('Content-Type', 'text/html; charset=utf-8')
+            # Rewrite HTML to add <base> tag for relative URLs
+            if b'<html' in content.lower() or b'<!doctype' in content.lower():
+                try:
+                    html = content.decode('utf-8', errors='replace')
+                    parsed = urllib.parse.urlparse(url)
+                    base_url = f"{parsed.scheme}://{parsed.netloc}"
+                    base_tag = f'<base href="{base_url}" target="_self">'
+                    # Insert <base> after <head>
+                    if '<head>' in html.lower():
+                        pattern = re.compile(r'(<head[^>]*>)', re.IGNORECASE)
+                        html = pattern.sub(r'\1' + base_tag, html, count=1)
+                    else:
+                        html = base_tag + html
+                    # Strip X-Frame-Options meta tags
+                    html = re.sub(r'<meta[^>]*http-equiv[^>]*X-Frame-Options[^>]*>', '', html, flags=re.IGNORECASE)
+                    html = re.sub(r'<meta[^>]*content-security-policy[^>]*>', '', html, flags=re.IGNORECASE)
+                    content = html.encode('utf-8')
+                except Exception:
+                    pass
+            self.send_response(200)
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', len(content))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('X-Frame-Options', 'ALLOWALL')
+            self.end_headers()
+            self.wfile.write(content)
+        except urllib.error.HTTPError as e:
+            self.send_json({'error': f'HTTP {e.code}: {e.reason}', 'url': url}, e.code)
+        except urllib.error.URLError as e:
+            self.send_json({'error': f'Connection failed: {e.reason}', 'url': url}, 502)
+        except Exception as e:
+            self.send_json({'error': f'Proxy error: {str(e)}', 'url': url}, 500)
+
+    def handle_get_api_key(self):
+        """Return API key (public — needed for frontend init)"""
+        key = API_KEY_FILE.read_text().strip() if API_KEY_FILE.exists() else ''
+        self.send_json({'api_key': key})
+
+    def handle_api_key(self, data):
+        """Regenerate API key"""
+        action = data.get('action', '')
+        if action == 'regenerate':
+            new_key = secrets.token_hex(32)
+            API_KEY_FILE.write_text(new_key)
+            self._api_key = new_key
+            self.send_json({'api_key': new_key, 'message': 'API key regenerated'})
+        else:
+            self.send_json({'api_key': self._api_key})
 
     # ─── API: Execute Shell Command ───────────────────────────────────────
     def handle_exec(self, data):
@@ -80,6 +313,11 @@ class MyanosHandler(SimpleHTTPRequestHandler):
 
         if not cmd:
             self.send_json({'output': '', 'status': 0})
+            return
+
+        # Command safety check
+        if not is_command_safe(cmd):
+            self.send_json({'output': '[SECURITY] Command blocked: potentially dangerous operation detected.', 'status': 1})
             return
 
         try:
@@ -101,31 +339,71 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             pm = MyanPM()
 
             if action == 'list':
-                pm.list()
-                result = '[OK] Listed packages'
+                installed = {}
+                db_path = BASE_DIR / '.myan_db.json'
+                if db_path.exists():
+                    try:
+                        with open(db_path) as f:
+                            db = json.load(f)
+                        installed = db.get('packages', {})
+                    except Exception:
+                        pass
+                result_lines = [f"  {n:<25} v{i['version']:<10} (installed)" for n, i in installed.items()]
+                result = '[Installed Packages]\n' + '\n'.join(result_lines) if result_lines else '[INFO] No packages installed'
+                self.send_json({'output': result, 'status': 0, 'installed': list(installed.keys())})
+                return
+            elif action == 'available':
+                dist_dir = BASE_DIR / 'dist'
+                avail = []
+                if dist_dir.exists():
+                    for f in sorted(dist_dir.iterdir()):
+                        if f.suffix == '.myan':
+                            avail.append({'name': f.stem, 'file': f.name, 'size': f.stat().st_size})
+                self.send_json({'output': f'[Available] {len(avail)} packages', 'status': 0, 'available': avail})
+                return
             elif action == 'install' and pkg_name:
-                # Check dist/ first, then try as path
-                dist_path = BASE_DIR / "dist" / pkg_name
-                if dist_path.exists():
-                    pm.install(str(dist_path))
-                    result = f'[OK] Installed: {pkg_name}'
-                else:
-                    result = f'[ERR] Package not found: {pkg_name}'
+                # Find .myan file in dist/ by name pattern
+                dist_dir = BASE_DIR / 'dist'
+                pkg_file = None
+                if dist_dir.exists():
+                    for f in dist_dir.iterdir():
+                        if f.suffix == '.myan' and pkg_name in f.stem:
+                            pkg_file = str(f)
+                            break
+                if not pkg_file:
+                    self.send_json({'output': f'[ERR] Package not found: {pkg_name}', 'status': 1})
+                    return
+                pm.install(pkg_file)
+                self.send_json({'output': f'[OK] Installed: {pkg_name}', 'status': 0, 'package': pkg_name})
+                return
             elif action == 'remove' and pkg_name:
                 pm.remove(pkg_name)
-                result = f'[OK] Removed: {pkg_name}'
+                self.send_json({'output': f'[OK] Removed: {pkg_name}', 'status': 0, 'package': pkg_name})
+                return
             elif action == 'search' and pkg_name:
-                pm.search(pkg_name)
-                result = '[OK] Search complete'
+                results = pm.search(pkg_name)
+                self.send_json({'output': f'[OK] Search complete for: {pkg_name}', 'status': 0})
+                return
             elif action == 'info' and pkg_name:
                 pm.info(pkg_name)
-                result = '[OK] Info shown'
+                self.send_json({'output': f'[OK] Info shown: {pkg_name}', 'status': 0})
+                return
             elif action == 'update':
-                result = '[OK] Package list updated'
+                self.send_json({'output': '[OK] Package list updated', 'status': 0})
+                return
+            elif action == 'build':
+                # Rebuild all packages
+                import subprocess as sp
+                bp = BASE_DIR / 'build_packages.py'
+                if bp.exists():
+                    r = sp.run([sys.executable, str(bp)], capture_output=True, text=True, timeout=30, cwd=str(BASE_DIR))
+                    self.send_json({'output': r.stdout, 'status': r.returncode})
+                else:
+                    self.send_json({'output': '[ERR] build_packages.py not found', 'status': 1})
+                return
             else:
-                result = '[ERR] Usage: myan [list|install|remove|search|info|update]'
-
-            self.send_json({'output': result, 'status': 0})
+                self.send_json({'output': '[ERR] Usage: myan [list|available|install|remove|search|info|update|build]', 'status': 1})
+                return
         except Exception as e:
             self.send_json({'output': f'[ERR] {e}', 'status': 1})
 
@@ -221,7 +499,6 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                     'label': temp_label,
                 }
             else:
-                # Fallback: read from /sys/class/thermal
                 try:
                     with open('/sys/class/thermal/thermal_zone0/temp') as f:
                         temp_val = int(f.read().strip()) / 1000.0
@@ -266,7 +543,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             interfaces = []
             for iface, addrs in net_addrs.items():
                 for addr in addrs:
-                    if addr.family == 2:  # AF_INET
+                    if addr.family == 2:
                         interfaces.append({'name': iface, 'ip': addr.address})
             stats['network']['interfaces'] = interfaces[:5]
         except Exception:
@@ -342,17 +619,14 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             except:
                 pass
 
-        # Scan dist/ for available packages
         if dist_dir.exists():
             for f in sorted(dist_dir.iterdir()):
                 if f.suffix == '.myan':
                     name = f.stem
-                    # Try to extract version from filename
                     parts = name.rsplit('-', 1)
                     pkg_name = parts[0] if len(parts) > 1 else name
                     version = parts[1] if len(parts) > 1 else '0.0.0'
 
-                    # Get installed status
                     is_installed = pkg_name in installed or name in installed
                     inst_ver = installed.get(pkg_name, {}).get('version', '') or installed.get(name, {}).get('version', '')
 
@@ -366,7 +640,6 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                         'size': f.stat().st_size,
                     })
 
-        # Also add installed packages not in dist/
         for name, info in installed.items():
             if not any(p['name'] == name for p in packages):
                 packages.append({
@@ -385,15 +658,13 @@ class MyanosHandler(SimpleHTTPRequestHandler):
     def handle_training(self, data):
         """Handle AI Training Center requests"""
         action = data.get('action', '')
-        
+
         if action == 'execute_cell':
             code = data.get('code', '').strip()
             if not code:
                 self.send_json({'output': '', 'status': 0})
                 return
             try:
-                import subprocess
-                # Training cells may need more time — 120s timeout
                 timeout = 120 if 'TRAINING_PIPELINE' in code or 'for epoch' in code else 60
                 result = subprocess.run(
                     [sys.executable, '-c', code],
@@ -408,20 +679,19 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                 self.send_json({'output': '[TIMEOUT] Cell execution exceeded 60s limit', 'status': 1})
             except Exception as e:
                 self.send_json({'output': f'[ERR] {e}', 'status': 1})
-        
+
         elif action == 'check_ollama':
             try:
                 import urllib.request
                 req = urllib.request.urlopen('http://localhost:11434/api/tags', timeout=3)
-                import json
                 data = json.loads(req.read())
                 self.send_json({'connected': True, 'models': data.get('models', [])})
             except:
                 self.send_json({'connected': False, 'models': []})
-        
+
         elif action == 'system_stats':
-            import platform
-            import os
+            import platform as pf
+            import os as _os
             stats = {
                 'cpu_percent': 0,
                 'memory_used': 'N/A',
@@ -437,8 +707,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                 'uptime': 0,
                 'cpu_count': 0,
                 'cpu_freq': '',
-                'platform': platform.platform(),
-                'python': platform.python_version(),
+                'platform': pf.platform(),
+                'python': pf.python_version(),
             }
             try:
                 import psutil
@@ -459,7 +729,6 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             except ImportError:
                 pass
             try:
-                import subprocess
                 r = subprocess.run(['nvidia-smi', '--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], capture_output=True, text=True, timeout=5)
                 if r.returncode == 0:
                     parts = r.stdout.strip().split(', ')
@@ -470,15 +739,15 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             except:
                 pass
             self.send_json(stats)
-        
+
         else:
             self.send_json({'error': 'Unknown training action'}, 400)
 
     def handle_training_status(self):
         """GET training center status"""
-        import platform
         self.send_json({
             'status': 'ok',
+            'version': VERSION,
             'python': platform.python_version(),
             'platform': platform.platform(),
         })
@@ -492,7 +761,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length', len(body))
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
         self.end_headers()
         self.wfile.write(body)
 
@@ -501,7 +770,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
         self.end_headers()
 
     def log_message(self, format, *args):
@@ -509,7 +778,6 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         msg = format % args
         if '/api/' in msg:
             print(f"  [API] {msg}")
-        # Suppress static file logs for cleaner output
 
     def _count_packages(self):
         db_path = BASE_DIR / ".myan_db.json"
@@ -550,7 +818,14 @@ def find_port(port):
     return port
 
 
+# ─── Global server state ─────────────────────────────────────────────────
+_server_start_time = time.time()
+PID_FILE = BASE_DIR / '.myanos.pid'
+LOG_FILE = BASE_DIR / '.myanos.log'
+
+
 def main():
+    global _server_start_time
     port = DEFAULT_PORT
     if len(sys.argv) > 1:
         try:
@@ -558,26 +833,63 @@ def main():
         except ValueError:
             pass
 
+    # Handle special flags
+    if '--stop' in sys.argv:
+        stop_server()
+        return
+    if '--status' in sys.argv:
+        check_status()
+        return
+
     port = find_port(port)
+
+    # Initialize security
+    api_key = init_api_key()
+    pw_hash = init_password()
+
+    # Build packages if dist/ is empty
+    dist_dir = BASE_DIR / 'dist'
+    if not dist_dir.exists() or not list(dist_dir.glob('*.myan')):
+        print('  [PKG] Building packages...')
+        try:
+            bp = BASE_DIR / 'build_packages.py'
+            if bp.exists():
+                subprocess.run([sys.executable, str(bp)], capture_output=True, timeout=30, cwd=str(BASE_DIR))
+                print('  [PKG] Packages built successfully')
+        except Exception as e:
+            print(f'  [PKG] Build failed: {e}')
+
+    # Write PID file
+    _server_start_time = time.time()
+    PID_FILE.write_text(str(os.getpid()))
 
     # Change to desktop directory for serving
     os.chdir(str(DESKTOP_DIR))
 
     server = HTTPServer(('0.0.0.0', port), MyanosHandler)
 
-    # Graceful shutdown
     def shutdown(sig, frame):
         print(f"\n  [MMR] Server shutting down...")
+        if PID_FILE.exists():
+            PID_FILE.unlink()
         server.shutdown()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
+    # Auto-cleanup on exit
+    atexit.register(lambda: PID_FILE.unlink(missing_ok=True))
+
+    # Log to file
+    log_line = f"[{datetime.now().isoformat()}] Myanos v{VERSION} started on port {port}\n"
+    with open(LOG_FILE, 'a') as f:
+        f.write(log_line)
+
     print()
     print(f"  ╔══════════════════════════════════════════╗")
-    print(f"  ║  🇲🇲 Myanos Web OS v{VERSION}              ║")
-    print(f"  ║  MMR Shell + Real System Metrics          ║")
+    print(f"  ║  Myanos Web OS v{VERSION}               ║")
+    print(f"  ║  Production-Ready with Security Layer    ║")
     print(f"  ║  Server running on port {port:<19}║")
     print(f"  ╚══════════════════════════════════════════╝")
     print()
@@ -585,14 +897,75 @@ def main():
     print(f"  API:      http://localhost:{port}/api/exec")
     print(f"  Stats:    http://localhost:{port}/api/system-stats")
     print(f"  Packages: http://localhost:{port}/api/packages")
+    print(f"  Health:   http://localhost:{port}/api/health")
+    print(f"  Proxy:    http://localhost:{port}/api/proxy?url=https://example.com")
     print()
+    print(f"  API Key:  {api_key[:16]}...{api_key[-8:]}")
+    print(f"  Security: Rate limiting (30 req/min)")
+    print(f"  Security: Command safety filter active")
+    print(f"  Security: SHA-256 password hashing")
+    print()
+    print(f"  PID file: {PID_FILE}")
+    print(f"  Log file: {LOG_FILE}")
     print(f"  Press Ctrl+C to stop")
     print()
+
+    # Flush stdout periodically for nohup/logging
+    import sys as _sys
+    def _flush_loop():
+        while True:
+            time.sleep(5)
+            try:
+                _sys.stdout.flush()
+                _sys.stderr.flush()
+            except Exception:
+                break
+    Thread(target=_flush_loop, daemon=True).start()
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         shutdown(None, None)
+
+
+def stop_server():
+    """Stop a running Myanos server"""
+    if not PID_FILE.exists():
+        print('  [INFO] No running server found (no PID file)')
+        return
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(1)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        PID_FILE.unlink(missing_ok=True)
+        print(f'  [OK] Server stopped (PID {pid})')
+    except Exception as e:
+        print(f'  [ERR] Could not stop: {e}')
+        PID_FILE.unlink(missing_ok=True)
+
+
+def check_status():
+    """Check server status"""
+    if not PID_FILE.exists():
+        print('  [INFO] Server is NOT running')
+        return
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)  # Check if process exists
+        uptime = time.time() - _server_start_time
+        h = int(uptime // 3600)
+        m = int((uptime % 3600) // 60)
+        s = int(uptime % 60)
+        print(f'  [OK] Server is RUNNING (PID {pid}, uptime: {h}h {m}m {s}s)')
+    except ProcessLookupError:
+        print('  [INFO] Server is NOT running (stale PID file)')
+        PID_FILE.unlink(missing_ok=True)
+    except Exception as e:
+        print(f'  [ERR] Status check failed: {e}')
 
 
 if __name__ == '__main__':

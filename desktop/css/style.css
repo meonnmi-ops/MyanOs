@@ -1403,6 +1403,52 @@ button, [role="button"], .ctx-item, .start-app-item,
 .tc-colab-info-value.green { color:#9ece6a; font-weight:600; }
 
 /* ══════════════════════════════════════════════════════════
+   CALCULATOR APP
+   ══════════════════════════════════════════════════════════ */
+.calc-btn {
+    padding: 8px 4px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    color: #c0caf5;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    background: rgba(30,32,50,0.6);
+    transition: all 0.15s;
+}
+.calc-btn:hover { background: rgba(255,255,255,0.08); }
+.calc-btn:active { transform: scale(0.95); }
+.calc-num { background: rgba(42,44,70,0.8); color: #c0caf5; }
+.calc-num:hover { background: rgba(55,58,90,0.9); }
+.calc-op { background: rgba(122,162,247,0.1); color: #7aa2f7; border-color: rgba(122,162,247,0.15); }
+.calc-op:hover { background: rgba(122,162,247,0.2); }
+.calc-sci { background: rgba(187,154,247,0.08); color: #bb9af7; font-size: 11px; border-color: rgba(187,154,247,0.12); }
+.calc-sci:hover { background: rgba(187,154,247,0.18); }
+.calc-fn { background: rgba(224,175,104,0.08); color: #e0af68; font-size: 11px; border-color: rgba(224,175,104,0.12); }
+.calc-fn:hover { background: rgba(224,175,104,0.18); }
+.calc-eq { background: rgba(122,162,247,0.25); color: #7aa2f7; border-color: rgba(122,162,247,0.3); font-weight: 600; font-size: 16px; }
+.calc-eq:hover { background: rgba(122,162,247,0.4); }
+
+/* ══════════════════════════════════════════════════════════
+   MEDIA PLAYER APP
+   ══════════════════════════════════════════════════════════ */
+#mp-${Date.now()}-canvas { background: rgba(13,15,25,0.6); }
+input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #7aa2f7;
+    cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════
    MOBILE RESPONSIVE
    ══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {

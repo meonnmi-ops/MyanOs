@@ -132,8 +132,9 @@
             <div id="lock-date" style="font-size:16px;color:#565f89;margin-top:4px;"></div>
             <div style="font-size:48px;margin:20px 0;">👤</div>
             <div style="font-size:14px;color:#a9b1d6;margin-bottom:16px;">meonnmi</div>
-            <input type="password" id="lock-input" placeholder="Enter password (or press ESC)" onkeydown="if(event.key==='Enter')window.myanos.unlockScreen()" style="width:220px;padding:10px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:24px;color:#c0caf5;font-size:14px;text-align:center;outline:none;" />
-            <div style="font-size:11px;color:#565f89;margin-top:10px;">Press ESC or Enter to unlock</div>
+            <input type="password" id="lock-input" placeholder="Enter password" style="width:220px;padding:10px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:24px;color:#c0caf5;font-size:14px;text-align:center;outline:none;" />
+            <div id="lock-error" style="font-size:12px;color:#f7768e;margin-top:8px;display:none;min-height:16px;"></div>
+            <div style="font-size:11px;color:#565f89;margin-top:6px;">Press ESC to skip, Enter to submit</div>
         </div>
     </div>
 

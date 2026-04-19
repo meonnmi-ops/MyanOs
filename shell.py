@@ -945,7 +945,7 @@ class MMRShell:
             os.chmod(path, int(mode, 8))
             return (f'{C.D}chmod {mode} {args[1]}{C.NC}', 0)
         except Exception as e:
-            return (f'{C_R}[ERR] {e}{C.NC}', 1)
+            return (f'{C.R}[ERR] {e}{C.NC}', 1)
 
     def _cmd_wget(self, args):
         if not args:
@@ -986,7 +986,7 @@ class MMRShell:
                 output = result.stdout + result.stderr
                 return (output if output.strip() else '', result.returncode)
             except Exception as e:
-                return (f'{C_R}[ERR] {e}{C.NC}', 1)
+                return (f'{C.R}[ERR] {e}{C.NC}', 1)
 
     def _cmd_pip(self, args):
         if not args:
@@ -1116,7 +1116,7 @@ class MMRShell:
 
             elif action == 'info':
                 if len(args) < 2:
-                    return (f'{C_R}[ERR] Usage: myan info [name]{C.NC}', 1)
+                    return (f'{C.R}[ERR] Usage: myan info [name]{C.NC}', 1)
                 from io import StringIO
                 old_stdout = sys.stdout
                 sys.stdout = StringIO()
@@ -1165,7 +1165,7 @@ class MMRShell:
         except ImportError as e:
             return (f'{C.R}[ERR] MyanPM not available: {e}{C.NC}\n{C.D}Make sure myan_pm.py is in the Myanos directory{C.NC}', 1)
         except Exception as e:
-            return (f'{C_R}[ERR] myan {action}: {e}{C.NC}', 1)
+            return (f'{C.R}[ERR] myan {action}: {e}{C.NC}', 1)
 
     def _is_pkg_installed(self, name):
         db_path = BASE_DIR / '.myan_db.json'
@@ -1211,7 +1211,7 @@ Author: Aung MoeOo (MWD) | 127 keywords
         except ImportError:
             return (f'{C.Y}[INFO] myanmar-code not installed{C.NC}\n{C.D}Install: pip install myanmar-code{C.NC}', 1)
         except Exception as e:
-            return (f'{C_R}[ERR] mmc: {e}{C.NC}', 1)
+            return (f'{C.R}[ERR] mmc: {e}{C.NC}', 1)
 
     # ─── History ───────────────────────────────────────────────────────────
     def _load_history(self):
