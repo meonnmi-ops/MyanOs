@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Myanos Terminal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1b26;
+            color: #a9b1d6;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .titlebar {
+            background: #24283b;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #414868;
+        }
+        .titlebar-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #f7768e; }
+        .dot-yellow { background: #e0af68; }
+        .dot-green { background: #9ece6a; }
+        .titlebar-text {
+            flex: 1;
+            text-align: center;
+            color: #7982a9;
+            font-size: 12px;
+        }
+        #terminal {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.6;
+        }
+        .prompt { color: #9ece6a; }
+        .path { color: #7aa2f7; }
+        .output { color: #a9b1d6; }
+        .error { color: #f7768e; }
+        .info { color: #7dcfff; }
+        .success { color: #9ece6a; }
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 2px;
+        }
+        #input {
+            background: transparent;
+            border: none;
+            color: #c0caf5;
+            font-family: inherit;
+            font-size: inherit;
+            flex: 1;
+            outline: none;
+            caret-color: #c0caf5;
+        }
+        .banner { color: #bb9af7; }
+        .myanmar { color: #ff9e64; }
+    </style>
+</head>
+<body>
+    <div class="titlebar">
+        <div class="titlebar-dot dot-red"></div>
+        <div class="titlebar-dot dot-yellow"></div>
+        <div class="titlebar-dot dot-green"></div>
+        <div class="titlebar-text">Myanos Terminal v1.0.0</div>
+    </div>
+    <div id="terminal"></div>
+    <div class="input-line">
+        <span class="prompt">meonnmi@myanos</span><span>:</span><span class="path">~</span><span>$ </span>
+        <input type="text" id="input" autofocus spellcheck="false">
+    </div>
+    <script>
+        const term = document.getElementById('terminal');
+        const input = document.getElementById('input');
+        let history = [];
+        let histIdx = -1;
+
+        function append(text, cls = 'output') {
+            const el = document.createElement('div');
+            el.className = cls;
+            el.textContent = text;
+            term.appendChild(el);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function appendHTML(html) {
+            const el = document.createElement('div');
+            el.innerHTML = html;
+            term.appendChild(el);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // Banner
+        appendHTML(`<pre class="banner">       ┌──────────────┐
+       │   Myanos OS   │
+       │  ████████████  │
+       │  █▀▀▀▀▀▀▀▀█  │
+       │  █ ▀▀▀▀▀▀ █  │
+       │    ▀▀▀▀▀▀    │
+       └──────────────┘</pre>`);
+        append('Myanos Web OS v1.0.0 - Web Terminal', 'info');
+        append('Type "help" for commands\n', 'info');
+
+        const commands = {
+            help: () => {
+                append('📋 Available Commands:', 'info');
+                append('  help      Show this help', 'output');
+                append('  clear     Clear terminal', 'output');
+                append('  neofetch  System info', 'output');
+                append('  date      Current date/time', 'output');
+                append('  echo      Print text', 'output');
+                append('  version   Myanos version', 'output');
+                append('  about     About Myanos', 'output');
+                append('  myanmar   Myanmar Code info', 'output');
+            },
+            clear: () => { term.innerHTML = ''; },
+            neofetch: () => {
+                appendHTML(`<pre class="banner">       ┌──────────────┐
+       │   Myanos OS   │
+       │  ████████████  │
+       │  █▀▀▀▀▀▀▀▀█  │
+       │  █ ▀▀▀▀▀▀ █  │
+       │    ▀▀▀▀▀▀    │
+       └──────────────┘</pre>`);
+                append('meonnmi@myanos', 'prompt');
+                append('─'.repeat(45));
+                append('  OS:        Myanos Web OS v1.0.0');
+                append('  Shell:     myanos-terminal (Web)');
+                append('  Engine:    Browser Runtime');
+                append('  Language:  Myanmar Code (127 keywords)');
+                append('  Packages:  .myan (MyanPM)');
+                append('─'.repeat(45));
+                append('  🇲🇲 Myanos Web OS - Made in Myanmar', 'myanmar');
+            },
+            date: () => append(new Date().toString()),
+            version: () => append('Myanos Web OS v1.0.0 (Myanmar)', 'info'),
+            about: () => {
+                append('Myanos Web OS - Myanmar Advanced Web OS', 'info');
+                append('CTO: Meonnmi-ops');
+                append('First Myanmar Web Operating System');
+                append('Features: Package Manager, Terminal, PS2, Android, Toolbox');
+            },
+            myanmar: () => {
+                append('🇲🇲 Myanmar Code Programming Language', 'myanmar');
+                append('127 keywords | Author: Aung MoeOo (MWD)');
+                append('Python package: pip install myanmar-code');
+                append('Myanos package: myan install myanmar-code-2.0.1.myan');
+            },
+            echo: (args) => append(args.join(' ')),
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value.trim();
+                if (!cmd) return;
+                history.push(cmd);
+                histIdx = history.length;
+
+                // Show command
+                appendHTML(`<span class="prompt">meonnmi@myanos</span>:<span class="path">~</span>$ ${cmd}`);
+
+                const parts = cmd.split(/\s+/);
+                const name = parts[0].toLowerCase();
+                const args = parts.slice(1);
+
+                if (commands[name]) {
+                    commands[name](args);
+                } else {
+                    append(`[ERR] Unknown command: ${name}`, 'error');
+                    append('Type "help" for available commands', 'info');
+                }
+                input.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (histIdx > 0) { histIdx--; input.value = history[histIdx]; }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (histIdx < history.length - 1) { histIdx++; input.value = history[histIdx]; }
+                else { histIdx = history.length; input.value = ''; }
+            }
+        });
+
+        document.addEventListener('click', () => input.focus());
+    </script>
+</body>
+</html>

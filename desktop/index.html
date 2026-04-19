@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Myanos Desktop</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇲🇲</text></svg>">
+</head>
+<body>
+
+    <!-- ═══ Notification Area ═══ -->
+    <div id="notification-area" class="notification-container"></div>
+
+    <!-- ═══ Boot Screen ═══ -->
+    <div id="boot-screen">
+        <!-- Phase 1: BIOS POST -->
+        <div id="boot-bios" class="boot-phase active">
+            <pre class="bios-output"></pre>
+        </div>
+        <!-- Phase 2: GRUB Bootloader -->
+        <div id="boot-grub" class="boot-phase">
+            <div class="grub-box">
+                <div class="grub-header">GNU GRUB &nbsp; version 2.06-3ubuntu7</div>
+                <div class="grub-menu" id="grub-menu"></div>
+                <div class="grub-footer">Use the &uarr;&darr; keys to select which entry is highlighted.<br>Press enter to boot the selected OS, 'e' to edit the commands.</div>
+            </div>
+        </div>
+        <!-- Phase 3: Loading -->
+        <div id="boot-loading" class="boot-phase">
+            <div class="loading-box">
+                <pre class="loading-logo">
+   ┌──────────────┐
+   │  MYANOS  OS   │
+   │  ════════════  │
+   │  █▀▀▀▀▀▀▀▀█  │
+   └──────────────┘</pre>
+                <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-fill"></div></div>
+                <div class="loading-status" id="loading-status">Starting MMR Shell...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Desktop Area ═══ -->
+    <div id="desktop" style="display:none;">
+        <div class="wallpaper"></div>
+        <div id="desktop-icons" class="desktop-icons"></div>
+    </div>
+
+    <!-- ═══ Context Menu (Desktop Right-Click) ═══ -->
+    <div id="context-menu" class="context-menu">
+        <div class="ctx-item" data-action="new-file">📄 New File</div>
+        <div class="ctx-item" data-action="new-folder">📁 New Folder</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="paste">📋 Paste</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="open-terminal-here">⬛ Open Terminal Here</div>
+        <div class="ctx-item" data-action="open-notepad">📝 Notepad</div>
+        <div class="ctx-item" data-action="open-code-editor">💻 Code Editor</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="install-package">📦 Install Package (.myan)</div>
+        <div class="ctx-item" data-action="download-file">📥 Download File</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item ctx-submenu-trigger">🎨 Change Wallpaper</div>
+        <div class="ctx-submenu" id="wallpaper-submenu">
+            <div class="ctx-item" data-action="wallpaper-tokyo">🌙 Tokyo Night</div>
+            <div class="ctx-item" data-action="wallpaper-ocean">🌊 Ocean Blue</div>
+            <div class="ctx-item" data-action="wallpaper-forest">🌲 Forest Green</div>
+            <div class="ctx-item" data-action="wallpaper-sunset">🌅 Sunset Orange</div>
+            <div class="ctx-item" data-action="wallpaper-purple">💎 Royal Purple</div>
+            <div class="ctx-item" data-action="wallpaper-dark">⬛ Pure Dark</div>
+        </div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="refresh">⟳ Refresh Desktop</div>
+        <div class="ctx-item" data-action="open-settings">⚙️ Settings</div>
+        <div class="ctx-item" data-action="about">ℹ️ About Myanos</div>
+    </div>
+
+    <!-- ═══ Context Menu (File/Folder Right-Click) ═══ -->
+    <div id="file-context-menu" class="context-menu">
+        <div class="ctx-item" data-action="open-file">📂 Open</div>
+        <div class="ctx-item" data-action="edit-file">✏️ Edit in Code Editor</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="copy-file">📋 Copy</div>
+        <div class="ctx-item" data-action="cut-file">✂️ Cut</div>
+        <div class="ctx-item" data-action="rename-file">✏️ Rename</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item ctx-danger" data-action="delete-file">🗑️ Delete</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item" data-action="file-properties">ℹ️ Properties</div>
+    </div>
+
+    <!-- ═══ Start Menu ═══ -->
+    <div id="start-menu">
+        <div class="start-header">🇲🇲 Myanos</div>
+        <div class="start-search">
+            <input type="text" id="start-search-input" placeholder="Search apps...">
+        </div>
+        <div id="start-apps" class="start-apps"></div>
+        <div class="start-footer">
+            <span onclick="window.myanos.openApp('files')">📁 Files</span>
+            <span onclick="window.myanos.openApp('settings')">⚙️ Settings</span>
+            <span onclick="window.myanos.showLockScreen()">🔒 Lock</span>
+            <span onclick="document.getElementById('desktop').style.display='none';document.getElementById('taskbar').style.display='none';document.getElementById('boot-screen').style.display='flex';document.getElementById('boot-bios').classList.add('active');document.getElementById('boot-grub').classList.remove('active');document.getElementById('boot-loading').classList.remove('active');document.getElementById('boot-bios').querySelector('.bios-output').textContent='';">⏻ Reboot</span>
+        </div>
+    </div>
+
+    <!-- ═══ Taskbar ═══ -->
+    <div id="taskbar" style="display:none;">
+        <div id="start-btn" title="Start Menu">🇲🇲</div>
+        <div id="taskbar-apps"></div>
+        <div id="system-tray"></div>
+    </div>
+
+    <!-- ═══ Input Dialog (for new file/folder name, rename) ═══ -->
+    <div id="input-dialog" class="input-dialog">
+        <div class="input-dialog-box">
+            <div class="input-dialog-title" id="input-dialog-title">New File</div>
+            <input type="text" id="input-dialog-input" placeholder="Enter name..." class="input-dialog-field">
+            <div class="input-dialog-buttons">
+                <button class="input-dialog-btn cancel" id="input-dialog-cancel">Cancel</button>
+                <button class="input-dialog-btn ok" id="input-dialog-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Lock Screen ═══ -->
+    <div id="lock-screen" class="lock-screen" style="display:none;">
+        <div class="lock-bg"></div>
+        <div class="lock-content">
+            <div id="lock-time" style="font-size:64px;font-family:'JetBrains Mono',monospace;color:#c0caf5;font-weight:200;">00:00</div>
+            <div id="lock-date" style="font-size:16px;color:#565f89;margin-top:4px;"></div>
+            <div style="font-size:48px;margin:20px 0;">👤</div>
+            <div style="font-size:14px;color:#a9b1d6;margin-bottom:16px;">meonnmi</div>
+            <input type="password" id="lock-input" placeholder="Enter password" style="width:220px;padding:10px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:24px;color:#c0caf5;font-size:14px;text-align:center;outline:none;" />
+            <div id="lock-error" style="font-size:12px;color:#f7768e;margin-top:8px;display:none;min-height:16px;"></div>
+            <div style="font-size:11px;color:#565f89;margin-top:6px;">Press ESC to skip, Enter to submit</div>
+        </div>
+    </div>
+
+    <!-- ═══ Confirmation Dialog (for delete, etc.) ═══ -->
+    <div id="confirm-dialog" class="confirm-dialog">
+        <div class="confirm-dialog-box">
+            <div style="text-align:center;margin-bottom:16px;">
+                <div style="font-size:40px;">⚠️</div>
+                <div class="confirm-title" id="confirm-title">Delete File</div>
+            </div>
+            <div class="confirm-message" id="confirm-message">Are you sure?</div>
+            <div class="input-dialog-buttons" style="justify-content:center;margin-top:20px;">
+                <button class="input-dialog-btn ok" id="confirm-ok" style="background:#f7768e;">Delete</button>
+                <button class="input-dialog-btn cancel" id="confirm-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/desktop.js"></script>
+</body>
+</html>

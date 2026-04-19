@@ -1,0 +1,43 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy all project files
+COPY server.py .
+COPY shell.py .
+COPY myanos.py .
+COPY myan_pm.py .
+COPY build_packages.py .
+COPY start.sh .
+COPY .mmr_history .
+
+# Copy directories
+COPY desktop/ desktop/
+COPY terminal/ terminal/
+COPY toolbox/ toolbox/
+COPY myanai/ myanai/
+COPY display_engine/ display_engine/
+COPY ps2_layer/ ps2_layer/
+COPY android_layer/ android_layer/
+COPY packages/ packages/
+
+# Build .myan packages into dist/ (dist/ is NOT in the repo — generated at build time)
+RUN python3 build_packages.py
+
+# Ensure dist/ exists for runtime package management
+RUN mkdir -p dist
+
+EXPOSE 7860
+
+ENV PORT=7860
+ENV HOST=0.0.0.0
+
+CMD ["python3", "server.py", "7860"]
