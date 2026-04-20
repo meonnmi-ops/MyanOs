@@ -27,27 +27,7 @@ PACKAGES = [
         "desc": "Interactive terminal emulator",
         "src_files": ["terminal/terminal.py"],
     },
-    {
-        "name": "myanos-display-engine",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "desc": "noVNC display engine for Android/PS2 streaming",
-        "src_files": ["display_engine/display_engine.py"],
-    },
-    {
-        "name": "myanos-ps2-layer",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "desc": "PlayStation 2 emulation layer",
-        "src_files": ["ps2_layer/ps2_layer.py"],
-    },
-    {
-        "name": "myanos-android-layer",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "desc": "Android APK management via WayDroid/ADB",
-        "src_files": ["android_layer/vnc_server.py", "android_layer/setup_waydroid.sh"],
-    },
+    # NOTE: display-engine, ps2-layer, android-layer removed (cloud hosting compatibility)
     {
         "name": "myanos-toolbox",
         "version": "1.0.0",

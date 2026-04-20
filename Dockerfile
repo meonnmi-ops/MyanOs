@@ -28,10 +28,8 @@ COPY desktop/ desktop/
 COPY terminal/ terminal/
 COPY toolbox/ toolbox/
 COPY myanai/ myanai/
-COPY display_engine/ display_engine/
-COPY ps2_layer/ ps2_layer/
-COPY android_layer/ android_layer/
 COPY packages/ packages/
+# NOTE: display_engine, ps2_layer, android_layer removed (cloud hosting compatibility)
 
 # Build .myan packages into dist/
 RUN python3 build_packages.py || echo "[WARN] Package build had warnings (non-fatal)"

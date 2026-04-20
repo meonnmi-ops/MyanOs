@@ -381,8 +381,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         'code-editor':    {'cmd': 'ls -la /app',                  'desc': 'App directory listing'},
         'notepad':        {'cmd': 'date',                         'desc': 'Current date/time'},
         'toolbox':        {'cmd': 'lsblk 2>/dev/null || echo "lsblk not available"', 'desc': 'Storage info'},
-        'android':        {'cmd': 'which adb 2>/dev/null && echo "ADB available" || echo "ADB not found"', 'desc': 'Android ADB check'},
-        'ps2':            {'cmd': 'ls ~/PS2/ 2>/dev/null || echo "No PS2 directory found"', 'desc': 'PS2 games listing'},
+        # android & ps2 removed (cloud hosting compatibility)
         'myanai':         {'cmd': 'python3 -c "import sys; print(sys.version)"', 'desc': 'Python version for AI'},
         'ai-training':    {'cmd': "python3 -c \"import psutil; print(f'CPU: {psutil.cpu_percent()}% | RAM: {psutil.virtual_memory().percent()}%')\"", 'desc': 'System resources for AI training'},
         'browser':        {'cmd': 'curl -s -o /dev/null -w "%{http_code}" https://huggingface.co 2>/dev/null || echo "offline"', 'desc': 'Network connectivity check'},
@@ -914,9 +913,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         icons = {
             'myanmar-code': '🇲🇲',
             'myanos-terminal': '⬛',
-            'myanos-display-engine': '🖥️',
-            'myanos-ps2-layer': '🎮',
-            'myanos-android-layer': '📱',
+            # display-engine, ps2-layer, android-layer removed (cloud hosting compatibility)
             'myanos-toolbox': '🔧',
             'myanos-desktop': '💻',
             'myanai': '🤖',

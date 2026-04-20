@@ -30,33 +30,7 @@ PACKAGES = {
         "size": "8.4KB",
         "installed": False
     },
-    "myanos-display-engine": {
-        "name": "myanos-display-engine",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "description": "noVNC-based display engine for streaming Android and PS2 displays to web browser",
-        "category": "display",
-        "size": "4.8KB",
-        "installed": False
-    },
-    "myanos-ps2-layer": {
-        "name": "myanos-ps2-layer",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "description": "PlayStation 2 emulation layer with Play! and PCSX2 emulator integration",
-        "category": "emulation",
-        "size": "3.1KB",
-        "installed": False
-    },
-    "myanos-android-layer": {
-        "name": "myanos-android-layer",
-        "version": "1.0.0",
-        "author": "Meonnmi-ops",
-        "description": "Android APK management via WayDroid/ADB with VNC streaming to browser",
-        "category": "android",
-        "size": "8.9KB",
-        "installed": False
-    },
+    # NOTE: display-engine, ps2-layer, android-layer removed (cloud hosting compatibility)
     "myanos-toolbox": {
         "name": "myanos-toolbox",
         "version": "1.0.0",

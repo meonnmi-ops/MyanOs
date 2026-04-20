@@ -3,8 +3,8 @@
 Myanos Web OS v2.0.0 - Unified Command Hub
 CTO: Meonnmi-ops | Myanmar Advanced Web Operating System
 
-Integrates: Package Manager, Terminal, Desktop, Display Engine, PS2 Layer,
-           Android Layer, Toolbox, MyanAi, Myanmar Code
+Integrates: Package Manager, Terminal, Desktop,
+           Toolbox, MyanAi, Myanmar Code
 """
 
 import os, sys, subprocess, platform, json, time
@@ -49,11 +49,11 @@ def show_neofetch():
         count = len(db.get("packages", {}))
         print(f"  Installed: {count} packages")
     print("─" * 45)
-    print("  🇲🇲 Myanos Web OS - Made in Myanmar")
+    print("  Myanos Web OS - Made in Myanmar")
 
 def show_help():
     show_banner()
-    print("📋 Myanos Commands:\n")
+    print("Myanos Commands:\n")
     print("System:")
     print("  myanos terminal          Start interactive terminal")
     print("  myanos neofetch          Show system info")
@@ -66,29 +66,18 @@ def show_help():
     print("  myanos pkg info <name>     Package details\n")
     print("Myanmar Code:")
     print("  myanos mmc run '<code>'  Execute Myanmar Code\n")
-    print("Display Engine:")
-    print("  myanos display android   Start Android display (noVNC)")
-    print("  myanos display ps2       Start PS2 display\n")
-    print("Android Layer:")
-    print("  myanos android status    Show Android status")
-    print("  myanos android install   Install APK file")
-    print("  myanos android list      List Android apps\n")
-    print("PS2 Layer:")
-    print("  myanos ps2 list          List PS2 games")
-    print("  myanos ps2 launch        Launch PS2 game\n")
     print("Toolbox:")
     print("  myanos toolbox           Open professional toolbox\n")
     print("Desktop:")
     print("  myanos desktop            Launch web desktop\n")
     print("MyanAi:")
-    print("  myanos ai                 MyanAi agent builder\n")
-    print("  myanos ai run             Run AI agent\n")
-    print("  myanos ai create          Create new agent\n\n")
+    print("  myanos ai                 MyanAi agent builder")
+    print("  myanos ai run             Run AI agent")
+    print("  myanos ai create          Create new agent\n")
     print("Examples:")
     print("  myanos neofetch")
     print("  myanos pkg install ./dist/myanmar-code-2.0.1.myan")
-    print("  myanos mmc run 'ပုံနှိပ် \"မင်္ဂလာပါ\"'")
-    print("  myanos display android")
+    print("  myanos mmc run '<myanmar_code>'")
     print("  myanos toolbox")
 
 def cmd_terminal():
@@ -140,86 +129,6 @@ def cmd_mmc(args):
         print("       Install: pip install myanmar-code")
         print("       Or:      myanos pkg install ./dist/myanmar-code-2.0.1.myan")
 
-def cmd_display(args):
-    """Display engine commands"""
-    if len(args) < 2:
-        print("[ERR] Usage: myanos display [android|ps2]")
-        return
-    target = args[1]
-    engine_script = BASE_DIR / "display_engine" / "display_engine.py"
-    if engine_script.exists():
-        os.system(f"{sys.executable} {engine_script} {target}")
-    else:
-        print(f"[WARN] Display Engine not installed")
-        print("       Install: myanos pkg install ./dist/myanos-display-engine-1.0.0.myan")
-
-def cmd_android(args):
-    """Android layer commands"""
-    if len(args) < 2:
-        print("[ERR] Usage: myanos android [status|install|list]")
-        return
-    action = args[1]
-    android_dir = BASE_DIR / "android_layer"
-    if not android_dir.exists():
-        print("[WARN] Android Layer not installed")
-        return
-    if action == "status":
-        print("[Android Layer Status]")
-        print("  WayDroid: Checking...")
-        r = os.system("which waydroid > /dev/null 2>&1")
-        if r == 0:
-            print("  WayDroid: ✅ Installed")
-        else:
-            print("  WayDroid: ❌ Not installed")
-            print("  Install: bash android_layer/setup_waydroid.sh")
-        r2 = os.system("which adb > /dev/null 2>&1")
-        if r2 == 0:
-            print("  ADB: ✅ Available")
-        else:
-            print("  ADB: ❌ Not available (pkg install android-tools)")
-    elif action == "install" and len(args) > 2:
-        apk = args[2]
-        if os.path.exists(apk):
-            print(f"[Android] Installing {apk}...")
-            os.system(f"adb install {apk} 2>/dev/null || waydroid app install {apk} 2>/dev/null")
-        else:
-            print(f"[ERR] APK not found: {apk}")
-    elif action == "list":
-        print("[Android] Listing apps...")
-        os.system("adb shell pm list packages 2>/dev/null || waydroid app list 2>/dev/null")
-    else:
-        print("[ERR] Usage: myanos android [status|install|list]")
-
-def cmd_ps2(args):
-    """PS2 layer commands"""
-    if len(args) < 2:
-        print("[ERR] Usage: myanos ps2 [list|launch]")
-        return
-    action = args[1]
-    ps2_dir = BASE_DIR / "ps2_layer"
-    if not ps2_dir.exists():
-        print("[WARN] PS2 Layer not installed")
-        return
-    if action == "list":
-        print("[PS2] Scanning game images...")
-        game_dirs = ["~/PS2", "~/games/ps2", "./games"]
-        for d in game_dirs:
-            expanded = os.path.expanduser(d)
-            if os.path.exists(expanded):
-                for f in os.listdir(expanded):
-                    if f.endswith(('.iso', '.bin', '.img')):
-                        print(f"  🎮 {f}")
-    elif action == "launch" and len(args) > 2:
-        game = args[2]
-        print(f"[PS2] Launching {game}...")
-        ps2_script = ps2_dir / "ps2_layer.py"
-        if ps2_script.exists():
-            os.system(f"{sys.executable} {ps2_script} {game}")
-        else:
-            print("[WARN] PS2 runner not found")
-    else:
-        print("[ERR] Usage: myanos ps2 [list|launch <game>]")
-
 def cmd_toolbox():
     """Open professional toolbox"""
     tb_dir = BASE_DIR / "toolbox"
@@ -228,20 +137,17 @@ def cmd_toolbox():
         if tb_script.exists():
             os.system(f"{sys.executable} {tb_script}")
             return
-    print("╔══════════════════════════════════════════════╗")
-    print("║  🔧 Myanos Professional Toolbox v1.0.0      ║")
-    print("║  Firmware • Bypass • Storage • Network      ║")
-    print("╚══════════════════════════════════════════════╝")
+    print("  Myanos Professional Toolbox v1.0.0")
+    print("  Firmware / Storage / Network / Benchmark")
     print()
     tools = [
         ("1", "Firmware Info", "lshw, dmidecode"),
         ("2", "Storage Manager", "lsblk, fdisk, df"),
         ("3", "Network Scanner", "nmap, ss, ip"),
-        ("4", "Flash Tool", "dd, etcher-like"),
-        ("5", "System Benchmark", "CPU, RAM, Disk speed"),
-        ("6", "Process Manager", "htop-like monitor"),
-        ("7", "Log Viewer", "syslog, dmesg, journalctl"),
-        ("8", "Package Manager", "apt/pkg operations"),
+        ("4", "System Benchmark", "CPU, RAM, Disk speed"),
+        ("5", "Process Manager", "htop-like monitor"),
+        ("6", "Log Viewer", "syslog, dmesg"),
+        ("7", "Package Manager", "apt/pkg operations"),
     ]
     print("Available Tools:")
     for num, name, desc in tools:
@@ -258,14 +164,12 @@ def cmd_toolbox():
     elif choice == "3":
         os.system("ip addr 2>/dev/null || ifconfig 2>/dev/null")
     elif choice == "4":
-        print("Flash Tool: sudo dd if=image.iso of=/dev/sdX bs=4M status=progress")
-    elif choice == "5":
         os.system("python3 -c \"import time; print('Benchmarking...'); t=time.time(); a=list(range(1000000)); print(f'List creation: {time.time()-t:.3f}s')\"")
-    elif choice == "6":
+    elif choice == "5":
         os.system("ps aux --sort=-%mem | head -15 2>/dev/null || ps aux | head -15")
-    elif choice == "7":
+    elif choice == "6":
         os.system("dmesg | tail -20 2>/dev/null || echo 'No dmesg access'")
-    elif choice == "8":
+    elif choice == "7":
         cmd_pkg(["myanos", "pkg", "list"])
 
 def cmd_desktop():
@@ -303,12 +207,6 @@ def main():
         cmd_pkg(args)
     elif args[0] == "mmc":
         cmd_mmc(args)
-    elif args[0] == "display":
-        cmd_display(args)
-    elif args[0] == "android":
-        cmd_android(args)
-    elif args[0] == "ps2":
-        cmd_ps2(args)
     elif args[0] == "toolbox":
         cmd_toolbox()
     elif args[0] == "desktop":
@@ -317,6 +215,9 @@ def main():
         cmd_ai(args)
     elif args[0] == "version" or args[0] == "-v":
         print(f"Myanos Web OS v{VERSION}")
+    elif args[0] in ("display", "android", "ps2"):
+        print(f"[INFO] '{args[0]}' commands are disabled on this platform.")
+        print("       These features require local display access (not available on cloud hosting).")
     else:
         print(f"[ERR] Unknown command: {args[0]}")
         print("       Run 'myanos help' for available commands")
