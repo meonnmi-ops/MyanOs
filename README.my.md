@@ -101,8 +101,8 @@ Desktop သည် ကိုယ်ပိုင် အပြည့်စုံ sin
 
 - **Desktop**: Pure HTML5, CSS3, Vanilla JavaScript (zero dependencies)
 - **Backend**: Python 3.8+ (stdlib only)
-- **AI**: Ollama local LLMs (optional)
-- **Display**: noVNC, VNC (optional)
+- **AI**: Ollama + HuggingFace + Groq (free/local)
+- **Database**: TiDB Cloud (optional)
 
 ---
 

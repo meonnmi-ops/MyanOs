@@ -125,8 +125,6 @@ The desktop is a fully self-contained single-page application:
 | 💻 **Code Editor** | Syntax-aware with line numbers | ✅ Full |
 | 📝 **Notepad** | Plain text editor | ✅ Full |
 | 🔧 **Toolbox** | Color picker, stopwatch, timer | ✅ Full |
-| 📱 **Android** | APK management via ADB | Server required |
-| 🎮 **PS2 Games** | PlayStation 2 game launcher | Server required |
 | 🤖 **MyanAi** | AI Agent chat (Ollama-powered) | Server + Ollama |
 | 🧠 **AI Training Center** | Code notebook, training pipeline | Server + Ollama |
 | 🌐 **Web Browser** | iframe-based web browser | ✅ (needs internet) |
@@ -187,13 +185,6 @@ Myanos/
 │   └── myanai.py               # Low-code AI agent builder
 ├── toolbox/
 │   └── toolbox.py              # Professional system toolbox
-├── display_engine/
-│   └── display_engine.py       # noVNC display streaming
-├── ps2_layer/
-│   └── ps2_layer.py            # PS2 emulation layer
-├── android_layer/
-│   ├── vnc_server.py           # Android APK manager
-│   └── setup_waydroid.sh       # WayDroid automated setup
 ├── packages/
 │   ├── registry.py             # Package registry
 │   └── myanmar-code/
@@ -210,9 +201,8 @@ Myanos/
 
 - **Desktop**: Pure HTML5, CSS3, Vanilla JavaScript (zero dependencies)
 - **Backend**: Python 3.8+ (stdlib only — `http.server`, `json`, `subprocess`)
-- **AI**: Ollama local LLMs (optional — deepseek-r1, qwen2.5)
-- **Display**: noVNC, VNC (optional)
-- **Android**: WayDroid, ADB (optional)
+- **AI**: Ollama + HuggingFace + Groq (free/local — no API key needed)
+- **Database**: TiDB Cloud (optional)
 
 ---
 
@@ -220,16 +210,14 @@ Myanos/
 
 - [x] Phase 1: Package Manager (MyanPM)
 - [x] Phase 2: Terminal (Python + Web)
-- [x] Phase 3: PS2 Emulation Layer
-- [x] Phase 3.5: Display Engine (noVNC)
-- [x] Phase 4: Android Layer (WayDroid)
-- [x] Phase 5: Professional Toolbox
-- [x] Phase 6: Desktop Environment (Web UI)
-- [x] Phase 7: MyanAI Agent Builder
-- [x] Phase 7.5: AI Training Center
-- [ ] Phase 8: App Store (Online Registry)
-- [ ] Phase 9: Multi-user Support
-- [ ] Phase 10: Cloud Sync
+- [x] Phase 3: Professional Toolbox
+- [x] Phase 4: Desktop Environment (Web UI)
+- [x] Phase 5: MyanAI Agent Builder
+- [x] Phase 5.5: AI Training Center
+- [x] Phase 6: Code Execution + Visualization
+- [ ] Phase 7: App Store (Online Registry)
+- [ ] Phase 8: Multi-user Support
+- [ ] Phase 9: Cloud Sync
 
 ---
 
