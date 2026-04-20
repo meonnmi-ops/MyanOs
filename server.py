@@ -38,7 +38,7 @@ import pymysql  # For TiDB connection
 # ─── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
 DESKTOP_DIR = BASE_DIR / "desktop"
-VERSION = "5.0.0"
+VERSION = "5.1.0"
 DEFAULT_PORT = 8080
 API_KEY_FILE = BASE_DIR / ".myanos_api_key"
 PASSWORD_FILE = BASE_DIR / ".myanos_password"
@@ -228,7 +228,7 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                 'uptime': time.time() - _server_start_time,
                 'python': platform.python_version(),
                 'db': _db_health_cache,
-                'ai': 'forge.manus.im' if os.environ.get('FORGE_API_KEY') else 'not configured',
+                'ai': 'free/local (ollama/hf/groq)',
             })
         elif self.path == '/api/db/health':
             self.handle_db_health()
@@ -920,16 +920,17 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         }
         return icons.get(name, '📦')
 
-    # ─── API: AI Chat (forge.manus.im) ──────────────────────────────────
+    # ─── API: AI Chat (FREE/LOCAL — Ollama + HuggingFace + Groq) ────────
     def handle_ai_chat(self, data):
-        """Real AI chat using Manus.im Forge API (Gemini 2.5 Flash)
-        Ported from colab-mobile-ai/server/routers.ts aiTeacher.chat"""
+        """Real AI chat using free/local backends.
+        Priority: Ollama (local) > HuggingFace (free cloud) > Groq (free cloud)
+        No API key required for Ollama and HuggingFace."""
         try:
-            from ai_llm import invoke_llm, extract_response_text, MYANAI_SYSTEM_PROMPT
+            from ai_llm import chat, MYANAI_SYSTEM_PROMPT, get_active_backend, get_all_backend_status
 
             messages = data.get('messages', [])
-            backend = data.get('backend', 'auto')
-            api_key_override = data.get('api_key', '')
+            backend = data.get('backend', None)  # None = auto-fallback
+            model = data.get('model', None)
 
             if not messages:
                 # Simple mode: message + optional code
@@ -948,21 +949,25 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             if not messages or messages[0].get('role') != 'system':
                 messages.insert(0, {'role': 'system', 'content': MYANAI_SYSTEM_PROMPT})
 
-            response = invoke_llm(messages, api_key=api_key_override or None)
-            reply = extract_response_text(response)
-            model = response.get('model', 'unknown')
+            result = chat(messages, backend=backend, model=model)
 
-            self.send_json({
-                'success': True,
-                'response': reply,
-                'model': model,
-                'agent': 'manager',
-                'timestamp': datetime.now().isoformat(),
-            })
-        except ValueError as e:
-            self.send_json({'success': False, 'error': f'AI config error: {e}'})
-        except RuntimeError as e:
-            self.send_json({'success': False, 'error': str(e)})
+            if result['success']:
+                self.send_json({
+                    'success': True,
+                    'response': result['content'],
+                    'model': result['model'],
+                    'backend': result['backend'],
+                    'agent': 'manager',
+                    'usage': result.get('usage', {}),
+                    'timestamp': datetime.now().isoformat(),
+                })
+            else:
+                self.send_json({
+                    'success': False,
+                    'error': result.get('error', 'All AI backends unavailable'),
+                    'backend_status': get_all_backend_status(),
+                })
+
         except Exception as e:
             print(f'  [AI] Chat error: {e}')
             self.send_json({'success': False, 'error': f'AI error: {e}'})
@@ -1170,10 +1175,11 @@ class MyanosHandler(SimpleHTTPRequestHandler):
             elif resource == 'ai':
                 action = data.get('action', 'chat')
                 if action == 'chat':
-                    from ai_llm import chat_with_history
+                    from ai_llm import chat as ai_chat
                     message = data.get('message', '')
                     history = data.get('history', [])
-                    reply = chat_with_history(history + [{'role': 'user', 'content': message}])
+                    result = ai_chat(history + [{'role': 'user', 'content': message}])
+                    reply = result.get('content', '') if result.get('success') else f'AI Error: {result.get("error", "unknown")}'
                     conv = create_ai_conversation(
                         data.get('notebookId', 0), data.get('type', 'completion'),
                         message, reply, data.get('cellId'),
@@ -1181,27 +1187,28 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                     self.send_json({
                         'response': reply,
                         'conversationId': conv.get('id') if conv else None,
+                        'backend': result.get('backend', 'none'),
                     })
                 elif action == 'generate':
-                    from ai_llm import invoke_llm, extract_response_text, CODE_GENERATION_PROMPT
+                    from ai_llm import chat, CODE_GENERATION_PROMPT
                     query = data.get('query', '')
-                    response = invoke_llm([
+                    result = chat([
                         {'role': 'system', 'content': CODE_GENERATION_PROMPT},
                         {'role': 'user', 'content': f'Generate Python code for: {query}'},
                     ])
-                    reply = extract_response_text(response)
-                    self.send_json({'response': reply})
+                    reply = result.get('content', '') if result.get('success') else f'AI Error: {result.get("error", "unknown")}'
+                    self.send_json({'response': reply, 'backend': result.get('backend', 'none')})
                 elif action == 'explain':
-                    from ai_llm import invoke_llm, extract_response_text, CODE_EXPERT_PROMPT
+                    from ai_llm import chat, CODE_EXPERT_PROMPT
                     error = data.get('error', '')
                     code = data.get('code', '')
                     msg = f'Code:\n```python\n{code}\n```\n\nError: {error}' if code else f'Error: {error}'
-                    response = invoke_llm([
+                    result = chat([
                         {'role': 'system', 'content': CODE_EXPERT_PROMPT},
                         {'role': 'user', 'content': f'Explain this error and suggest a fix:\n\n{msg}'},
                     ])
-                    reply = extract_response_text(response)
-                    self.send_json({'explanation': reply})
+                    reply = result.get('content', '') if result.get('success') else f'AI Error: {result.get("error", "unknown")}'
+                    self.send_json({'explanation': reply, 'backend': result.get('backend', 'none')})
                 else:
                     self.send_json({'error': f'Unknown AI action: {action}'}, 400)
 
@@ -1217,8 +1224,11 @@ class MyanosHandler(SimpleHTTPRequestHandler):
         Mapped from openclaw's heartbeat system"""
         try:
             # Check AI availability
-            ai_available = bool(os.environ.get('FORGE_API_KEY'))
-            ai_model = os.environ.get('FORGE_MODEL', 'gemini-2.5-flash')
+            from ai_llm import get_active_backend, get_all_backend_status
+            backend_name, backend_info = get_active_backend()
+            ai_available = backend_name is not None
+            ai_model = backend_name or 'none'
+            all_status = get_all_backend_status()
 
             # Check DB availability
             from db_tidb import db_health
@@ -1235,6 +1245,8 @@ class MyanosHandler(SimpleHTTPRequestHandler):
                     'manager': {'status': 'ready' if ai_available else 'offline', 'model': ai_model if ai_available else 'N/A'},
                     'worker': {'status': 'ready' if ai_available else 'offline', 'model': 'code-executor'},
                 },
+                'ai_backends': all_status,
+                'active_backend': backend_name,
                 'active_tasks': [],
                 'database': {'connected': db_connected, 'host': db_health_data.get('host', 'N/A')},
                 'timestamp': datetime.now().isoformat(),

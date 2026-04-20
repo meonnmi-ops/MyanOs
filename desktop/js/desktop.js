@@ -3296,7 +3296,16 @@ class MyanosDesktop {
         // Initial heartbeat
         fetch('/api/heartbeat').then(r=>r.json()).then(hb => {
             const info = document.getElementById('ai-agent-info');
-            if (info) info.textContent = 'Manager: ' + (hb.agents?.manager?.model || 'N/A') + ' | Worker: ' + (hb.agents?.worker?.model || 'N/A');
+            if (info) {
+                const active = hb.active_backend || 'none';
+                const backends = hb.ai_backends || {};
+                let infoText = 'AI: ' + (active === 'none' ? 'No backend' : active);
+                if (backends.ollama?.available) infoText += ' | Ollama: ' + backends.ollama.model;
+                if (backends.huggingface?.available) infoText += ' | HF: ' + backends.huggingface.model;
+                if (backends.groq?.available) infoText += ' | Groq: ' + backends.groq.model;
+                infoText += ' | Worker: code-executor';
+                info.textContent = infoText;
+            }
         }).catch(() => {});
 
         const sendMessage = async () => {
@@ -3317,18 +3326,18 @@ class MyanosDesktop {
                 const data = await res.json();
                 showProgress(false);
                 if (data.success) {
-                    const agent = data.agent || 'manager';
+                    const agent = data.backend || data.agent || 'manager';
                     const reply = data.response || 'No response generated.';
                     addMsg('ai', reply, agent);
                     conversationHistory.push({role:'assistant',content:reply});
                     const info = document.getElementById('ai-agent-info');
-                    if (info) info.textContent = 'Last: ' + (data.model || 'unknown') + ' (' + agent + ')';
+                    if (info) info.textContent = 'Last: ' + (data.model || 'unknown') + ' (' + (data.backend || agent) + ')';
                 } else {
                     addMsg('ai', '❌ ' + (data.error || 'Request failed. Please try again.'));
                 }
             } catch(e) {
                 showProgress(false);
-                addMsg('ai', '⚠️ Cannot connect to local AI server.\n\nError: ' + e.message + '\n\nTip: Set FORGE_API_KEY environment variable for AI chat.');
+                addMsg('ai', '⚠️ Cannot connect to AI server.\n\nError: ' + e.message + '\n\nTip: Install Ollama (https://ollama.com) for free local AI.\nRun: ollama pull llama3.2\n\nOr set GROQ_API_KEY for free cloud AI.');
             }
         };
 
