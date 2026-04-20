@@ -1,9 +1,11 @@
-# MyanOS Web OS v4.3.0 — Requirements
-# Core: Python 3.6+ stdlib (no pip needed for basic operation)
-# Optional: install these for enhanced features
+# MyanOS Web OS v5.1.0 — Requirements
+# Core: Python 3.8+ stdlib (no pip needed for basic operation)
 
 # System monitoring (CPU, RAM, Disk, GPU, Network stats)
 psutil>=5.9.0
 
-# Myanmar Code language support (optional)
-# myanmar-code>=2.0.1
+# Database (TiDB Cloud / MySQL compatible)
+pymysql>=1.1.0
+
+# AI/LLM (local Ollama integration)
+ollama>=0.4.0

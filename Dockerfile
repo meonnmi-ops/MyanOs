@@ -10,13 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files
+# Install ollama Python SDK (for local LLM support)
+RUN pip install --no-cache-dir ollama
+
+# Copy core Python modules
 COPY server.py .
 COPY shell.py .
 COPY myanos.py .
 COPY myan_pm.py .
 COPY build_packages.py .
 COPY start.sh .
+COPY ai_llm.py .
+COPY code_executor.py .
+COPY db_tidb.py .
 COPY .mmr_history .
 
 # Copy directories
